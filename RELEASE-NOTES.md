@@ -1,4 +1,6 @@
-First packaged release of Bahá’í Reader.
+Patch release of Bahá’í Reader.
+
+v0.1.1 fixes startup on minimal Linux installations whose font catalog does not include the preferred reading font. The app now selects the first installed font safely.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.

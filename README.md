@@ -8,11 +8,11 @@ Download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/re
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
-sudo apt install ./bahai-reader_0.1.0-1_all.deb
+sudo apt install ./bahai-reader_0.1.1-1_all.deb
 # Fedora 43+ / compatible modern RPM systems
-sudo dnf install ./bahai-reader-0.1.0-1.noarch.rpm
+sudo dnf install ./bahai-reader-0.1.1-1.noarch.rpm
 # Arch / Omarchy
-sudo pacman -U ./bahai-reader-0.1.0-1-any.pkg.tar.zst
+sudo pacman -U ./bahai-reader-0.1.1-1-any.pkg.tar.zst
 ```
 
 Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packages are architecture-independent, requiring Python 3.11+ and GTK 4.8+. Package managers resolve dependencies. These are downloadable packages, not an APT/DNF repository or AUR submission. Install newer packages to update; user libraries and settings remain in place.
