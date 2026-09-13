@@ -44,7 +44,7 @@ jobs:
               docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec 'apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus-x11; xvfb-run -a /usr/bin/python3 /work/tests/smoke_ui.py installed'
               ;;
             fedora)
-              docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec 'dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb dbus-daemon; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec 'dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb mesa-libGL mesa-libEGL mesa-libGLES dbus-daemon; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; /usr/bin/python3 /work/tests/smoke_ui.py installed'
               ;;
             arch)
               docker run --rm -v "$PWD:/work:ro" archlinux:base bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /work/dist/*.pkg.tar.zst; pacman -S --noconfirm xorg-server-xvfb xorg-xauth dbus; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; /usr/bin/python3 /work/tests/smoke_ui.py installed'
