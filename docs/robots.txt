@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ninepointlabs.github.io/bahai-reader/sitemap.xml
