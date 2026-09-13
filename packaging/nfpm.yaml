@@ -1,0 +1,58 @@
+name: bahai-reader
+arch: all
+platform: linux
+version: ${VERSION}
+release: 1
+section: education
+priority: optional
+maintainer: Tim Apple <179739321+ninepointlabs@users.noreply.github.com>
+description: |
+  Offline Bahá’í prayers and writings for Linux
+  Ten English collections, downloadable languages, reading customizations,
+  and live Omarchy theme integration in a native GTK 4 application.
+homepage: https://ninepointlabs.github.io/bahai-reader/
+license: MIT AND LicenseRef-BahaiPrayers-Content
+contents:
+  - src: reader.py
+    dst: /usr/share/bahai-reader/reader.py
+  - src: data/*.json
+    dst: /usr/share/bahai-reader/data/
+  - src: packaging/bahai-reader
+    dst: /usr/bin/bahai-reader
+    file_info:
+      mode: 0755
+  - src: packaging/org.bahai.Reader.desktop
+    dst: /usr/share/applications/org.bahai.Reader.desktop
+  - src: packaging/org.bahai.Reader.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/org.bahai.Reader.svg
+  - src: LICENSE
+    dst: /usr/share/licenses/bahai-reader/LICENSE
+  - src: DATA-NOTICE.md
+    dst: /usr/share/licenses/bahai-reader/DATA-NOTICE.md
+  - src: README.md
+    dst: /usr/share/doc/bahai-reader/README.md
+  - src: VERSION
+    dst: /usr/share/bahai-reader/VERSION
+overrides:
+  deb:
+    depends:
+      - python3 (>= 3.11)
+      - python3-gi
+      - gir1.2-gtk-4.0 (>= 4.8)
+    recommends:
+      - fonts-dejavu-core
+      - fonts-noto-core
+  rpm:
+    depends:
+      - python3 >= 3.11
+      - python3-gobject
+      - gtk4 >= 4.8
+    recommends:
+      - dejavu-serif-fonts
+  archlinux:
+    depends:
+      - python>=3.11
+      - python-gobject
+      - gtk4>=4.8
+    recommends:
+      - noto-fonts

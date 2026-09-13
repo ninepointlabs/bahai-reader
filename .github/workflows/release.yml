@@ -1,0 +1,70 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-gtk-4.0 xvfb dbus-x11 desktop-file-utils
+      - run: /usr/bin/python3 -m unittest discover -s tests
+      - run: xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
+      - run: desktop-file-validate packaging/org.bahai.Reader.desktop
+      - run: scripts/get-nfpm.sh "$RUNNER_TEMP/nfpm"
+      - run: NFPM="$RUNNER_TEMP/nfpm/nfpm" scripts/build-packages.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*
+  install:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [debian, fedora, arch]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - name: Install package and launch native UI
+        env:
+          DISTRO: ${{ matrix.distro }}
+        run: |
+          case "$DISTRO" in
+            debian)
+              docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec 'apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus-x11; xvfb-run -a /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              ;;
+            fedora)
+              docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec 'dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb dbus-daemon; Xvfb :99 -screen 0 1280x800x24 & export DISPLAY=:99; sleep 2; /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              ;;
+            arch)
+              docker run --rm -v "$PWD:/work:ro" archlinux:base bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /work/dist/*.pkg.tar.zst; pacman -S --noconfirm xorg-server-xvfb xorg-xauth dbus; xvfb-run -a /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              ;;
+          esac
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, install]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$(cat VERSION)"
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Bahá’í Reader $GITHUB_REF_NAME" --notes-file RELEASE-NOTES.md --verify-tag

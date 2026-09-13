@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Bahá’í Reader
+Comment=Offline prayers, Hidden Words and Bahá’í writings
+Exec=bahai-reader
+Icon=org.bahai.Reader
+Terminal=false
+Categories=Education;Literature;
+Keywords=Bahai;Baha'i;Prayer;Writings;Religion;Reading;
+StartupNotify=true
+StartupWMClass=org.bahai.Reader
