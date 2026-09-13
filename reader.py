@@ -301,7 +301,8 @@ class Reader(Gtk.Application):
     def option(self, box, title, key, options, default):
         box.append(Gtk.Label(label=title,xalign=0)); combo=Gtk.ComboBoxText()
         for item in options: combo.append_text(item)
-        value=self.prefs.get(key,default); combo.set_active(options.index(value) if value in options else options.index(default))
+        fallback=default if default in options else (options[0] if options else "")
+        value=self.prefs.get(key,fallback); combo.set_active(options.index(value) if value in options else options.index(fallback))
         def change(c): self.prefs[key]=c.get_active_text(); self.save(); self.signature=None; self.apply_theme()
         combo.connect("changed",change); box.append(combo)
     def slider(self,box,title,key,low,high,default):
