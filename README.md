@@ -15,6 +15,15 @@ sudo dnf install ./bahai-reader-0.1.1-1.noarch.rpm
 sudo pacman -U ./bahai-reader-0.1.1-1-any.pkg.tar.zst
 ```
 
+An x86_64 AppImage launcher is also attached to each release. Make it executable and run it directly:
+
+```sh
+chmod +x bahai-reader-0.1.1-x86_64.AppImage
+./bahai-reader-0.1.1-x86_64.AppImage
+```
+
+The AppImage bundles the application and English library, but uses the host’s Python 3.11+, PyGObject, GTK 4.8+, and introspection data. Use a native package when you want the package manager to install those dependencies.
+
 Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packages are architecture-independent, requiring Python 3.11+ and GTK 4.8+. Package managers resolve dependencies. These are downloadable packages, not an APT/DNF repository or AUR submission. Install newer packages to update; user libraries and settings remain in place.
 
 [Website](https://ninepointlabs.github.io/bahai-reader/) · [Issues](https://github.com/ninepointlabs/bahai-reader/issues)

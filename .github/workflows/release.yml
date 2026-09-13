@@ -18,6 +18,7 @@ jobs:
       - run: desktop-file-validate packaging/org.bahai.Reader.desktop
       - run: scripts/get-nfpm.sh "$RUNNER_TEMP/nfpm"
       - run: NFPM="$RUNNER_TEMP/nfpm/nfpm" scripts/build-packages.sh
+      - run: scripts/build-appimage.sh "dist/bahai-reader-$(cat VERSION)-x86_64.AppImage"
       - uses: actions/upload-artifact@v4
         with:
           name: packages
