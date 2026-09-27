@@ -48,6 +48,15 @@ class OfflineTests(unittest.TestCase):
         reader.atomic_json(self.path/"1.json",pack)
         self.assertEqual(len(reader.load_library()),2616)
 
+    def test_citations(self):
+        items={i["id"]:i for i in reader.load_library()}
+        self.assertTrue(all(i["citation"] for i in items.values() if not i["id"].startswith(("aqdas:Notes:","tablets:"))))
+        self.assertEqual({i["citation"] for i in items.values() if i["section"]=="prayers"},set(reader.PRAYER_AUTHORS.values()))
+        self.assertEqual(items["gleanings:1"]["citation"],"Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh, I")
+        self.assertEqual(items["hidden:1"]["citation"],"Bahá’u’lláh, The Hidden Words, Arabic no. 1")
+        self.assertEqual(items["aqdas:Paragraphs:1"]["citation"],"Bahá’u’lláh, The Kitáb-i-Aqdas, ¶1")
+        self.assertEqual(reader.roman(184),"CLXXXIV")
+
     def test_wrong_language_rejected(self):
         data=json.loads((reader.ROOT/"data/prayers.json").read_text())
         with self.assertRaises(ValueError): reader.validate_feed("prayers",data,4)

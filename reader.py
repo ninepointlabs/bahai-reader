@@ -32,6 +32,9 @@ LANGUAGE_ENDPOINTS.update({"aqdas":"AqdasLanguages", "saq":"SaqLanguages", "days
 HOLY_DAYS={"NAWRUZ":"Naw-Rúz", "RIDVAN":"Riḍván", "DECLARATIONBAB":"Declaration of the Báb", "MARTYRDOMBAB":"Martyrdom of the Báb", "ASCENSIONBAHAULLAH":"Ascension of Bahá’u’lláh", "BIRTHBAB":"Birth of the Báb", "BIRTHBAHAULLAH":"Birth of Bahá’u’lláh"}
 AQDAS_SECTIONS={"Paragraphs":"Text", "QAs":"Questions and Answers", "Notes":"Notes"}
 SECTION_NAMES = {"prayers":"Prayers", "hidden":"The Hidden Words", **BOOKS}
+# BahaiPrayers.net sends only a numeric AuthorId for prayers; names verified against the feed's tags.
+PRAYER_AUTHORS={1:"The Báb", 2:"Bahá’u’lláh", 3:"‘Abdu’l‑Bahá"}
+BOOK_AUTHORS={"hidden":"Bahá’u’lláh", "gleanings":"Bahá’u’lláh", "meditations":"Bahá’u’lláh", "tablets":"Bahá’u’lláh", "iqan":"Bahá’u’lláh", "aqdas":"Bahá’u’lláh", "saq":"‘Abdu’l‑Bahá", "days":"Bahá’u’lláh", "ridvan":"The Universal House of Justice"}
 
 def fetch_json(endpoint):
     with urllib.request.urlopen("https://bahaiprayers.net/api/prayer/"+endpoint, timeout=30) as response:
@@ -110,6 +113,35 @@ def plain(value):
     parser=PlainText(); parser.feed(value or "")
     return re.sub(r"\n\s*\n", "\n\n", "".join(parser.parts)).strip()
 
+def roman(number):
+    numerals=[(1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),(100,"C"),(90,"XC"),(50,"L"),(40,"XL"),(10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I")]
+    result=""
+    for value,letters in numerals:
+        while number>=value: result+=letters; number-=value
+    return result
+
+def citation(key,row):
+    # Author and book location only; the API carries no edition or page data.
+    author=BOOK_AUTHORS.get(key); number=row.get("Number","")
+    if key=="prayers": return PRAYER_AUTHORS.get(row.get("AuthorId"))
+    if key=="hidden": where=f"{'Arabic' if row['IsArabic'] else 'Persian'} no. {number}"
+    elif key=="gleanings": where=row.get("Roman") or str(number)
+    elif key=="meditations": where=roman(number) if isinstance(number,int) and number>0 else str(number)
+    elif key=="tablets":
+        where=row.get("Title") or f"Tablet {row.get('TabletNumber','')}"
+        if row.get("SubTitle")=="Footnotes": author=None
+        elif row.get("SubTitle"): where+=f" ({row['SubTitle']})"
+    elif key=="iqan": where=f"Part {row.get('Part','')}, no. {number}"
+    elif key=="aqdas":
+        section=row["AqdasSection"]
+        where={"Paragraphs":f"¶{number}", "QAs":f"Question and Answer {number}", "Notes":f"Note {number}"}[section]
+        if section=="Notes": author=None
+    elif key=="saq": where=f"chapter {number}"
+    elif key=="days": where=HOLY_DAYS.get(row.get("HolyDay"),row.get("HolyDay") or "")
+    elif key=="ridvan": return ", ".join(filter(None,[author,f"Riḍván {row.get('Year','')}".strip()]))
+    else: where=""
+    return ", ".join(part for part in (author,SECTION_NAMES[key],where) if part)
+
 def word_count(text):
     # Keep apostrophes and hyphens inside words; em/en dashes separate words.
     return len(re.findall(r"[^\W_]+(?:[’‘ʼ'\-‑][^\W_]+)*", text, re.UNICODE))
@@ -161,7 +193,7 @@ def load_library(language=1):
             elif key=="ridvan":
                 year=row.get("Year",""); subgroup=f"{int(year)//10*10}s" if str(year).isdigit() else "Messages"
                 title=f"{year} · {row.get('Title') or 'Riḍván message'}"
-            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section="writings" if key in BOOKS else key, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references))
+            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section="writings" if key in BOOKS else key, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, citation=citation(key,row)))
     return result
 
 class Reader(Gtk.Application):
@@ -376,7 +408,11 @@ class Reader(Gtk.Application):
         self.subtitle.set_wrap(True)
         self.reader.set_direction(Gtk.TextDirection.LTR if self.language_info().get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
         self.stop_scroll()
-        self.reader.get_buffer().set_text(item["text"]); self.readscroll.get_vadjustment().set_value(0)
+        buffer=self.reader.get_buffer(); buffer.set_text(item["text"])
+        if item["citation"]:
+            tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
+            buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],tag)
+        self.readscroll.get_vadjustment().set_value(0)
         self.related.set_visible(bool(item["references"]))
         if item["references"]:
             pop=Gtk.Popover(); links=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4)

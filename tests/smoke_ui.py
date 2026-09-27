@@ -19,6 +19,8 @@ with tempfile.TemporaryDirectory() as temp:
             assert len([p for p in app.branches if p.count("/")==1])==8
             app.navigate("hidden")
             assert len(app.visible)==153
+            buffer=app.reader.get_buffer()
+            assert buffer.get_text(buffer.get_start_iter(),buffer.get_end_iter(),False).endswith("— "+app.current["citation"])
             app.language_dialog()
             assert app.language_window.get_visible()
             app.language_window.close()
