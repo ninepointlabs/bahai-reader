@@ -4,22 +4,28 @@ A standalone GTK 4 Linux app for quiet reading. Follows Omarchy colors live, inc
 
 ## Install packages
 
-Download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases). From your download folder:
+Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli):
+
+```sh
+autonomix-cli add https://github.com/ninepointlabs/bahai-reader
+```
+
+Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases). From your download folder:
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
-sudo apt install ./bahai-reader_0.1.1-1_all.deb
+sudo apt install ./bahai-reader_0.1.2-1_all.deb
 # Fedora 43+ / compatible modern RPM systems
-sudo dnf install ./bahai-reader-0.1.1-1.noarch.rpm
+sudo dnf install ./bahai-reader-0.1.2-1.noarch.rpm
 # Arch / Omarchy
-sudo pacman -U ./bahai-reader-0.1.1-1-any.pkg.tar.zst
+sudo pacman -U ./bahai-reader-0.1.2-1-any.pkg.tar.zst
 ```
 
 An x86_64 AppImage launcher is also attached to each release. Make it executable and run it directly:
 
 ```sh
-chmod +x bahai-reader-0.1.1-x86_64.AppImage
-./bahai-reader-0.1.1-x86_64.AppImage
+chmod +x bahai-reader-0.1.2-x86_64.AppImage
+./bahai-reader-0.1.2-x86_64.AppImage
 ```
 
 The AppImage bundles the application and English library, but uses the host’s Python 3.11+, PyGObject, GTK 4.8+, and introspection data. Use a native package when you want the package manager to install those dependencies.
