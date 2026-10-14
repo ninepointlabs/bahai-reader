@@ -46,6 +46,8 @@ overrides:
     depends:
       - python3 >= 3.11
       - python3-gobject
+      # Fedora 43's python3-gobject no longer pulls in the cairo typelib.
+      - gobject-introspection
       - gtk4 >= 4.8
     recommends:
       - dejavu-serif-fonts
