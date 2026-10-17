@@ -1,9 +1,10 @@
 Patch release of Bahá’í Reader.
 
-v0.1.2 fixes the Fedora package and adds passage citations.
+v0.1.3 adds an About screen.
 
-- Fixed: on an up-to-date Fedora 43, the v0.1.1 RPM failed to start with `Typelib file for namespace 'cairo' not found`. The RPM now depends on `gobject-introspection`.
-- New: each passage ends with a citation, the author for prayers and the author, book and section for the Writings.
+- New: an About screen, opened from **Aa → About Bahá’í Reader** or with F1. It shows the version, Nine Point Labs, the creation date, the full MIT license with the text attribution, the support address help@ninepointlabs.com with Email and Copy buttons, the privacy statement, and the toolkit versions.
+- Changed: the LICENSE copyright holder is now Nine Point Labs.
+- Changed: the AppImage now ships VERSION, LICENSE and DATA-NOTICE.md.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.
