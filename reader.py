@@ -10,11 +10,20 @@ import shutil
 import tomllib
 import urllib.request
 import tempfile
+import sys
 from pathlib import Path
 from html.parser import HTMLParser
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk, GLib, Pango
+
+APP_NAME = "Bahá’í Reader"
+TAGLINE = "A quiet, native Linux reader for Bahá’í prayers and writings."
+ORGANIZATION = "Nine Point Labs"
+SUPPORT_EMAIL = "help@ninepointlabs.com"
+CREATED = "September 13, 2026"  # first commit
+LICENSE_NAME = "MIT License"
+COPYRIGHT = "© 2026 Nine Point Labs"  # matches LICENSE
 
 ROOT = Path(__file__).resolve().parent
 STATE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home()/".config"))/"bahai-reader"/"settings.json"
@@ -35,6 +44,17 @@ SECTION_NAMES = {"prayers":"Prayers", "hidden":"The Hidden Words", **BOOKS}
 # BahaiPrayers.net sends only a numeric AuthorId for prayers; names verified against the feed's tags.
 PRAYER_AUTHORS={1:"The Báb", 2:"Bahá’u’lláh", 3:"‘Abdu’l‑Bahá"}
 BOOK_AUTHORS={"hidden":"Bahá’u’lláh", "gleanings":"Bahá’u’lláh", "meditations":"Bahá’u’lláh", "tablets":"Bahá’u’lláh", "iqan":"Bahá’u’lláh", "aqdas":"Bahá’u’lláh", "saq":"‘Abdu’l‑Bahá", "days":"Bahá’u’lláh", "ridvan":"The Universal House of Justice"}
+
+def shipped(*names):
+    # Checkout, native package (/usr/share/licenses, icons) and AppImage layouts.
+    for name in names:
+        for path in (ROOT/name, ROOT.parent/name):
+            if path.is_file(): return path
+    return None
+
+def version():
+    path=shipped("VERSION")
+    return path.read_text().strip() if path else "unknown"
 
 def fetch_json(endpoint):
     with urllib.request.urlopen("https://bahaiprayers.net/api/prayer/"+endpoint, timeout=30) as response:
@@ -228,6 +248,7 @@ class Reader(Gtk.Application):
         self.slider(settings, "Line spacing", "spacing", 0, 20, 8)
         self.slider(settings, "Page margins", "margin", 24, 160, 80)
         settings.append(self.button("Languages & offline libraries…", self.language_dialog))
+        settings.append(self.button("About Bahá’í Reader (F1)", lambda *_: (pop.popdown(), self.about_dialog())))
         self.window.set_child(outer)
         if shutil.which("omarchy"): outer.append(header); self.window.set_decorated(False)
         else: self.window.set_titlebar(header)
@@ -328,6 +349,7 @@ class Reader(Gtk.Application):
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
+        if key==Gdk.KEY_F1: self.about_dialog(); return True
         if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
         return False
     def option(self, box, title, key, options, default):
@@ -495,6 +517,77 @@ textview text selection {{ background: {selection}; }}'''.encode())
         if not items: raise ValueError("Download this language before switching")
         self.language=language; self.items=items; self.prefs["language"]=language; self.save()
         self.filter(); self.update_status()
+    def details(self):
+        """Version details to paste into a support email."""
+        display=Gdk.Display.get_default()
+        return (f"{APP_NAME} {version()}\n"
+                f"Python {sys.version.split()[0]}, GTK {Gtk.get_major_version()}.{Gtk.get_minor_version()}.{Gtk.get_micro_version()}, PyGObject {gi.__version__}, Pango {Pango.version_string()}\n"
+                f"{os.environ.get('XDG_CURRENT_DESKTOP','unknown desktop')}, {type(display).__name__ if display else 'no display'}")
+    def privacy(self):
+        home=str(Path.home())
+        short=lambda path:str(path).replace(home,"~",1) if str(path).startswith(home) else str(path)
+        return ("No accounts, no telemetry, no analytics. English is bundled, so starting, reading, searching and switching "
+                "to a downloaded language never use the network. The app connects only when you choose Download & use, "
+                "Update downloaded content or Check available languages: it then asks bahaiprayers.net over HTTPS for that "
+                "language’s texts or the language list. The request carries only the collection, the language number and "
+                f"Python’s standard user agent; like any web request, the site sees your IP address. Downloads are saved in {short(LIBRARY)}. Settings and saved "
+                f"passages stay in {short(STATE)} and are never sent anywhere.")
+    def about_dialog(self,*_):
+        if getattr(self,"about_window",None):
+            self.about_window.present(); return
+        window=Gtk.Window(title="About Bahá’í Reader",transient_for=self.window,modal=True,default_width=560)
+        self.about_window=window
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14)
+        for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
+        scroller=Gtk.ScrolledWindow(propagate_natural_height=True,max_content_height=640,hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroller.set_child(box); window.set_child(scroller)
+        top=Gtk.Box(spacing=16); box.append(top)
+        icon=shipped("packaging/org.bahai.Reader.svg","icons/hicolor/scalable/apps/org.bahai.Reader.svg")
+        image=Gtk.Image.new_from_file(str(icon)) if icon else Gtk.Image.new_from_icon_name("org.bahai.Reader")
+        image.set_pixel_size(64); image.set_valign(Gtk.Align.START); top.append(image)
+        names=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2); top.append(names)
+        title=Gtk.Label(label=APP_NAME,xalign=0); title.add_css_class("heading"); names.append(title)
+        names.append(Gtk.Label(label=TAGLINE,xalign=0,wrap=True,max_width_chars=44))
+        about_version=Gtk.Label(label="Version "+version(),xalign=0); about_version.add_css_class("dim-label"); names.append(about_version)
+        grid=Gtk.Grid(column_spacing=18,row_spacing=10); box.append(grid)
+        def row(name,widget):
+            label=Gtk.Label(label=name,xalign=0,valign=Gtk.Align.START); label.add_css_class("dim-label")
+            index=len(self.about_rows); self.about_rows[name]=widget
+            grid.attach(label,0,index,1,1); grid.attach(widget,1,index,1,1)
+        def text(value):
+            return Gtk.Label(label=value,xalign=0,wrap=True,max_width_chars=52,hexpand=True)
+        def actions(value,*buttons):
+            line=Gtk.Box(spacing=10); line.append(Gtk.Label(label=value,xalign=0))
+            for name,callback in buttons: line.append(self.button(name,callback))
+            return line
+        self.about_rows={}
+        license_path=shipped("LICENSE","licenses/bahai-reader/LICENSE")
+        notice_path=shipped("DATA-NOTICE.md","licenses/bahai-reader/DATA-NOTICE.md")
+        license_view=text("\n\n".join(" ".join(p.split()).lstrip("# ") for path in (license_path,notice_path) if path for p in path.read_text().split("\n\n") if p.strip()) or f"{LICENSE_NAME}, {COPYRIGHT}")
+        license_view.set_visible(False); self.about_license=license_view
+        def toggle_license(button):
+            license_view.set_visible(not license_view.get_visible()); button.set_label("Hide" if license_view.get_visible() else "Read it")
+        def email(*_):
+            uri="mailto:"+SUPPORT_EMAIL+"?subject="+GLib.Uri.escape_string(f"{APP_NAME} {version()}",None,False)+"&body="+GLib.Uri.escape_string("\n\n--\n"+self.details(),None,False)
+            if hasattr(Gtk,"UriLauncher"): Gtk.UriLauncher.new(uri).launch(window,None,None)
+            else: Gtk.show_uri(window,uri,Gdk.CURRENT_TIME)
+        row("Made by",text(ORGANIZATION))
+        row("Created",text(CREATED))
+        row("License",actions(f"{LICENSE_NAME}, {COPYRIGHT}",("Read it",toggle_license)))
+        row("Texts",text("From BahaiPrayers.net, which permits their use in apps. The texts and translations are not covered by the MIT license, and no ownership is claimed (DATA-NOTICE.md). Not an official publication of a Bahá’í institution."))
+        row("Support",actions(SUPPORT_EMAIL,("Email",email),("Copy",lambda *_: window.get_clipboard().set(SUPPORT_EMAIL))))
+        row("Privacy",text(self.privacy()))
+        row("Built with",text(f"GTK {Gtk.get_major_version()}.{Gtk.get_minor_version()}.{Gtk.get_micro_version()}, PyGObject {gi.__version__}, Pango {Pango.version_string()}, Python {sys.version.split()[0]}"))
+        box.append(license_view)
+        buttons=Gtk.Box(spacing=10,halign=Gtk.Align.END); box.append(buttons)
+        buttons.append(self.button("Copy version details",lambda *_: window.get_clipboard().set(self.details())))
+        close=self.button("Close",lambda *_: window.close()); buttons.append(close)
+        keys=Gtk.EventControllerKey()
+        keys.connect("key-pressed",lambda _c,key,*_: key==Gdk.KEY_Escape and (window.close() or True))
+        window.add_controller(keys)
+        def closed(*_):
+            self.about_window=None; return False
+        window.connect("close-request",closed); window.present(); close.grab_focus()
     def language_dialog(self,*_):
         if hasattr(self,"language_window") and self.language_window:
             self.language_window.present(); return

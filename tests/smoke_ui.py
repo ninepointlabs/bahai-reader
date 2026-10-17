@@ -24,6 +24,18 @@ with tempfile.TemporaryDirectory() as temp:
             app.language_dialog()
             assert app.language_window.get_visible()
             app.language_window.close()
+            assert app.key_pressed(None,reader.Gdk.KEY_F1,0,0)
+            about=app.about_window
+            assert about.get_visible() and about.get_transient_for() is app.window
+            assert list(app.about_rows)==["Made by","Created","License","Texts","Support","Privacy","Built with"]
+            assert "bahaiprayers.net" in app.privacy() and "No accounts, no telemetry" in app.privacy()
+            assert not app.about_license.get_visible()
+            app.about_rows["License"].get_last_child().emit("clicked")
+            assert app.about_license.get_visible() and app.about_license.get_text().startswith("MIT License")
+            assert "BahaiPrayers.net" in app.about_license.get_text()
+            assert app.details().startswith("Bahá’í Reader "+reader.version())
+            about.close()
+            assert app.about_window is None
             app.prefs["theme"]="Light"
             app.apply_theme()
             print("Native GTK smoke test passed")
