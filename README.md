@@ -65,9 +65,13 @@ English ships with Gleanings, Prayers and Meditations, Tablets of Bahá’u’ll
 
 ## Omarchy integration
 
-Square, undecorated window lets Hyprland supply themed borders. Interface uses the fontconfig monospace family (Omarchy's configured font); the reading font is independent. When available, `omarchy theme color --all` resolves semantic and legacy palette keys. Active theme changes are detected without installing a hook or editing packaged Omarchy files. Ctrl+F searches, Ctrl+D saves, Ctrl+Q quits, and Escape restores navigation.
+Square, undecorated window lets Hyprland supply themed borders. Interface uses the fontconfig monospace family (Omarchy's configured font); the reading font is independent. When available, `omarchy theme color --all` resolves semantic and legacy palette keys. Active theme changes are detected without installing a hook or editing packaged Omarchy files. Ctrl+F searches, Ctrl+D saves, F1 opens About, Ctrl+Q quits, and Escape restores navigation.
 
 The collapsible table of contents follows API prayer categories, Arabic/Persian Hidden Words divisions, and book → tablet/part → passage nesting for writings. Expansion choices persist; search temporarily expands matching branches. Previous/Next stays within the selected category or book division.
+
+## About
+
+Open **Aa → About Bahá’í Reader** or press F1. It shows the version, Nine Point Labs, the creation date, the MIT license (readable in full, with the text attribution from DATA-NOTICE.md), the support address [help@ninepointlabs.com](mailto:help@ninepointlabs.com) with Email and Copy buttons (Email prefills the app, GTK, PyGObject and Python versions), the privacy statement, and the toolkit versions.
 
 ## Offline languages
 
