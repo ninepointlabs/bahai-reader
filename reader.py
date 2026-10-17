@@ -23,7 +23,7 @@ ORGANIZATION = "Nine Point Labs"
 SUPPORT_EMAIL = "help@ninepointlabs.com"
 CREATED = "September 13, 2026"  # first commit
 LICENSE_NAME = "MIT License"
-COPYRIGHT = "© 2026 Tim Apple"  # matches LICENSE
+COPYRIGHT = "© 2026 Nine Point Labs"  # matches LICENSE
 
 ROOT = Path(__file__).resolve().parent
 STATE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home()/".config"))/"bahai-reader"/"settings.json"
