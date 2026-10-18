@@ -10,7 +10,7 @@ description: |
   Offline Bahá’í prayers and writings for Linux
   Ten English collections, downloadable languages, reading customizations,
   and live Omarchy theme integration in a native GTK 4 application.
-homepage: https://ninepointlabs.github.io/bahai-reader/
+homepage: https://bahaireader.org/
 license: MIT AND LicenseRef-BahaiPrayers-Content
 contents:
   - src: reader.py
