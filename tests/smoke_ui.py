@@ -1,8 +1,8 @@
-"""Run with xvfb-run -a /usr/bin/python3 tests/smoke_ui.py [installed]."""
+"""Run with xvfb-run -a /usr/bin/python3 tests/smoke_ui.py [installed|flatpak]."""
 import sys
 import tempfile
 from pathlib import Path
-sys.path.insert(0, "/usr/share/bahai-reader" if "installed" in sys.argv else str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, "/usr/share/bahai-reader" if "installed" in sys.argv else "/app/share/bahai-reader" if "flatpak" in sys.argv else str(Path(__file__).resolve().parents[1]))
 import reader
 from gi.repository import Gio
 with tempfile.TemporaryDirectory() as temp:
@@ -12,6 +12,7 @@ with tempfile.TemporaryDirectory() as temp:
     app=reader.Reader()
     app.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
     errors=[]
+    passed=[]
     def exercise():
         try:
             assert len(app.items)==2616
@@ -38,6 +39,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.about_window is None
             app.prefs["theme"]="Light"
             app.apply_theme()
+            passed.append(True)
             print("Native GTK smoke test passed")
         except Exception as exc:
             errors.append(exc)
@@ -46,3 +48,5 @@ with tempfile.TemporaryDirectory() as temp:
     reader.GLib.timeout_add(500,exercise)
     app.run([])
     if errors: raise errors[0]
+    # A failure inside activate() is logged by PyGObject but does not stop run().
+    if not passed: raise SystemExit("Native GTK smoke test did not complete")

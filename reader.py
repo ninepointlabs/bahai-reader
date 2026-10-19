@@ -462,7 +462,8 @@ class Reader(Gtk.Application):
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
         if mode=="Omarchy":
-            paths=[Path(os.environ.get("XDG_STATE_HOME",Path.home()/".local/state"))/"omarchy/current/theme/colors.toml",Path.home()/".config/omarchy/current/theme/colors.toml"]
+            states=[os.environ.get("HOST_XDG_STATE_HOME"),os.environ.get("XDG_STATE_HOME"),Path.home()/".local/state"]
+            paths=[Path(state)/"omarchy/current/theme/colors.toml" for state in states if state]+[Path.home()/".config/omarchy/current/theme/colors.toml"]
             for path in paths:
                 try:
                     source=path.read_text()
@@ -668,4 +669,6 @@ textview text selection {{ background: {selection}; }}'''.encode())
         populate(self.language); details(); window.present()
 
 if __name__=="__main__":
+    # X11 WM_CLASS comes from the program name; match StartupWMClass and the Wayland app_id.
+    GLib.set_prgname("org.bahai.Reader")
     Reader().run()

@@ -21,14 +21,40 @@ sudo dnf install ./bahai-reader-0.1.3-1.noarch.rpm
 sudo pacman -U ./bahai-reader-0.1.3-1-any.pkg.tar.zst
 ```
 
-An x86_64 AppImage launcher is also attached to each release. Make it executable and run it directly:
+### Other Linux distributions
+
+Two portable x86_64 downloads are attached to each release as well.
+
+**AppImage.** A small launcher that runs on your system’s Python 3.11+, PyGObject and GTK 4.8+ (Debian 12+, Ubuntu 24.04+, Fedora 43+, Arch). If they are missing or too old, it says so and points to the Flatpak instead.
 
 ```sh
 chmod +x bahai-reader-0.1.3-x86_64.AppImage
 ./bahai-reader-0.1.3-x86_64.AppImage
 ```
 
-The AppImage bundles the application and English library, but uses the host’s Python 3.11+, PyGObject, GTK 4.8+, and introspection data. Use a native package when you want the package manager to install those dependencies.
+To add it to your application menu and dock, use [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher). Both can also update it in place. Or let the AppImage add its own menu entry and icons under `~/.local/share`, and remove them again later:
+
+```sh
+./bahai-reader-0.1.3-x86_64.AppImage --install-desktop-entry
+./bahai-reader-0.1.3-x86_64.AppImage --remove-desktop-entry
+```
+
+`--check-host` prints the Python and GTK versions it found. If the AppImage does not start because FUSE is unavailable, run it with `--appimage-extract-and-run`, or install FUSE (`fuse3` on most distributions, `fuse` on older ones).
+
+**Flatpak bundle.** Brings its own Python and GTK through the GNOME runtime, so it works on any distribution with Flatpak, including ones whose GTK is too old for the AppImage. It is a self-hosted download, not a Flathub listing. Install the file for your user:
+
+```sh
+flatpak install --user ./bahai-reader-0.1.3-x86_64.flatpak
+flatpak run org.bahai.Reader
+```
+
+The first install also downloads the GNOME 51 runtime (`org.gnome.Platform//51`, a few hundred MB, shared with other GNOME apps) from Flathub. If Flatpak cannot find it, add the Flathub remote and try again:
+
+```sh
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+To update, install the newer `.flatpak` file the same way. The Flatpak keeps its settings and downloaded languages under `~/.var/app/org.bahai.Reader`. It follows the Omarchy theme palette, but on Omarchy the Arch package integrates more closely.
 
 Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packages are architecture-independent, requiring Python 3.11+ and GTK 4.8+. Package managers resolve dependencies. These are downloadable packages, not an APT/DNF repository or AUR submission. Install newer packages to update; user libraries and settings remain in place.
 
