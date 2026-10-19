@@ -14,11 +14,11 @@ Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
-sudo apt install ./bahai-reader_0.1.3-1_all.deb
+sudo apt install ./bahai-reader_0.1.4-1_all.deb
 # Fedora 43+ / compatible modern RPM systems
-sudo dnf install ./bahai-reader-0.1.3-1.noarch.rpm
+sudo dnf install ./bahai-reader-0.1.4-1.noarch.rpm
 # Arch / Omarchy
-sudo pacman -U ./bahai-reader-0.1.3-1-any.pkg.tar.zst
+sudo pacman -U ./bahai-reader-0.1.4-1-any.pkg.tar.zst
 ```
 
 ### Other Linux distributions
@@ -28,15 +28,15 @@ Two portable x86_64 downloads are attached to each release as well.
 **AppImage.** A small launcher that runs on your system’s Python 3.11+, PyGObject and GTK 4.8+ (Debian 12+, Ubuntu 24.04+, Fedora 43+, Arch). If they are missing or too old, it says so and points to the Flatpak instead.
 
 ```sh
-chmod +x bahai-reader-0.1.3-x86_64.AppImage
-./bahai-reader-0.1.3-x86_64.AppImage
+chmod +x bahai-reader-0.1.4-x86_64.AppImage
+./bahai-reader-0.1.4-x86_64.AppImage
 ```
 
 To add it to your application menu and dock, use [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher). Both can also update it in place. Or let the AppImage add its own menu entry and icons under `~/.local/share`, and remove them again later:
 
 ```sh
-./bahai-reader-0.1.3-x86_64.AppImage --install-desktop-entry
-./bahai-reader-0.1.3-x86_64.AppImage --remove-desktop-entry
+./bahai-reader-0.1.4-x86_64.AppImage --install-desktop-entry
+./bahai-reader-0.1.4-x86_64.AppImage --remove-desktop-entry
 ```
 
 `--check-host` prints the Python and GTK versions it found. If the AppImage does not start because FUSE is unavailable, run it with `--appimage-extract-and-run`, or install FUSE (`fuse3` on most distributions, `fuse` on older ones).
@@ -44,7 +44,7 @@ To add it to your application menu and dock, use [Gear Lever](https://flathub.or
 **Flatpak bundle.** Brings its own Python and GTK through the GNOME runtime, so it works on any distribution with Flatpak, including ones whose GTK is too old for the AppImage. It is a self-hosted download, not a Flathub listing. Install the file for your user:
 
 ```sh
-flatpak install --user ./bahai-reader-0.1.3-x86_64.flatpak
+flatpak install --user ./bahai-reader-0.1.4-x86_64.flatpak
 flatpak run org.bahai.Reader
 ```
 
