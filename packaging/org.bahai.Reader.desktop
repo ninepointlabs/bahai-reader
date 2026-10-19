@@ -1,6 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Bahá’í Reader
+GenericName=Prayer and Writings Reader
 Comment=Offline prayers, Hidden Words and Bahá’í writings
 Exec=bahai-reader
 Icon=org.bahai.Reader

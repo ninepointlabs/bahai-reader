@@ -1,0 +1,54 @@
+# Self-hosted Flatpak bundle for any distribution; not submitted to Flathub.
+# The GNOME runtime supplies Python, PyGObject and GTK 4. Build with scripts/build-flatpak.sh.
+app-id: org.bahai.Reader
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: bahai-reader
+finish-args:
+  - --share=ipc
+  # Downloads other languages from bahaiprayers.net.
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Read-only access to the current Omarchy theme palette.
+  - --filesystem=xdg-config/omarchy/current:ro
+  - --filesystem=~/.local/state/omarchy/current:ro
+modules:
+  - name: bahai-reader
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 -t /app/share/bahai-reader reader.py VERSION
+      - install -Dm644 -t /app/share/bahai-reader/data data/*.json
+      - install -Dm755 bahai-reader.sh /app/bin/bahai-reader
+      - install -Dm644 -t /app/share/applications org.bahai.Reader.desktop
+      - install -Dm644 -t /app/share/icons/hicolor/scalable/apps org.bahai.Reader.svg
+      - cp -R icons/hicolor /app/share/icons/
+      - install -Dm644 -t /app/share/metainfo org.bahai.Reader.metainfo.xml
+      - install -Dm644 -t /app/share/licenses/bahai-reader LICENSE DATA-NOTICE.md
+    sources:
+      - type: file
+        path: ../../reader.py
+      - type: file
+        path: ../../VERSION
+      - type: dir
+        path: ../../data
+        dest: data
+      - type: file
+        path: ../org.bahai.Reader.desktop
+      - type: file
+        path: ../org.bahai.Reader.svg
+      - type: dir
+        path: ../icons
+        dest: icons
+      - type: file
+        path: ../org.bahai.Reader.metainfo.xml
+      - type: file
+        path: ../../LICENSE
+      - type: file
+        path: ../../DATA-NOTICE.md
+      - type: script
+        dest-filename: bahai-reader.sh
+        commands:
+          - exec python3 /app/share/bahai-reader/reader.py "$@"

@@ -1,4 +1,122 @@
 #!/bin/sh
+# AppImage launcher. Only the reader, its texts and desktop metadata are bundled;
+# the app runs on the host's Python 3.11+, PyGObject and GTK 4.8+. Nothing is
+# exported here, so programs the app opens (mail client, browser) get a clean
+# host environment.
 set -eu
-appdir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec /usr/bin/python3 "$appdir/usr/share/bahai-reader/reader.py" "$@"
+appdir=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+app_id=org.bahai.Reader
+releases=https://github.com/ninepointlabs/bahai-reader/releases/latest
+data_home=${XDG_DATA_HOME:-$HOME/.local/share}
+icons=$data_home/icons/hicolor
+entry=$data_home/applications/$app_id.desktop
+python=$(command -v /usr/bin/python3 || command -v python3 || true)
+
+bundled_icons() {
+    (cd "$appdir/usr/share/icons/hicolor" && ls -d -- */apps/$app_id.png */apps/$app_id.svg 2>/dev/null)
+}
+
+refresh_caches() {
+    if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$data_home/applications" 2>/dev/null || true; fi
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache -f -t "$icons" 2>/dev/null || true; fi
+}
+
+install_entry() {
+    if [ -z "${APPIMAGE:-}" ]; then
+        echo "Run the .AppImage file itself to add it to the menu; this copy was started from an extracted folder." >&2
+        exit 1
+    fi
+    mkdir -p "$data_home/applications"
+    # Desktop Entry quoting: escape \ " ` $ inside the quoted path, and % for field codes.
+    exec_path=$(printf '%s' "$APPIMAGE" | sed -e 's/\\/\\\\\\\\/g' -e 's/["`$]/\\\\&/g' -e 's/%/%%/g')
+    try_exec=$(printf '%s' "$APPIMAGE" | sed -e 's/\\/\\\\/g')
+    EXEC_PATH=$exec_path TRY_EXEC=$try_exec awk '
+        /^Exec=/ { print "Exec=\"" ENVIRON["EXEC_PATH"] "\""; print "TryExec=" ENVIRON["TRY_EXEC"]; next }
+        /^TryExec=/ { next }
+        { print }
+    ' "$appdir/$app_id.desktop" > "$entry.tmp"
+    mv "$entry.tmp" "$entry"
+    echo "Installed $entry"
+    for icon in $(bundled_icons); do
+        mkdir -p "$icons/$(dirname "$icon")"
+        cp "$appdir/usr/share/icons/hicolor/$icon" "$icons/$icon"
+        echo "Installed $icons/$icon"
+    done
+    refresh_caches
+    echo "Bahá’í Reader is now in your application menu. Remove it with: $APPIMAGE --remove-desktop-entry"
+}
+
+remove_entry() {
+    if [ -f "$entry" ] && grep -q '^X-AppImage-Version=' "$entry"; then
+        rm -f "$entry"
+        echo "Removed $entry"
+    elif [ -f "$entry" ]; then
+        echo "Left $entry alone: it was not created by the AppImage." >&2
+    fi
+    for icon in $(bundled_icons); do
+        if [ -f "$icons/$icon" ]; then rm -f "$icons/$icon"; echo "Removed $icons/$icon"; fi
+    done
+    refresh_caches
+}
+
+# Prints the host toolkit versions, or the reason the app cannot run and a non-zero status.
+check_host() {
+    if [ -z "$python" ]; then
+        echo "no Python 3 was found"
+        return 1
+    fi
+    "$python" -c '
+import sys
+if sys.version_info < (3, 11):
+    print("Python %d.%d was found" % sys.version_info[:2]); sys.exit(1)
+try:
+    import gi
+    gi.require_version("Gtk", "4.0")
+    from gi.repository import Gtk
+except (ImportError, ValueError):
+    print("GTK 4 for Python (PyGObject with the GTK 4 introspection data) was not found"); sys.exit(1)
+version = (Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())
+if version < (4, 8):
+    print("GTK %d.%d.%d was found" % version); sys.exit(1)
+print("Python %s, GTK %d.%d.%d, PyGObject %s" % ((sys.version.split()[0],) + version + (gi.__version__,)))
+' 2>/dev/null
+}
+
+explain() {
+    message="Bahá’í Reader needs GTK 4.8+ — or install the Flatpak.
+
+This AppImage runs on your system’s Python 3.11+, PyGObject and GTK 4.8+, and $1.
+
+The Flatpak bundle brings its own GTK and works on any distribution:
+  $releases
+
+Or install the system packages, if your distribution offers GTK 4.8 or newer:
+  Debian/Ubuntu: python3-gi gir1.2-gtk-4.0
+  Fedora: python3-gobject gtk4
+  openSUSE: python3-gobject typelib-1_0-Gtk-4_0
+  Arch: python-gobject gtk4"
+    printf '%s\n' "$message" >&2
+    # Started from a menu or file manager: nobody sees stderr, so show a dialog too.
+    if [ ! -t 2 ] && { [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; }; then
+        if command -v zenity >/dev/null 2>&1; then zenity --error --title="Bahá’í Reader" --no-markup --text="$message" 2>/dev/null || true
+        elif command -v kdialog >/dev/null 2>&1; then kdialog --title "Bahá’í Reader" --error "$message" 2>/dev/null || true
+        elif command -v notify-send >/dev/null 2>&1; then notify-send -a "Bahá’í Reader" -i dialog-error "Bahá’í Reader needs GTK 4.8+ — or install the Flatpak" "$releases" 2>/dev/null || true
+        elif command -v xmessage >/dev/null 2>&1; then xmessage -center "$message" 2>/dev/null || true
+        fi
+    fi
+    exit 1
+}
+
+case "${1:-}" in
+    --install-desktop-entry) install_entry; exit 0 ;;
+    --remove-desktop-entry) remove_entry; exit 0 ;;
+    --check-host)
+        found=$(check_host) || explain "${found:-the system Python could not load GTK 4}"
+        echo "Bahá’í Reader $(cat "$appdir/usr/share/bahai-reader/VERSION"): $found"
+        exit 0 ;;
+esac
+
+found=$(check_host) || explain "${found:-the system Python could not load GTK 4}"
+# No uwsm-app here, unlike the native launcher: it starts the app in a separate systemd
+# unit, and the AppImage mount disappears as soon as this script exits.
+exec "$python" "$appdir/usr/share/bahai-reader/reader.py" "$@"
