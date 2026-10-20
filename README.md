@@ -58,7 +58,7 @@ To update, install the newer `.flatpak` file the same way. The Flatpak keeps its
 
 Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packages are architecture-independent, requiring Python 3.11+ and GTK 4.8+. Package managers resolve dependencies. These are downloadable packages, not an APT/DNF repository or AUR submission. Install newer packages to update; user libraries and settings remain in place.
 
-[Website](https://ninepointlabs.github.io/bahai-reader/) · [Issues](https://github.com/ninepointlabs/bahai-reader/issues)
+[Website](https://bahaireader.org/) · [Issues](https://github.com/ninepointlabs/bahai-reader/issues)
 
 ## Run
 
