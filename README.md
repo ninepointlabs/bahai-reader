@@ -73,6 +73,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - Separate Prayers, Hidden Words (Arabic/Persian divisions), and Writings sections.
 - All ten English collections bundled for offline reading, sourced directly from the API.
 - Topic filtering, full-text section search, saved passages, last passage restoration.
+- Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
@@ -91,7 +92,21 @@ English ships with Gleanings, Prayers and Meditations, Tablets of Bahá’u’ll
 
 ## Omarchy integration
 
-Square, undecorated window lets Hyprland supply themed borders. Interface uses the fontconfig monospace family (Omarchy's configured font); the reading font is independent. When available, `omarchy theme color --all` resolves semantic and legacy palette keys. Active theme changes are detected without installing a hook or editing packaged Omarchy files. Ctrl+F searches, Ctrl+D saves, F1 opens About, Ctrl+Q quits, and Escape restores navigation.
+Square, undecorated window lets Hyprland supply themed borders. Interface uses the fontconfig monospace family (Omarchy's configured font); the reading font is independent. When available, `omarchy theme color --all` resolves semantic and legacy palette keys. Active theme changes are detected without installing a hook or editing packaged Omarchy files. See [Keyboard shortcuts](#keyboard-shortcuts).
+
+## Keyboard shortcuts
+
+| Keys | Action |
+| --- | --- |
+| Ctrl+F | Show the contents panel and search this section |
+| Alt+Right or Ctrl+Page Down | Next passage |
+| Alt+Left or Ctrl+Page Up | Previous passage |
+| Ctrl+D | Save or unsave the current passage |
+| F1 | About Bahá’í Reader |
+| Ctrl+Q | Quit (also from the About and Languages windows) |
+| Escape | Show the contents panel again if it is hidden; closes the About window |
+| Tab / Shift+Tab | Move between search, the contents list and the reading pane. The contents list is a single stop; use the arrow keys and Enter inside it |
+| Page Up / Page Down | Scroll the passage |
 
 The collapsible table of contents follows API prayer categories, Arabic/Persian Hidden Words divisions, and book → tablet/part → passage nesting for writings. Expansion choices persist; search temporarily expands matching branches. Previous/Next stays within the selected category or book division.
 
