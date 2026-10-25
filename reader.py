@@ -338,12 +338,14 @@ class Reader(Gtk.Application):
         self.window.set_child(outer)
         if shutil.which("omarchy"): outer.append(header); self.window.set_decorated(False)
         else: self.window.set_titlebar(header)
+        self.notice_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,visible=False); outer.append(self.notice_box)
+        for text in self.notices: self.notice(text)
+        self.notices=[]
         keys=Gtk.EventControllerKey(); keys.connect("key-pressed", self.key_pressed); self.window.add_controller(keys)
         body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
         self.split=body; self.panel_width_ready=False; self.panel_programmatic=False; self.panel_save_source=None; self.panel_window_width=0
         body.set_resize_start_child(False); body.set_shrink_start_child(True)
         body.set_resize_end_child(True); body.set_shrink_end_child(True)
-        self.notice_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,visible=False); outer.append(self.notice_box)
         outer.append(body); body.set_vexpand(True)
         body.connect("notify::position",self.panel_moved)
         body.add_tick_callback(self.panel_layout)
@@ -375,8 +377,7 @@ class Reader(Gtk.Application):
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.update_status(); self.navigate(self.prefs.get("section", "prayers")); self.apply_theme(); GLib.timeout_add_seconds(1,self.apply_theme)
-        for text in self.notices: self.notice(text)
-        self.notices=[]; self.window.present()
+        self.window.present()
     def stop_scroll(self):
         if self.scroll_tick is not None:
             self.readscroll.remove_tick_callback(self.scroll_tick); self.scroll_tick=None
