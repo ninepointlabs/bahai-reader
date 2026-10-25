@@ -66,6 +66,8 @@ Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packag
 /usr/bin/python3 reader.py
 ```
 
+`bahai-reader --help` and `--version` print and exit; the app takes no other options. If the settings file is damaged, the app starts with defaults, keeps the damaged file as `settings.json.bad`, and says so.
+
 Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobject gtk4`. Debian 12+/Ubuntu 24.04+: `python3-gi gir1.2-gtk-4.0`. Fedora: `python3-gobject gtk4`.
 
 ## Features
