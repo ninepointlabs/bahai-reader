@@ -12,10 +12,11 @@ v0.1.4 makes it easier to read on any Linux distribution.
 - Adjustable sidebar, reading typography, palettes, and smooth wheel scrolling.
 - Live Omarchy theme integration with standalone GTK support on other Linux desktops.
 
-Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli):
+Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). `add` only starts tracking the repository; `install` installs the package and asks for your password:
 
 ```sh
 autonomix-cli add https://github.com/ninepointlabs/bahai-reader
+autonomix-cli install bahai-reader
 ```
 
 Or choose `.deb` for Debian 12+/Ubuntu 24.04+, `.rpm` for Fedora 43+ and compatible modern RPM systems, `.pkg.tar.zst` for Arch/Omarchy, `.AppImage` for a portable launcher, or `.flatpak` for any distribution with Flatpak. The packages are architecture-independent; the AppImage launcher is x86_64. All but the Flatpak require a host Python 3.11+ with PyGObject, GTK 4.8+, and its introspection data. Package managers install dependencies for the native packages; install them separately before using the AppImage.

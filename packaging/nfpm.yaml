@@ -12,6 +12,9 @@ description: |
   and live Omarchy theme integration in a native GTK 4 application.
 homepage: https://bahaireader.org/
 license: MIT AND LicenseRef-BahaiPrayers-Content
+# Shown as Packager by pacman -Qi; nfpm does not take it from maintainer.
+archlinux:
+  packager: Tim Apple <179739321+ninepointlabs@users.noreply.github.com>
 contents:
   - src: reader.py
     dst: /usr/share/bahai-reader/reader.py

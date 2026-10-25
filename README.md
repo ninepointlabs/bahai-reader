@@ -4,13 +4,16 @@ A standalone GTK 4 Linux app for quiet reading. Follows Omarchy colors live, inc
 
 ## Install packages
 
-Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli):
+Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). It takes two steps: `add` only starts tracking the repository, and `install` then installs the package for your distribution. The install step asks for your password.
 
 ```sh
 autonomix-cli add https://github.com/ninepointlabs/bahai-reader
+autonomix-cli install bahai-reader
 ```
 
-Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases). From your download folder:
+Later, `autonomix-cli update` installs new releases, again with a password prompt.
+
+Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases). From your download folder (`sudo` asks for your password):
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
