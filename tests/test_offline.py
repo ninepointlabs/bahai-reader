@@ -32,7 +32,8 @@ class OfflineTests(unittest.TestCase):
         self.assertEqual((self.path/"4.json").read_bytes(),before)
         items=reader.load_library(4)
         self.assertEqual(len(items),473)
-        self.assertTrue(all(i["id"].startswith("4:") and i["section"]=="prayers" for i in items))
+        self.assertTrue(all(i["id"].startswith("4:") for i in items))
+        self.assertEqual([i["title"] for i in items if i["section"]!="prayers"],["Epistle to the Son of the Wolf"])
 
     def test_new_collections_and_references(self):
         items=reader.load_library()
@@ -47,6 +48,14 @@ class OfflineTests(unittest.TestCase):
         pack={k:json.loads((reader.ROOT/"data"/f"{k}.json").read_text()) for k in ("prayers","hidden","gleanings","meditations","tablets","iqan")}
         reader.atomic_json(self.path/"1.json",pack)
         self.assertEqual(len(reader.load_library()),2616)
+
+    def test_epistle_is_listed_under_writings(self):
+        items=reader.load_library()
+        epistle=next(i for i in items if i["id"]=="prayers:13691")
+        self.assertEqual((epistle["section"],epistle["tags"],epistle["title"]),("writings",["Epistle to the Son of the Wolf"],"Epistle to the Son of the Wolf"))
+        self.assertEqual(epistle["citation"],"Bahá’u’lláh, Epistle to the Son of the Wolf")
+        self.assertEqual(sum(i["section"]=="prayers" for i in items),472)
+        self.assertFalse(any("Epistle to the Son of the Wolf" in i["tags"] for i in items if i["section"]=="prayers"))
 
     def test_citations(self):
         items={i["id"]:i for i in reader.load_library()}

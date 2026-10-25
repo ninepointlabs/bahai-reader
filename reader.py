@@ -31,6 +31,8 @@ CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home()/".cache"))/"bahai-read
 FEEDS = {"prayers": "prayersystembylanguage?html=true&languageid=1", "hidden": "HiddensByLanguage?languageid=1", "gleanings": "GleaningsByLanguage?languageid=1"}
 
 BOOKS = {"gleanings": "Gleanings from the Writings of Bahá’u’lláh", "meditations": "Prayers and Meditations", "tablets": "Tablets of Bahá’u’lláh", "iqan": "The Kitáb-i-Íqán"}
+# The prayer feed also carries whole books; these are listed under Writings instead of Prayers.
+PRAYER_FEED_BOOKS = {"Epistle to the Son of the Wolf"}
 FEEDS.update({"meditations": "PMsByLanguage?languageid=1", "tablets": "TabsByLanguage?languageid=1", "iqan": "IqansByLanguage?languageid=1"})
 
 BOOKS.update({"aqdas":"The Kitáb-i-Aqdas", "saq":"Some Answered Questions", "days":"Days of Remembrance", "ridvan":"Riḍván Messages"})
@@ -190,6 +192,9 @@ def load_library(language=1):
             number=row.get("Roman", row.get("Number", ""))
             opening=" ".join(text.split())
             title=opening[:90] if key=="prayers" else f"{number} · {opening[:72]}"
+            shelf="writings" if key in BOOKS else key; book=None
+            if key=="prayers" and PRAYER_FEED_BOOKS.intersection(tags):
+                book=min(PRAYER_FEED_BOOKS.intersection(tags)); shelf="writings"; tags=[book]; title=book
             subgroup=(row.get("SubTitle") or row.get("Title") or f"Tablet {row.get('TabletNumber', '')}") if key=="tablets" else (f"Part {row.get('Part', '')}" if key=="iqan" else None)
             references=[]
             if key=="aqdas":
@@ -213,7 +218,7 @@ def load_library(language=1):
             elif key=="ridvan":
                 year=row.get("Year",""); subgroup=f"{int(year)//10*10}s" if str(year).isdigit() else "Messages"
                 title=f"{year} · {row.get('Title') or 'Riḍván message'}"
-            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section="writings" if key in BOOKS else key, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, citation=citation(key,row)))
+            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, citation=", ".join(filter(None,(citation(key,row),book)))))
     return result
 
 class Reader(Gtk.Application):

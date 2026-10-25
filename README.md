@@ -87,7 +87,7 @@ Run `./install.sh` to register the app in the current user's application menu. I
 
 Texts are provided by [BahaiPrayers.net](https://bahaiprayers.net/), whose [developer documentation](https://bahaiprayers.net/Developer) explicitly permits use of its feeds in apps. Texts retain their source attribution; no ownership of the writings is claimed. Bundled snapshots downloaded September 13, 2026. HTML is converted to plain paragraphs for the native reader; text is not rewritten.
 
-English ships with Gleanings, Prayers and Meditations, Tablets of Bahá’u’lláh, and the Kitáb-i-Íqán in Writings. Other content languages can be downloaded where the API offers them; the interface remains English. Native Debian, RPM, and Arch packages are provided. The RPM uses Fedora dependency names; compatibility with every RPM-based distribution is not claimed.
+English ships with Gleanings, Prayers and Meditations, Tablets of Bahá’u’lláh, the Kitáb-i-Íqán, and the Epistle to the Son of the Wolf in Writings. BahaiPrayers.net files the Epistle with the prayers; the reader lists it under Writings. Other content languages can be downloaded where the API offers them; the interface remains English. Native Debian, RPM, and Arch packages are provided. The RPM uses Fedora dependency names; compatibility with every RPM-based distribution is not claimed.
 
 ## Omarchy integration
 

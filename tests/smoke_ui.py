@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as temp:
         try:
             assert len(app.items)==2616
             app.navigate("writings")
-            assert len([p for p in app.branches if p.count("/")==1])==8
+            assert len([p for p in app.branches if p.count("/")==1])==9
             app.navigate("hidden")
             assert len(app.visible)==153
             buffer=app.reader.get_buffer()
