@@ -21,6 +21,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-gtk-4.0 xvfb dbus-x11 desktop-file-utils appstream x11-utils file zsync
       - run: /usr/bin/python3 -m unittest discover -s tests
       - run: xvfb-run -a /usr/bin/python3 tests/navigation_ui.py
+      - run: xvfb-run -a /usr/bin/python3 tests/layout_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
       - run: desktop-file-validate packaging/org.bahai.Reader.desktop
       - run: appstreamcli validate --no-net packaging/org.bahai.Reader.metainfo.xml
