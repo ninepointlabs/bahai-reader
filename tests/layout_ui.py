@@ -26,7 +26,10 @@ def child(width,height,temp):
         # Some backends (Broadway) size windows themselves; ask again and re-evaluate.
         app.window.set_default_size(width,height); app.window_resized()
         nav=app.position.get_parent()
-        result.update(window=app.window.get_width(),minimum=app.window.measure(Gtk.Orientation.HORIZONTAL,-1)[0],narrow=app.narrow,
+        titlebar=app.window.get_titlebar()
+        # The app's own content; a desktop's window buttons in the title bar are reported separately.
+        result.update(window=app.window.get_width(),minimum=app.window.get_child().measure(Gtk.Orientation.HORIZONTAL,-1)[0],
+                      titlebar=titlebar.measure(Gtk.Orientation.HORIZONTAL,-1)[0] if titlebar else None,star=app.star.get_label(),narrow=app.narrow,
                       sidebar=app.sidebar.get_visible(),content=app.content.get_visible(),nav=bounds(nav),reader=bounds(app.readscroll),
                       margin=app.reader.get_left_margin(),heading=app.heading.get_text(),position=app.position.get_text())
         if app.narrow:
@@ -50,6 +53,8 @@ def main():
                 if r["nav"] is None or r["nav"][0]<0 or r["nav"][1]>r["window"]: problems.append(f"Previous/Next outside the window: {r['nav']}")
                 if r["reader"] is None or r["reader"][1]>r["window"] or r["reader"][1]-r["reader"][0]<300: problems.append(f"reading pane clipped: {r['reader']}")
             else: print(f"note {width}x{height}: the display server kept the window at {r['window']} px; on-screen bounds not checked")
+            if r["titlebar"]: print(f"note {width}x{height}: title bar with this desktop's window buttons needs {r['titlebar']} px")
+            if width<700 and r["star"] not in ("☆","★"): problems.append(f"Save button not compact: {r['star']!r}")
             if r["heading"]!="Arabic no. 1" or r["position"]!="1 of 71": problems.append(f"heading {r['heading']!r}, position {r['position']!r}")
             if width<700:
                 if not r["narrow"] or r["sidebar"] or not r["content"]: problems.append(f"narrow window shows both panes: {r}")

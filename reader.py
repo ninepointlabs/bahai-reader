@@ -251,7 +251,7 @@ class Reader(Gtk.Application):
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER",ellipsize=Pango.EllipsizeMode.END))
         header.pack_start(self.button("☰", self.toggle_sidebar))
-        self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
+        self.star=self.button("☆ Save", self.bookmark); self.star.set_tooltip_text("Save this passage (Ctrl+D)"); header.pack_end(self.star)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
         settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
@@ -376,7 +376,7 @@ class Reader(Gtk.Application):
             # Too narrow for both panes: show one at a time; ☰ switches between them (QA M2).
             self.narrow=narrow; self.content.set_visible(True)
             self.sidebar.set_visible(self.sidebar_wanted and not narrow)
-            self.panel_width_ready=False
+            self.panel_width_ready=False; self.update_star()
         self.fit_margins(width)
     def fit_margins(self,width=None):
         # Page margins give way once the text column would get narrower than about 360 px.
@@ -564,8 +564,12 @@ class Reader(Gtk.Application):
                 links.append(self.button(label,jump))
             scroller=Gtk.ScrolledWindow(max_content_height=320,propagate_natural_height=True,min_content_width=240)
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
-        self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
+        self.star.set_sensitive(True); self.update_star()
         self.highlight()
+    def update_star(self):
+        saved=bool(self.current) and self.current["id"] in self.prefs.get("saved",[])
+        # Narrow windows show only the star; the tooltip keeps the words.
+        self.star.set_label(("★" if saved else "☆")+("" if self.narrow else (" Saved" if saved else " Save")))
     def step(self,delta):
         if self.current in self.active_group:
             index=self.active_group.index(self.current)+delta
@@ -574,7 +578,7 @@ class Reader(Gtk.Application):
         if not self.current: return
         saved=self.prefs.setdefault("saved",[]); key=self.current["id"]
         saved.remove(key) if key in saved else saved.append(key); self.save()
-        self.star.set_label("★ Saved" if key in saved else "☆ Save")
+        self.update_star()
         if self.section=="saved": self.rebuild()
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
