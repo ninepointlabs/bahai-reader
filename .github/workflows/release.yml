@@ -23,6 +23,7 @@ jobs:
       - run: xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
       - run: desktop-file-validate packaging/org.bahai.Reader.desktop
       - run: appstreamcli validate --no-net packaging/org.bahai.Reader.metainfo.xml
+      - run: xvfb-run -a /usr/bin/python3 tests/dropdown_ui.py
       - run: scripts/get-nfpm.sh "$RUNNER_TEMP/nfpm"
       - run: NFPM="$RUNNER_TEMP/nfpm/nfpm" scripts/build-packages.sh
       - run: scripts/build-appimage.sh "dist/bahai-reader-$(cat VERSION)-x86_64.AppImage"
