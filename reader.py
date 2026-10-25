@@ -134,6 +134,11 @@ def plain(value):
     parser=PlainText(); parser.feed(value or "")
     return re.sub(r"\n\s*\n", "\n\n", "".join(parser.parts)).strip()
 
+def fold(text):
+    """Search form without case, accents, apostrophes or hyphens: Bahaullah finds Bahá’u’lláh."""
+    text="".join(c for c in unicodedata.normalize("NFKD",text) if not unicodedata.combining(c)).casefold()
+    return re.sub(r"[’‘ʼʻ'`´\-‐‑]","",text)
+
 def roman(number):
     numerals=[(1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),(100,"C"),(90,"XC"),(50,"L"),(40,"XL"),(10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I")]
     result=""
@@ -162,11 +167,6 @@ def citation(key,row):
     elif key=="ridvan": return ", ".join(filter(None,[author,f"Riḍván {row.get('Year','')}".strip()]))
     else: where=""
     return ", ".join(part for part in (author,SECTION_NAMES[key],where) if part)
-
-def fold(text):
-    """Search form without case, accents, apostrophes or hyphens: Bahaullah finds Bahá’u’lláh."""
-    text="".join(c for c in unicodedata.normalize("NFKD",text) if not unicodedata.combining(c)).casefold()
-    return re.sub(r"[’‘ʼʻ'`´\-‐‑]","",text)
 
 def word_count(text):
     # Keep apostrophes and hyphens inside words; em/en dashes separate words.
