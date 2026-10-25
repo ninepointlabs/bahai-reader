@@ -222,7 +222,10 @@ class Choice(Gtk.DropDown):
     def __init__(self,search=False):
         super().__init__(enable_search=search)
         self.ids=[]; self.labels=Gtk.StringList()
-        self.set_expression(Gtk.PropertyExpression.new(Gtk.StringObject,None,"string")); self.set_model(self.labels)
+        # Search needs an expression; PyGObject before 3.44 (Debian 12) cannot pass one, so those lists don't search.
+        try: self.set_expression(Gtk.PropertyExpression.new(Gtk.StringObject,None,"string"))
+        except TypeError: self.set_enable_search(False)
+        self.set_model(self.labels)
         self.connect("notify::selected",lambda *_:self.emit("changed"))
     def append(self,id,label): self.ids.append(id); self.labels.append(label)
     def append_text(self,label): self.append(label,label)

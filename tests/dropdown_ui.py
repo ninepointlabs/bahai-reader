@@ -46,6 +46,15 @@ with tempfile.TemporaryDirectory() as temp:
             language.remove_all()
             assert language.get_active_id() is None and language.get_active_text() is None
             app.language_window.close()
+            # PyGObject before 3.44 (Debian 12) cannot pass a GtkExpression: still a working list, without search.
+            real=Gtk.PropertyExpression.new
+            def unsupported(*args): raise TypeError("No means to translate argument or return value for 'GtkPropertyExpression'")
+            Gtk.PropertyExpression.new=unsupported
+            try: old=reader.Choice(search=True)
+            finally: Gtk.PropertyExpression.new=real
+            old.append("4","Español"); old.append("7","Français"); old.set_active_id("7")
+            assert not old.get_enable_search() and old.get_expression() is None
+            assert old.get_active_id()=="7" and old.get_active_text()=="Français"
             passed.append(True)
             print("Dropdown UI test passed")
         except Exception as exc:
