@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.current is chosen and app.visible, "typing moved the reading position"
             search("")
             assert app.current is chosen, f"clearing the search moved to {app.current['id']} (QA M6)"
-            assert len(app.visible)==473
+            assert len(app.visible)==sum(i["section"]=="prayers" for i in app.items)
             search("zzzz-no-such-word")
             assert app.no_match.get_visible() and app.current is chosen and app.count.get_text()=="0 passages"
             search("")
