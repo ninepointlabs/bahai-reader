@@ -162,6 +162,20 @@ def citation(key,row):
     else: where=""
     return ", ".join(part for part in (author,SECTION_NAMES[key],where) if part)
 
+def luminance(color):
+    channels=[int(color[i:i+2],16)/255 for i in (1,3,5)]
+    r,g,b=[c/12.92 if c<=0.04045 else ((c+0.055)/1.055)**2.4 for c in channels]
+    return 0.2126*r+0.7152*g+0.0722*b
+
+def contrast(first,second):
+    # WCAG 2 contrast ratio between two #rrggbb colors.
+    light,dark=sorted((luminance(first),luminance(second)),reverse=True)
+    return (light+0.05)/(dark+0.05)
+
+def readable(background,*candidates,minimum=4.5):
+    # First candidate that meets the minimum on this background, else the strongest one.
+    return next((c for c in candidates if contrast(c,background)>=minimum),max(candidates,key=lambda c:contrast(c,background)))
+
 def word_count(text):
     # Keep apostrophes and hyphens inside words; em/en dashes separate words.
     return len(re.findall(r"[^\W_]+(?:[’‘ʼ'\-‑][^\W_]+)*", text, re.UNICODE))
@@ -485,17 +499,24 @@ class Reader(Gtk.Application):
         signature=json.dumps([base,self.prefs],sort_keys=True)
         if signature==self.signature:return True
         self.signature=signature; bg,fg,accent,selection=[base[k] for k in ("background","foreground","accent","selection")]
+        # Some themes (White) use an accent too close to the selection for text on it.
+        current=readable(selection,accent,fg); focus=readable(bg,accent,fg,minimum=3); current_focus=readable(selection,fg,accent,minimum=3)
+        self.colors=dict(background=bg,foreground=fg,accent=accent,selection=selection,current=current)
         font=self.prefs.get("font","DejaVu Serif").replace('"','').replace('\\','')
         size=int(self.prefs.get("size",22))
         self.provider.load_from_data(f'''window {{ font-family: monospace; }}
 window, textview, textview text {{ background: {bg}; color: {fg}; }}
 headerbar, popover contents, list, row, entry, button, combobox {{ background: {bg}; color: {fg}; }}
+/* The GTK theme paints .sidebar itself; keep the contents list on the reading palette. */
+.sidebar, .sidebar scrolledwindow, .sidebar viewport, .sidebar expander {{ background: {bg}; color: {fg}; }}
 button {{ border: 1px solid {selection}; border-radius: 0px; padding: 8px 12px; }}
 .toc-passage {{ border: none; padding: 8px; }}
 .toc-branch > title {{ min-height: 32px; padding: 6px 0; }}
 .toc-passage {{ min-height: 28px; }}
-button.current-passage {{ color: {accent}; background: {selection}; }}
+button.current-passage {{ color: {current}; background: {selection}; }}
 button:hover, row:selected {{ background: {selection}; }}
+button:focus-visible, .toc-branch > title:focus-visible {{ outline: 2px solid {focus}; outline-offset: -2px; }}
+button.current-passage:focus-visible {{ outline-color: {current_focus}; }}
 paned > separator {{ min-width: 5px; background: {selection}; }}
 paned > separator:hover {{ background: {accent}; }}
 headerbar {{ border-bottom: 1px solid {selection}; }}
