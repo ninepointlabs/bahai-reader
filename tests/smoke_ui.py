@@ -12,7 +12,9 @@ def pixel(widget,x,y):
     """Render a widget offscreen and return the #rrggbb color at (x, y)."""
     width,height=widget.get_width(),widget.get_height()
     snapshot=Gtk.Snapshot(); Gtk.WidgetPaintable.new(widget).snapshot(snapshot,width,height)
-    texture=widget.get_native().get_renderer().render_texture(snapshot.to_node(),Graphene.Rect().init(0,0,width,height))
+    node=snapshot.to_node()
+    if node is None: return None  # not drawn since its last layout yet
+    texture=widget.get_native().get_renderer().render_texture(node,Graphene.Rect().init(0,0,width,height))
     loader=GdkPixbuf.PixbufLoader(); loader.write_bytes(texture.save_to_png_bytes()); loader.close()
     image=loader.get_pixbuf(); data=image.get_pixels(); offset=y*image.get_rowstride()+x*image.get_n_channels()
     return "#%02x%02x%02x"%tuple(data[offset:offset+3])
@@ -26,7 +28,10 @@ with tempfile.TemporaryDirectory() as temp:
     app.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
     errors=[]
     passed=[]
+    waits=[]
     def exercise():
+        if pixel(app.sidebar,1,1) is None and len(waits)<100:
+            waits.append(1); return True  # wait for the first frame after layout
         try:
             assert len(app.items)==2616
             # The contents list follows the reading palette, not the GTK theme's sidebar color (QA H1).
@@ -60,7 +65,7 @@ with tempfile.TemporaryDirectory() as temp:
             errors.append(exc)
         app.quit()
         return False
-    reader.GLib.timeout_add(500,exercise)
+    reader.GLib.timeout_add(100,exercise)
     app.run([])
     if errors: raise errors[0]
     # A failure inside activate() is logged by PyGObject but does not stop run().
