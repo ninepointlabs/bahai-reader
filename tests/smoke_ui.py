@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory() as temp:
             if color=="unsupported": print("Note: this PyGObject cannot render widgets offscreen; contents list color not checked")
             else: assert color and close(color,"#fafaf7"), f"contents list background is {color}, not the Light palette's #fafaf7"
             app.navigate("writings")
-            assert len([p for p in app.branches if p.count("/")==1])==8
+            assert len([p for p in app.branches if p.count("/")==1])==9
             app.navigate("hidden")
             assert len(app.visible)==153
             buffer=app.reader.get_buffer()
