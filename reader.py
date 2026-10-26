@@ -42,6 +42,8 @@ LANGUAGE_ENDPOINTS.update({"aqdas":"AqdasLanguages", "saq":"SaqLanguages", "days
 HOLY_DAYS={"NAWRUZ":"Naw-Rúz", "RIDVAN":"Riḍván", "DECLARATIONBAB":"Declaration of the Báb", "MARTYRDOMBAB":"Martyrdom of the Báb", "ASCENSIONBAHAULLAH":"Ascension of Bahá’u’lláh", "BIRTHBAB":"Birth of the Báb", "BIRTHBAHAULLAH":"Birth of Bahá’u’lláh"}
 AQDAS_SECTIONS={"Paragraphs":"Text", "QAs":"Questions and Answers", "Notes":"Notes"}
 SECTION_NAMES = {"prayers":"Prayers", "hidden":"The Hidden Words", **BOOKS}
+NARROW_WIDTH=700  # below this the contents list and the reading pane take turns
+CONTENT_MIN_WIDTH=320
 # BahaiPrayers.net sends only a numeric AuthorId for prayers; names verified against the feed's tags.
 PRAYER_AUTHORS={1:"The Báb", 2:"Bahá’u’lláh", 3:"‘Abdu’l‑Bahá"}
 BOOK_AUTHORS={"hidden":"Bahá’u’lláh", "gleanings":"Bahá’u’lláh", "meditations":"Bahá’u’lláh", "tablets":"Bahá’u’lláh", "iqan":"Bahá’u’lláh", "aqdas":"Bahá’u’lláh", "saq":"‘Abdu’l‑Bahá", "days":"Bahá’u’lláh", "ridvan":"The Universal House of Justice"}
@@ -176,6 +178,13 @@ def word_label(item):
     count=item["word_count"]
     return f"{count} word{'s' if count != 1 else ''}"
 
+def heading(item):
+    """The reading pane's title: what the passage is, not just its number."""
+    if item["section"]=="prayers": return "Prayer"
+    number=item["title"].split(" · ")[0]; kind=item["id"].split(":")[-2] if item["id"].count(":")>=2 else item["id"].split(":")[0]
+    if kind=="hidden": return f"{'Arabic' if 'From the Arabic' in item['tags'] else 'Persian'} no. {number}"
+    return {"Paragraphs":f"Paragraph {number}","QAs":f"Question and Answer {number}","Notes":f"Note {number}"}.get(kind,number)
+
 def load_library(language=1):
     result=[]; pack=local_pack(language)
     for key in FEEDS:
@@ -240,9 +249,9 @@ class Reader(Gtk.Application):
         if hasattr(self, "window"): self.window.present(); return
         self.window=Gtk.ApplicationWindow(application=self, title="Bahá’í Reader", default_width=1160, default_height=790)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
-        header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
-        self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
+        header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER",ellipsize=Pango.EllipsizeMode.END))
+        header.pack_start(self.button("☰", self.toggle_sidebar))
+        self.star=self.button("☆ Save", self.bookmark); self.star.set_tooltip_text("Save this passage (Ctrl+D)"); header.pack_end(self.star)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
         settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
@@ -263,8 +272,10 @@ class Reader(Gtk.Application):
         paging=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); paging.connect("key-pressed", self.page_key); self.window.add_controller(paging)
         body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
         self.split=body; self.panel_width_ready=False; self.panel_programmatic=False; self.panel_save_source=None; self.panel_window_width=0
-        body.set_resize_start_child(False); body.set_shrink_start_child(True)
-        body.set_resize_end_child(True); body.set_shrink_end_child(True)
+        # Neither pane can be dragged below its minimum width, so neither disappears (QA L3).
+        body.set_resize_start_child(False); body.set_shrink_start_child(False)
+        body.set_resize_end_child(True); body.set_shrink_end_child(False)
+        self.narrow=False; self.sidebar_wanted=True
         outer.append(body); body.set_vexpand(True)
         body.connect("notify::position",self.panel_moved)
         body.add_tick_callback(self.panel_layout)
@@ -282,12 +293,13 @@ class Reader(Gtk.Application):
         out_of_list=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); out_of_list.connect("key-pressed", self.list_key); scroll.add_controller(out_of_list)
         self.branches={}; self.passage_buttons=[]; self.active_group=[]; self.restoring=False; self.query=None
         right=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True)
-        right.set_margin_top(32); body.set_end_child(right)
+        right.set_margin_top(32); body.set_end_child(right); self.content=right
+        right.set_size_request(CONTENT_MIN_WIDTH,-1)
         self.heading=Gtk.Label(label="Prayers", wrap=True); self.heading.add_css_class("heading"); right.append(self.heading)
         self.subtitle=Gtk.Label(label="A moment for reflection"); self.subtitle.add_css_class("dim-label"); right.append(self.subtitle)
         self.reader=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
         self.reader.set_top_margin(24); self.reader.set_bottom_margin(50)
-        self.readscroll=Gtk.ScrolledWindow(vexpand=True, kinetic_scrolling=True); self.readscroll.set_child(self.reader); right.append(self.readscroll)
+        self.readscroll=Gtk.ScrolledWindow(vexpand=True, kinetic_scrolling=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.readscroll.set_child(self.reader); right.append(self.readscroll)
         self.scroll_tick=None; self.scroll_target=0.0; self.scroll_time=None; self.scroll_direction=0
         wheel=Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags.VERTICAL)
         wheel.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
@@ -295,10 +307,13 @@ class Reader(Gtk.Application):
         click=Gtk.GestureClick(); click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         click.connect("pressed",lambda *_:self.stop_scroll()); self.readscroll.add_controller(click)
         self.related=Gtk.MenuButton(label="Related passages",visible=False); right.append(self.related)
-        nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); nav.append(self.button("← Previous", lambda *_: self.step(-1))); nav.append(self.button("Next →", lambda *_: self.step(1))); right.append(nav)
-        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16); self.status.add_css_class("dim-label"); right.append(self.status)
+        nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); nav.append(self.button("← Previous", lambda *_: self.step(-1)))
+        self.position=Gtk.Label(); self.position.add_css_class("dim-label"); nav.append(self.position)
+        nav.append(self.button("Next →", lambda *_: self.step(1))); right.append(nav)
+        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.update_status(); self.navigate(self.prefs.get("section", "prayers")); self.apply_theme(); GLib.timeout_add_seconds(1,self.apply_theme)
+        self.window.connect("notify::default-width",self.window_resized); self.window_resized()
         self.window.present()
     def stop_scroll(self):
         if self.scroll_tick is not None:
@@ -339,7 +354,10 @@ class Reader(Gtk.Application):
         return True
     def panel_layout(self,widget,clock):
         width=widget.get_width()
-        if width<=0 or not self.sidebar.get_visible(): return True
+        if width<=0: return True
+        self.window_resized()
+        if width!=self.panel_window_width: self.fit_margins(width)
+        if not self.sidebar.get_visible() or not self.content.get_visible(): self.panel_window_width=width; return True
         if width!=self.panel_window_width or not self.panel_width_ready:
             self.panel_window_width=width
             # Start at 28% of the actual allocated window; remember manual sizing.
@@ -348,20 +366,50 @@ class Reader(Gtk.Application):
             self.panel_programmatic=True; widget.set_position(position); self.panel_programmatic=False
             self.panel_width_ready=True
         return True
+    def window_resized(self,*_):
+        # Decide from the size the window is asked to be: with both panes shown, the
+        # allocation can never get below their combined minimum width.
+        width=self.window.get_default_size()[0]
+        if width<=0: width=self.window.get_width()
+        narrow=0<width<NARROW_WIDTH
+        if narrow!=self.narrow:
+            # Too narrow for both panes: show one at a time; ☰ switches between them (QA M2).
+            self.narrow=narrow; self.content.set_visible(True)
+            self.sidebar.set_visible(self.sidebar_wanted and not narrow)
+            self.panel_width_ready=False; self.update_star()
+        self.fit_margins(width)
+    def fit_margins(self,width=None):
+        # Page margins give way once the text column would get narrower than about 360 px.
+        width=width or self.split.get_width()
+        if self.sidebar.get_visible() and self.content.get_visible(): width-=self.split.get_position()
+        margin=min(int(self.prefs.get("margin",80)),max(12,(width-360)//2))
+        self.reader.set_left_margin(margin); self.reader.set_right_margin(margin)
+    def toggle_sidebar(self,*_):
+        if self.narrow: self.show_list(not self.sidebar.get_visible())
+        else: self.sidebar_wanted=not self.sidebar.get_visible(); self.sidebar.set_visible(self.sidebar_wanted)
+    def show_list(self,visible=True):
+        self.sidebar.set_visible(visible)
+        if self.narrow: self.content.set_visible(not visible)
+        elif visible: self.sidebar_wanted=True
+    def open_passage(self,item,group):
+        self.show_passage(item,group)
+        if self.narrow: self.show_list(False)
     def panel_moved(self,widget,_):
-        if not self.panel_width_ready or self.panel_programmatic or not self.sidebar.get_visible():return
-        self.prefs["sidebar_width"]=widget.get_position()
+        if not self.panel_width_ready or self.panel_programmatic or not self.sidebar.get_visible() or not self.content.get_visible():return
+        self.prefs["sidebar_width"]=widget.get_position(); self.fit_margins()
         if self.panel_save_source:GLib.source_remove(self.panel_save_source)
         def persist():
             self.panel_save_source=None; self.save(); return False
         self.panel_save_source=GLib.timeout_add(250,persist)
     def key_pressed(self, controller, key, code, modifiers):
         if modifiers & Gdk.ModifierType.CONTROL_MASK:
-            if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
+            if key==Gdk.KEY_f: self.show_list(); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
         if key==Gdk.KEY_F1: self.about_dialog(); return True
-        if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
+        if key==Gdk.KEY_Escape:
+            if not self.sidebar.get_visible(): self.show_list(); return True
+            if self.narrow: self.show_list(False); return True
         return False
     def page_key(self, controller, key, code, modifiers):
         # Alt+Left/Right and Ctrl+Page Up/Down, as in browsers and document viewers.
@@ -421,7 +469,7 @@ class Reader(Gtk.Application):
                 parent=self.branch(container,subgroup,path+"/"+subgroup,entries) if subgroup else container
                 for item in entries:
                     self.groups.setdefault(item["id"],entries)
-                    button=self.button("",lambda _,i=item,g=entries:self.show_passage(i,g))
+                    button=self.button("",lambda _,i=item,g=entries:self.open_passage(i,g))
                     label=Gtk.Label(label=item["title"],xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
                     content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                     content.append(label)
@@ -495,7 +543,8 @@ class Reader(Gtk.Application):
             else: button.remove_css_class("current-passage")
     def show_passage(self,item,group):
         self.current=item; self.active_group=group; self.prefs["last"]=item["id"]; self.save()
-        self.heading.set_text("Prayer" if item["section"]=="prayers" else item["title"].split(" · ")[0])
+        self.position.set_text(f"{group.index(item)+1} of {len(group)}" if item in group and len(group)>1 else "")
+        self.heading.set_text(heading(item))
         self.subtitle.set_text(" · ".join(item["tags"]+([item["subgroup"]] if item["subgroup"] else [])+([word_label(item)] if item["section"]=="prayers" else [])))
         self.subtitle.set_wrap(True)
         self.reader.set_direction(Gtk.TextDirection.LTR if self.language_info().get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
@@ -515,8 +564,12 @@ class Reader(Gtk.Application):
                 links.append(self.button(label,jump))
             scroller=Gtk.ScrolledWindow(max_content_height=320,propagate_natural_height=True,min_content_width=240)
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
-        self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
+        self.star.set_sensitive(True); self.update_star()
         self.highlight()
+    def update_star(self):
+        saved=bool(self.current) and self.current["id"] in self.prefs.get("saved",[])
+        # Narrow windows show only the star; the tooltip keeps the words.
+        self.star.set_label(("★" if saved else "☆")+("" if self.narrow else (" Saved" if saved else " Save")))
     def step(self,delta):
         if self.current in self.active_group:
             index=self.active_group.index(self.current)+delta
@@ -525,7 +578,7 @@ class Reader(Gtk.Application):
         if not self.current: return
         saved=self.prefs.setdefault("saved",[]); key=self.current["id"]
         saved.remove(key) if key in saved else saved.append(key); self.save()
-        self.star.set_label("★ Saved" if key in saved else "☆ Save")
+        self.update_star()
         if self.section=="saved": self.rebuild()
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
@@ -574,7 +627,7 @@ label {{ padding-top: 2px; padding-bottom: 2px; }}
 textview {{ font-family: "{font}"; font-size: {size}px; }}
 textview text selection {{ background: {selection}; }}'''.encode())
         self.reader.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); self.reader.set_pixels_below_lines(14)
-        self.reader.set_left_margin(int(self.prefs.get("margin",80))); self.reader.set_right_margin(int(self.prefs.get("margin",80)))
+        self.fit_margins()
         return True
     def language_info(self,language=None):
         language=self.language if language is None else language
