@@ -17,7 +17,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gdk, GLib, Pango
+from gi.repository import Gtk, Gdk, GLib, GObject, Pango
 
 APP_NAME = "Bahá’í Reader"
 TAGLINE = "A quiet, native Linux reader for Bahá’í prayers and writings."
@@ -301,6 +301,27 @@ def load_library(language=1):
             result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, citation=", ".join(filter(None,(citation(key,row),book)))))
     return result
 
+class Choice(Gtk.DropDown):
+    """Gtk.DropDown (ComboBoxText is deprecated since GTK 4.10) with string ids and a "changed" signal."""
+    __gsignals__={"changed":(GObject.SignalFlags.RUN_FIRST,None,())}
+    def __init__(self,search=False):
+        super().__init__(enable_search=search)
+        self.ids=[]; self.labels=Gtk.StringList()
+        # Search needs an expression; PyGObject before 3.44 (Debian 12) cannot pass one, so those lists don't search.
+        try: self.set_expression(Gtk.PropertyExpression.new(Gtk.StringObject,None,"string"))
+        except TypeError: self.set_enable_search(False)
+        self.set_model(self.labels)
+        self.connect("notify::selected",lambda *_:self.emit("changed"))
+    def append(self,id,label): self.ids.append(id); self.labels.append(label)
+    def append_text(self,label): self.append(label,label)
+    def remove_all(self): self.ids=[]; self.labels.splice(0,self.labels.get_n_items(),[])
+    def get_active_id(self):
+        index=self.get_selected(); return self.ids[index] if index<len(self.ids) else None
+    def get_active_text(self):
+        index=self.get_selected(); return self.labels.get_string(index) if index<len(self.ids) else None
+    def set_active_id(self,id):
+        if id in self.ids: self.set_selected(self.ids.index(id))
+
 class Reader(Gtk.Application):
     def __init__(self):
         super().__init__(application_id="org.bahai.Reader")
@@ -496,10 +517,10 @@ class Reader(Gtk.Application):
         if key==Gdk.KEY_Tab: self.reader.grab_focus(); return True
         return False
     def option(self, box, title, key, options, default):
-        box.append(Gtk.Label(label=title,xalign=0)); combo=Gtk.ComboBoxText()
+        box.append(Gtk.Label(label=title,xalign=0)); combo=Choice()
         for item in options: combo.append_text(item)
         fallback=default if default in options else (options[0] if options else "")
-        value=self.prefs.get(key,fallback); combo.set_active(options.index(value) if value in options else options.index(fallback))
+        value=self.prefs.get(key,fallback); combo.set_active_id(value if value in options else fallback)
         def change(c): self.prefs[key]=c.get_active_text(); self.save(); self.signature=None; self.apply_theme()
         combo.connect("changed",change); box.append(combo)
     def slider(self,box,title,key,low,high,default):
@@ -784,7 +805,7 @@ textview text selection {{ background: {selection}; }}
         for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
         window.set_child(box)
         intro=Gtk.Label(label="English is included. Download another language once to read it offline. Your choice is remembered.",wrap=True,xalign=0,max_width_chars=52); box.append(intro)
-        choice=Gtk.ComboBoxText(); box.append(choice)
+        choice=Choice(search=True); box.append(choice)
         info=Gtk.Label(wrap=True,xalign=0,max_width_chars=52); box.append(info)
         progress=Gtk.Label(wrap=True,xalign=0,max_width_chars=52); box.append(progress)
         action=self.button("",lambda *_: start(False)); box.append(action)
