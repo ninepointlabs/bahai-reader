@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 import tempfile
 import sys
+import unicodedata
 from pathlib import Path
 from html.parser import HTMLParser
 import gi
@@ -193,6 +194,11 @@ def plain(value):
     parser=PlainText(); parser.feed(value or "")
     return re.sub(r"\n\s*\n", "\n\n", "".join(parser.parts)).strip()
 
+def fold(text):
+    """Search form without case, accents, apostrophes or hyphens: Bahaullah finds Bahá’u’lláh."""
+    text="".join(c for c in unicodedata.normalize("NFKD",text) if not unicodedata.combining(c)).casefold()
+    return re.sub(r"[’‘ʼʻ'`´\-‐‑]","",text)
+
 def roman(number):
     numerals=[(1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),(100,"C"),(90,"XC"),(50,"L"),(40,"XL"),(10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I")]
     result=""
@@ -356,6 +362,8 @@ class Reader(Gtk.Application):
         for text in self.notices: self.notice(text)
         self.notices=[]
         keys=Gtk.EventControllerKey(); keys.connect("key-pressed", self.key_pressed); self.window.add_controller(keys)
+        # Previous/Next before the reading view's own cursor keys see them.
+        paging=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); paging.connect("key-pressed", self.page_key); self.window.add_controller(paging)
         body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
         self.split=body; self.panel_width_ready=False; self.panel_programmatic=False; self.panel_save_source=None; self.panel_window_width=0
         body.set_resize_start_child(False); body.set_shrink_start_child(True)
@@ -369,10 +377,13 @@ class Reader(Gtk.Application):
         for title,key in [("Prayers","prayers"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
             b=self.button(title, lambda _,k=key: self.navigate(k)); self.sidebar.append(b)
         self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); self.sidebar.append(self.search)
+        into_list=Gtk.EventControllerKey(); into_list.connect("key-pressed", self.search_key); self.search.add_controller(into_list)
         self.count=Gtk.Label(xalign=0); self.count.add_css_class("dim-label"); self.sidebar.append(self.count)
         scroll=Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.EXTERNAL); self.sidebar.append(scroll)
         self.toc=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); scroll.set_child(self.toc)
-        self.branches={}; self.passage_buttons=[]; self.active_group=[]
+        # The contents list is one Tab stop; arrow keys move inside it.
+        out_of_list=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); out_of_list.connect("key-pressed", self.list_key); scroll.add_controller(out_of_list)
+        self.branches={}; self.passage_buttons=[]; self.active_group=[]; self.restoring=False; self.query=None
         right=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True)
         right.set_margin_top(32); body.set_end_child(right)
         self.heading=Gtk.Label(label="Prayers", wrap=True); self.heading.add_css_class("heading"); right.append(self.heading)
@@ -455,6 +466,30 @@ class Reader(Gtk.Application):
         if key==Gdk.KEY_F1: self.about_dialog(); return True
         if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
         return False
+    def page_key(self, controller, key, code, modifiers):
+        # Alt+Left/Right and Ctrl+Page Up/Down, as in browsers and document viewers.
+        if modifiers & Gdk.ModifierType.ALT_MASK and key in (Gdk.KEY_Left,Gdk.KEY_Right):
+            self.step(-1 if key==Gdk.KEY_Left else 1); return True
+        if modifiers & Gdk.ModifierType.CONTROL_MASK and key in (Gdk.KEY_Page_Up,Gdk.KEY_Page_Down):
+            self.step(-1 if key==Gdk.KEY_Page_Up else 1); return True
+        return False
+    def quit_key(self, controller, key, code, modifiers):
+        # Dialogs are plain windows; keep Ctrl+Q working while they have focus.
+        if modifiers & Gdk.ModifierType.CONTROL_MASK and key==Gdk.KEY_q: self.quit(); return True
+        return False
+    def search_key(self, controller, key, code, modifiers):
+        if key in (Gdk.KEY_Tab,Gdk.KEY_Down) and not modifiers & (Gdk.ModifierType.SHIFT_MASK|Gdk.ModifierType.CONTROL_MASK):
+            return self.focus_list()
+        return False
+    def focus_list(self):
+        current=next((b for i,b in self.passage_buttons if self.current and i["id"]==self.current["id"] and b.is_drawable()),None)
+        target=current or next((e for e,*_ in self.branch_rows if e.get_visible()),None)
+        return bool(target) and target.grab_focus()
+    def list_key(self, controller, key, code, modifiers):
+        if key==Gdk.KEY_ISO_Left_Tab or (key==Gdk.KEY_Tab and modifiers & Gdk.ModifierType.SHIFT_MASK):
+            self.search.grab_focus(); return True
+        if key==Gdk.KEY_Tab: self.reader.grab_focus(); return True
+        return False
     def option(self, box, title, key, options, default):
         box.append(Gtk.Label(label=title,xalign=0)); combo=Gtk.ComboBoxText()
         for item in options: combo.append_text(item)
@@ -469,25 +504,26 @@ class Reader(Gtk.Application):
         scale.connect("value-changed",change); box.append(scale)
     def navigate(self,key):
         self.section="writings" if key=="gleanings" else key
-        self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.filter()
-    def filter(self,*_):
+        self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.rebuild()
+    def rebuild(self):
+        """Build the contents tree for the section once; searching only hides rows."""
         if not hasattr(self,"toc"): return
-        query=self.search.get_text().strip().casefold(); saved=self.prefs.get("saved",[])
-        self.visible=[i for i in self.items if (i["id"] in saved if self.section=="saved" else i["section"]==self.section) and query in (i["title"]+" "+i["text"]+" "+" ".join(i["tags"])).casefold()]
+        saved=self.prefs.get("saved",[])
+        self.section_items=[i for i in self.items if (i["id"] in saved if self.section=="saved" else i["section"]==self.section)]
         while child:=self.toc.get_first_child(): self.toc.remove(child)
-        self.branches={}; self.passage_buttons=[]
-        self.count.set_text(f"{len(self.visible)} passages")
+        self.branches={}; self.branch_rows=[]; self.passage_buttons=[]; self.groups={}
         groups={}
-        for item in self.visible:
+        for item in self.section_items:
             for tag in item["tags"] or ["Uncategorized"]: groups.setdefault(tag,[]).append(item)
         for tag,items in sorted(groups.items()):
             path=f"{self.section}/{tag}"
-            container=self.branch(self.toc,tag,path,len(items),query)
+            container=self.branch(self.toc,tag,path,items)
             subgroups={}
             for item in items: subgroups.setdefault(item["subgroup"],[]).append(item)
             for subgroup,entries in subgroups.items():
-                parent=self.branch(container,subgroup,path+"/"+subgroup,len(entries),query) if subgroup else container
+                parent=self.branch(container,subgroup,path+"/"+subgroup,entries) if subgroup else container
                 for item in entries:
+                    self.groups.setdefault(item["id"],entries)
                     button=self.button("",lambda _,i=item,g=entries:self.show_passage(i,g))
                     label=Gtk.Label(label=item["title"],xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
                     content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
@@ -498,34 +534,68 @@ class Reader(Gtk.Application):
                     button.set_child(content)
                     button.set_tooltip_text(item["title"]+(" — "+word_label(item) if item["section"]=="prayers" else ""))
                     button.add_css_class("toc-passage")
-                    parent.append(button); self.passage_buttons.append((item["id"],button))
-        if self.visible:
-            item=next((i for i in self.visible if i["id"]==self.prefs.get("last")),self.visible[0])
-            group=next(entries for entries in groups.values() if item in entries)
-            if item["subgroup"]: group=[i for i in group if i["subgroup"]==item["subgroup"]]
-            self.show_passage(item,group)
+                    parent.append(button); self.passage_buttons.append((item,button))
+        self.no_match=Gtk.Label(wrap=True,xalign=0,visible=False); self.no_match.add_css_class("dim-label"); self.toc.append(self.no_match)
+        self.query=None; self.filter()
+    def filter(self,*_):
+        if not hasattr(self,"section_items"): return
+        query=fold(self.search.get_text().strip())
+        if query==self.query: return
+        self.query=query
+        if query:
+            for item in self.section_items:
+                if "search" not in item: item["search"]=fold(item["title"]+" "+item["text"]+" "+" ".join(item["tags"]))
+        matches={i["id"] for i in self.section_items if query in i["search"]} if query else {i["id"] for i in self.section_items}
+        self.visible=[i for i in self.section_items if i["id"] in matches]
+        for item,button in self.passage_buttons: button.set_visible(item["id"] in matches)
+        self.restoring=True
+        for expander,total,path,items in self.branch_rows:
+            count=sum(1 for i in items if i["id"] in matches)
+            expander.set_visible(count>0); total.set_text(self.unit_label(count))
+            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,False))
+        self.restoring=False
+        self.count.set_text(f"{len(self.visible)} passage{'s' if len(self.visible)!=1 else ''}")
+        self.no_match.set_text(f"No passages match “{self.search.get_text().strip()}”." if query else "")
+        self.no_match.set_visible(bool(query) and not self.visible)
+        # Searching never moves the reading position; it only narrows the list.
+        current=next((i for i in self.section_items if self.current and i["id"]==self.current["id"]),None)
+        if current is not None:
+            if current is not self.current: self.show_passage(current,self.groups[current["id"]])
+            else: self.highlight()
+        elif self.section_items:
+            item=next((i for i in self.section_items if i["id"]==self.prefs.get("last")),self.section_items[0])
+            self.show_passage(item,self.groups[item["id"]])
         else:
-            self.related.set_visible(False); self.current=None; self.active_group=[]; self.heading.set_text("No passages found"); self.subtitle.set_text("Try another search, or check this language’s available books in Languages & offline libraries."); self.reader.get_buffer().set_text(""); self.star.set_sensitive(False)
-    def branch(self,parent,title,path,count,query):
+            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False)
+            if self.section=="saved":
+                self.heading.set_text("No saved passages yet"); self.subtitle.set_text("Press Ctrl+D or ☆ Save to keep one here.")
+            else:
+                self.heading.set_text("No passages found"); self.subtitle.set_text("Check this language’s available books in Languages & offline libraries.")
+    def unit_label(self,count):
+        unit="prayer" if self.section=="prayers" else "passage"
+        return f"{count} {unit}{'s' if count != 1 else ''}"
+    def branch(self,parent,title,path,items):
         expander=Gtk.Expander(hexpand=True, vexpand=False)
         expander.add_css_class("toc-branch")
         heading=Gtk.Box(spacing=8, halign=Gtk.Align.START, margin_end=12)
         label=Gtk.Label(label=title, xalign=0,
                         ellipsize=Pango.EllipsizeMode.END, max_width_chars=18)
         heading.append(label)
-        unit="prayer" if self.section=="prayers" else "passage"
-        total=Gtk.Label(label=f"{count} {unit}{'s' if count != 1 else ''}"); total.add_css_class("dim-label")
+        total=Gtk.Label(label=self.unit_label(len(items))); total.add_css_class("dim-label")
         heading.append(total)
         expander.set_label_widget(heading)
-        expander.set_tooltip_text(f"{title} ({count} passages)")
+        expander.set_tooltip_text(title)
         box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3,margin_start=14,margin_top=6,margin_bottom=6)
-        expander.set_child(box); parent.append(expander); self.branches[path]=expander
-        expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,False))
+        expander.set_child(box); parent.append(expander); self.branches[path]=expander; self.branch_rows.append((expander,total,path,items))
         def toggled(widget,_):
-            if not self.search.get_text().strip():
+            if not self.restoring and not self.query:
                 self.prefs.setdefault("expanded",{})[path]=widget.get_expanded(); self.save()
         expander.connect("notify::expanded",toggled)
         return box
+    def highlight(self):
+        for item,button in self.passage_buttons:
+            if self.current and item["id"]==self.current["id"]: button.add_css_class("current-passage")
+            else: button.remove_css_class("current-passage")
     def show_passage(self,item,group):
         self.current=item; self.active_group=group; self.prefs["last"]=item["id"]; self.save()
         self.heading.set_text("Prayer" if item["section"]=="prayers" else item["title"].split(" · ")[0])
@@ -549,9 +619,7 @@ class Reader(Gtk.Application):
             scroller=Gtk.ScrolledWindow(max_content_height=320,propagate_natural_height=True,min_content_width=240)
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
         self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
-        for key,button in self.passage_buttons:
-            if key==item["id"]: button.add_css_class("current-passage")
-            else: button.remove_css_class("current-passage")
+        self.highlight()
     def step(self,delta):
         if self.current in self.active_group:
             index=self.active_group.index(self.current)+delta
@@ -561,7 +629,7 @@ class Reader(Gtk.Application):
         saved=self.prefs.setdefault("saved",[]); key=self.current["id"]
         saved.remove(key) if key in saved else saved.append(key); self.save()
         self.star.set_label("★ Saved" if key in saved else "☆ Save")
-        if self.section=="saved": self.filter()
+        if self.section=="saved": self.rebuild()
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
         if mode=="Omarchy":
@@ -628,7 +696,7 @@ textview text selection {{ background: {selection}; }}
         items=load_library(language)
         if not items: raise ValueError("Download this language before switching")
         self.language=language; self.items=items; self.prefs["language"]=language; self.save()
-        self.filter(); self.update_status()
+        self.rebuild(); self.update_status()
     def details(self):
         """Version details to paste into a support email."""
         display=Gdk.Display.get_default()
@@ -697,6 +765,7 @@ textview text selection {{ background: {selection}; }}
         keys=Gtk.EventControllerKey()
         keys.connect("key-pressed",lambda _c,key,*_: key==Gdk.KEY_Escape and (window.close() or True))
         window.add_controller(keys)
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
         def closed(*_):
             self.about_window=None; return False
         window.connect("close-request",closed); window.present(); close.grab_focus()
@@ -705,6 +774,7 @@ textview text selection {{ background: {selection}; }}
             self.language_window.present(); return
         window=Gtk.Window(title="Languages & offline libraries",transient_for=self.window,modal=True,default_width=490)
         self.language_window=window
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
         box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14)
         for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
         window.set_child(box)
