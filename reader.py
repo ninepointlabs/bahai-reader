@@ -8,6 +8,7 @@ import threading
 import subprocess
 import shutil
 import tomllib
+import urllib.error
 import urllib.request
 import tempfile
 import sys
@@ -55,6 +56,65 @@ def shipped(*names):
 def version():
     path=shipped("VERSION")
     return path.read_text().strip() if path else "unknown"
+
+SECTIONS=("prayers","hidden","writings","saved")
+THEMES=("Omarchy","Light","Dark","Sepia")
+# Slider ranges; loaded values are clamped to them.
+LIMITS={"size":(15,36,22),"spacing":(0,20,8),"margin":(24,160,80)}
+
+def short_path(path):
+    home=str(Path.home())
+    return str(path).replace(home,"~",1) if str(path).startswith(home) else str(path)
+
+def number(value):
+    return isinstance(value,(int,float)) and not isinstance(value,bool) and math.isfinite(value)
+
+def clean_settings(data):
+    """Drop or clamp values of the wrong type, keeping everything that is usable."""
+    prefs=dict(data)
+    for key,(low,high,_) in LIMITS.items():
+        if key in prefs:
+            if number(prefs[key]): prefs[key]=min(high,max(low,int(prefs[key])))
+            else: del prefs[key]
+    if "sidebar_width" in prefs:
+        if number(prefs["sidebar_width"]): prefs["sidebar_width"]=max(220,int(prefs["sidebar_width"]))
+        else: del prefs["sidebar_width"]
+    if not (isinstance(prefs.get("language"),int) and not isinstance(prefs.get("language"),bool)): prefs.pop("language",None)
+    if prefs.get("section")=="gleanings": prefs["section"]="writings"
+    if prefs.get("section") not in SECTIONS: prefs.pop("section",None)
+    if prefs.get("theme") not in THEMES: prefs.pop("theme",None)
+    for key in ("font","last"):
+        if not isinstance(prefs.get(key),str): prefs.pop(key,None)
+    saved=prefs.get("saved")
+    if saved is not None: prefs["saved"]=[i for i in saved if isinstance(i,str)] if isinstance(saved,list) else []
+    expanded=prefs.get("expanded")
+    if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
+    return prefs
+
+def load_settings(path):
+    """Returns (settings, notice). An unreadable file is set aside, never overwritten."""
+    try: text=path.read_text()
+    except FileNotFoundError: return {},None
+    except (OSError,UnicodeDecodeError) as exc:
+        print(f"bahai-reader: could not read {path}: {exc}",file=sys.stderr)
+        return {},f"Your settings could not be read ({getattr(exc,'strerror',None) or exc}), so default settings are in use."
+    try: data=json.loads(text)
+    except ValueError: data=None
+    if isinstance(data,dict): return clean_settings(data),None
+    backup=path.with_name(path.name+".bad")
+    try:
+        os.replace(path,backup); kept=f"The unreadable file, with any saved passages in it, was kept as {short_path(backup)}."
+    except OSError as exc:
+        print(f"bahai-reader: could not set aside {path}: {exc}",file=sys.stderr); kept=f"The file was left at {short_path(path)}."
+    return {},"Your settings file could not be read, so default settings are in use. "+kept
+
+def download_problem(exc):
+    """A sentence for people; the raw error goes to the log."""
+    print(f"bahai-reader: download failed: {exc!r}",file=sys.stderr)
+    if isinstance(exc,(urllib.error.URLError,TimeoutError,ConnectionError)): return "Could not reach bahaiprayers.net. Check your connection and try again."
+    if isinstance(exc,OSError): return f"The download could not be saved: {exc.strerror or exc}."
+    if isinstance(exc,ValueError): return "bahaiprayers.net sent content the app could not use. Try again later."
+    return "The download did not complete. Try again later."
 
 def fetch_json(endpoint):
     with urllib.request.urlopen("https://bahaiprayers.net/api/prayer/"+endpoint, timeout=30) as response:
@@ -233,19 +293,45 @@ def load_library(language=1):
 class Reader(Gtk.Application):
     def __init__(self):
         super().__init__(application_id="org.bahai.Reader")
-        try: self.prefs=json.loads(STATE.read_text())
-        except (OSError, ValueError): self.prefs={}
-        self.languages=catalog(); self.language=int(self.prefs.get("language",1)); self.downloading=False
-        if self.language!=1 and local_pack(self.language) is None: self.language=1
+        self.window=None; self.notices=[]; self.save_failed=False
+        self.prefs,notice=load_settings(STATE)
+        if notice: self.notices.append(notice)
+        self.languages=catalog(); self.language=self.prefs.get("language",1); self.downloading=False
+        if self.language!=1 and local_pack(self.language) is None:
+            name=self.language_info().get("English",self.language_info()["Name"])
+            if (LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in Aa → Languages & offline libraries.")
+            else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
+            self.language=1
         self.items=load_library(self.language); self.section="prayers"; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
         self.connect("activate", self.activate)
     def save(self):
-        STATE.parent.mkdir(parents=True, exist_ok=True)
-        temp=STATE.with_suffix(".tmp"); temp.write_text(json.dumps(self.prefs)); temp.replace(STATE)
+        temp=STATE.with_suffix(".tmp")
+        try:
+            STATE.parent.mkdir(parents=True, exist_ok=True)
+            temp.write_text(json.dumps(self.prefs)); temp.replace(STATE)
+        except OSError as exc:
+            # Reading still works; say so once instead of failing every click.
+            print(f"bahai-reader: could not save {STATE}: {exc}",file=sys.stderr)
+            if not self.save_failed: self.notice(f"Settings and saved passages cannot be stored ({exc.strerror or exc}). Changes last until you close the app.")
+            self.save_failed=True
+            try: temp.unlink(missing_ok=True)
+            except OSError: pass
+    def notice(self,text):
+        if not hasattr(self,"notice_box"): self.notices.append(text); return
+        row=Gtk.Box(spacing=12); row.add_css_class("notice")
+        row.append(Gtk.Label(label=text,wrap=True,xalign=0,hexpand=True))
+        row.append(self.button("Dismiss",lambda *_: (self.notice_box.remove(row), self.notice_box.set_visible(self.notice_box.get_first_child() is not None))))
+        self.notice_box.append(row); self.notice_box.set_visible(True)
     def button(self, text, callback):
         b=Gtk.Button(label=text); b.connect("clicked", callback); return b
     def activate(self, app):
-        if hasattr(self, "window"): self.window.present(); return
+        if self.window: self.window.present(); return
+        try: self.build()
+        except Exception:
+            # Never leave a running instance without a window; later launches would find it.
+            if self.window: self.window.destroy()
+            self.window=None; self.quit(); raise
+    def build(self):
         self.window=Gtk.ApplicationWindow(application=self, title="Bahá’í Reader", default_width=1160, default_height=790)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
@@ -266,6 +352,9 @@ class Reader(Gtk.Application):
         self.window.set_child(outer)
         if shutil.which("omarchy"): outer.append(header); self.window.set_decorated(False)
         else: self.window.set_titlebar(header)
+        self.notice_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,visible=False); outer.append(self.notice_box)
+        for text in self.notices: self.notice(text)
+        self.notices=[]
         keys=Gtk.EventControllerKey(); keys.connect("key-pressed", self.key_pressed); self.window.add_controller(keys)
         body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
         self.split=body; self.panel_width_ready=False; self.panel_programmatic=False; self.panel_save_source=None; self.panel_window_width=0
@@ -525,7 +614,8 @@ headerbar {{ border-bottom: 1px solid {selection}; }}
 label {{ padding-top: 2px; padding-bottom: 2px; }}
 .dim-label {{ opacity: 0.7; font-size: 13px; min-height: 18px; padding-top: 3px; padding-bottom: 3px; }}
 textview {{ font-family: "{font}"; font-size: {size}px; }}
-textview text selection {{ background: {selection}; }}'''.encode())
+textview text selection {{ background: {selection}; }}
+.notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''.encode())
         self.reader.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); self.reader.set_pixels_below_lines(14)
         self.reader.set_left_margin(int(self.prefs.get("margin",80))); self.reader.set_right_margin(int(self.prefs.get("margin",80)))
         return True
@@ -660,7 +750,7 @@ textview text selection {{ background: {selection}; }}'''.encode())
             def worker():
                 error=None
                 try: download_language(language,self.languages,report)
-                except Exception as exc:error=str(exc)
+                except Exception as exc:error=download_problem(exc)
                 def done():
                     busy(False)
                     if error:progress.set_text("Download failed. Existing offline content is unchanged.\n"+error)
@@ -676,10 +766,10 @@ textview text selection {{ background: {selection}; }}'''.encode())
                     fresh={key:fetch_json(endpoint) for key,endpoint in LANGUAGE_ENDPOINTS.items()}
                     if not all(isinstance(rows,list) and rows and all(isinstance(r,dict) and isinstance(r.get("Id"),int) and isinstance(r.get("Name"),str) for r in rows) for rows in fresh.values()):raise ValueError("Invalid language catalog")
                     atomic_json(LIBRARY/"languages.json",fresh)
-                except Exception as exc:error=str(exc)
+                except Exception as exc:error=download_problem(exc)
                 def done():
                     if not error:self.languages=fresh; populate(selected)
-                    busy(False); progress.set_text("Could not update language list. The saved list is still available." if error else "Language list updated.")
+                    busy(False); progress.set_text(f"Could not update the language list. The saved list is still available.\n{error}" if error else "Language list updated.")
                 GLib.idle_add(done)
             threading.Thread(target=worker,daemon=True).start()
         def close(*_):
@@ -689,7 +779,21 @@ textview text selection {{ background: {selection}; }}'''.encode())
         window.connect("close-request",close); choice.connect("changed",details)
         populate(self.language); details(); window.present()
 
-if __name__=="__main__":
+def usage():
+    return (f"Usage: bahai-reader [--help | --version]\n\n{TAGLINE}\n"
+            "With no options it opens the reader window; a second launch shows the open window.\n\n"
+            "Options:\n  -h, --help     Show this help and exit\n  --version      Show the version and exit\n\n"
+            f"Settings and saved passages: {short_path(STATE)}\nDownloaded languages: {short_path(LIBRARY)}\n"
+            f"Support: {SUPPORT_EMAIL}")
+
+def main(args):
+    if args in (["-h"],["--help"]): print(usage()); return 0
+    if args==["--version"]: print(f"{APP_NAME} {version()}"); return 0
+    if args:
+        print(f"bahai-reader: unknown option {args[0]!r}. Try bahai-reader --help.",file=sys.stderr); return 2
     # X11 WM_CLASS comes from the program name; match StartupWMClass and the Wayland app_id.
     GLib.set_prgname("org.bahai.Reader")
-    Reader().run()
+    return Reader().run([sys.argv[0]])
+
+if __name__=="__main__":
+    sys.exit(main(sys.argv[1:]))
