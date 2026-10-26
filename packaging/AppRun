@@ -30,8 +30,12 @@ install_entry() {
     # Desktop Entry quoting: escape \ " ` $ inside the quoted path, and % for field codes.
     exec_path=$(printf '%s' "$APPIMAGE" | sed -e 's/\\/\\\\\\\\/g' -e 's/["`$]/\\\\&/g' -e 's/%/%%/g')
     try_exec=$(printf '%s' "$APPIMAGE" | sed -e 's/\\/\\\\/g')
-    EXEC_PATH=$exec_path TRY_EXEC=$try_exec awk '
-        /^Exec=/ { print "Exec=\"" ENVIRON["EXEC_PATH"] "\""; print "TryExec=" ENVIRON["TRY_EXEC"]; next }
+    # GIO checks that the program exists before expanding %%, so a path with % would
+    # never load there. Start it through env instead; env then gets the expanded path.
+    launcher=
+    case $APPIMAGE in *%*) launcher="env " ;; esac
+    LAUNCHER=$launcher EXEC_PATH=$exec_path TRY_EXEC=$try_exec awk '
+        /^Exec=/ { print "Exec=" ENVIRON["LAUNCHER"] "\"" ENVIRON["EXEC_PATH"] "\""; print "TryExec=" ENVIRON["TRY_EXEC"]; next }
         /^TryExec=/ { next }
         { print }
     ' "$appdir/$app_id.desktop" > "$entry.tmp"
@@ -52,9 +56,17 @@ remove_entry() {
         echo "Removed $entry"
     elif [ -f "$entry" ]; then
         echo "Left $entry alone: it was not created by the AppImage." >&2
+        echo "Left the icons alone too: they belong with that entry." >&2
+        refresh_caches
+        return
     fi
+    # Only icons identical to the bundled ones are ours; another install may share the name.
     for icon in $(bundled_icons); do
-        if [ -f "$icons/$icon" ]; then rm -f "$icons/$icon"; echo "Removed $icons/$icon"; fi
+        if [ -f "$icons/$icon" ] && cmp -s "$appdir/usr/share/icons/hicolor/$icon" "$icons/$icon"; then
+            rm -f "$icons/$icon"; echo "Removed $icons/$icon"
+        elif [ -f "$icons/$icon" ]; then
+            echo "Left $icons/$icon alone: it differs from the AppImage's icon." >&2
+        fi
     done
     refresh_caches
 }

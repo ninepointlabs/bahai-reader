@@ -29,6 +29,7 @@ jobs:
       - run: NFPM="$RUNNER_TEMP/nfpm/nfpm" scripts/build-packages.sh
       - run: scripts/build-appimage.sh "dist/bahai-reader-$(cat VERSION)-x86_64.AppImage"
       - run: xvfb-run -a tests/appimage_check.sh "dist/bahai-reader-$(cat VERSION)-x86_64.AppImage"
+      - run: tests/apprun_check.sh
       - uses: actions/upload-artifact@v4
         with:
           name: packages
