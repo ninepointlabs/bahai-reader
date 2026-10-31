@@ -78,7 +78,7 @@ with tempfile.TemporaryDirectory() as temp:
             # Obligatory prayers: the three prayers first, open, then the Aqdas guidance; Next stays among the prayers.
             app.navigate("obligatory")
             assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]
-            assert app.branches["obligatory/The three prayers"].get_expanded() and len(app.visible)==19
+            assert app.branches["obligatory/The three prayers"].get_expanded() and len(app.visible)==47
             assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Prayer"
             # Its directions are in italics, the words of the prayer are not.
             buffer=app.reader.get_buffer(); direction=buffer.get_tag_table().lookup("direction")

@@ -13,13 +13,18 @@ class ObligatoryTests(unittest.TestCase):
         self.assertEqual([p["tags"] for p in prayers],[["Short Obligatory Prayer"],["Medium Obligatory Prayer"],["Long Obligatory Prayer"]])
         self.assertTrue(all(p["section"]=="prayers" and p["citation"]=="Bahá’u’lláh" for p in prayers))
 
-    def test_guidance_is_paragraph_6_with_its_linked_notes_and_answers(self):
+    def test_guidance_is_the_prayer_paragraphs_with_their_linked_notes_and_answers(self):
         guidance=self.groups["Kitáb-i-Aqdas"]
         self.assertEqual(guidance[0]["id"],"aqdas:Paragraphs:6")
         self.assertIn("We have enjoined obligatory prayer upon you",guidance[0]["text"])
         numbered=[(i["subgroup"],i["title"].split(" · ")[0]) for i in guidance]
-        self.assertEqual(numbered,[("Text","6")]+[("Questions and Answers",str(n)) for n in (14,63,65,66,67,81,82,83,93)]+[("Notes",str(n)) for n in range(3,9)])
-        self.assertIn("three prayers are revealed",guidance[3]["text"])
+        self.assertEqual(numbered,[("Text",str(n)) for n in (6,8,10,12,13,14)]
+            +[("Questions and Answers",str(n)) for n in (14,20,21,58,59,60,61,63,64,65,66,67,70,74,81,82,83,85,93,103)]
+            +[("Notes",str(n)) for n in (3,4,5,6,7,8,9,10,11,13,14,15,16,17,19,20,21,22)])
+        self.assertIn("When traveling",guidance[5]["text"])
+        # Each passage once, though several paragraphs link to it (Q&A 63, 85, 93).
+        self.assertEqual(len({i["id"] for i in guidance}),len(guidance))
+        self.assertIn("three prayers are revealed",guidance[numbered.index(("Questions and Answers","65"))]["text"])
         # Every entry is the bundled passage itself, not a copy.
         self.assertTrue(all(any(g is i for i in self.items) for g in guidance))
 
