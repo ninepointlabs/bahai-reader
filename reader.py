@@ -230,6 +230,15 @@ def citation(key,row):
     else: where=""
     return ", ".join(part for part in (author,SECTION_NAMES[key],where) if part)
 
+def clipping(item,excerpt=None):
+    """The passage, or a selected part of it, followed by its citation, for pasting elsewhere."""
+    text=(excerpt or item["text"]).strip(); cite=item["citation"]
+    # A selection that runs into (or is only) the citation line under the passage.
+    if cite: text=text.split("— "+cite)[0].strip() or item["text"]
+    # Prayers carry only an author; the category is the nearest thing to a reference.
+    if item["section"]=="prayers" and item["tags"]: cite=", ".join(filter(None,(cite,"Prayers",item["tags"][0])))
+    return f"{text}\n\n— {cite}" if cite else text
+
 def luminance(color):
     channels=[int(color[i:i+2],16)/255 for i in (1,3,5)]
     r,g,b=[c/12.92 if c<=0.04045 else ((c+0.055)/1.055)**2.4 for c in channels]
@@ -369,6 +378,7 @@ class Reader(Gtk.Application):
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
         self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
+        self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
         settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
@@ -489,6 +499,7 @@ class Reader(Gtk.Application):
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
+            if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True
         if key==Gdk.KEY_F1: self.about_dialog(); return True
         if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
         return False
@@ -592,7 +603,7 @@ class Reader(Gtk.Application):
             item=next((i for i in self.section_items if i["id"]==self.prefs.get("last")),self.section_items[0])
             self.show_passage(item,self.groups[item["id"]])
         else:
-            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False)
+            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False); self.copy.set_sensitive(False)
             if self.section=="saved":
                 self.heading.set_text("No saved passages yet"); self.subtitle.set_text("Press Ctrl+D or ☆ Save to keep one here.")
             else:
@@ -645,6 +656,7 @@ class Reader(Gtk.Application):
             scroller=Gtk.ScrolledWindow(max_content_height=320,propagate_natural_height=True,min_content_width=240)
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
         self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
+        self.copy.set_sensitive(True)
         self.highlight()
     def step(self,delta):
         if self.current in self.active_group:
@@ -656,6 +668,18 @@ class Reader(Gtk.Application):
         saved.remove(key) if key in saved else saved.append(key); self.save()
         self.star.set_label("★ Saved" if key in saved else "☆ Save")
         if self.section=="saved": self.rebuild()
+    def copy_passage(self,*_):
+        """Copies the selected words, or the whole passage, with the citation."""
+        if not self.current: return None
+        buffer=self.reader.get_buffer(); bounds=buffer.get_selection_bounds()
+        excerpt=buffer.get_text(*bounds,False).strip() if bounds else None
+        text=clipping(self.current,excerpt or None); self.window.get_clipboard().set(text)
+        self.copy.set_label("Copied")
+        if getattr(self,"copy_reset",None): GLib.source_remove(self.copy_reset)
+        def reset():
+            self.copy_reset=None; self.copy.set_label("Copy"); return False
+        self.copy_reset=GLib.timeout_add(1500,reset)
+        return text
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
         if mode=="Omarchy":
