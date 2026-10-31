@@ -362,6 +362,19 @@ def obligatory(items):
         guidance=[paragraph]+[by_id[target] for target,_ in paragraph["references"] if target in by_id]
         groups["Kitáb-i-Aqdas"]=sorted(guidance,key=lambda i:list(AQDAS_SECTIONS.values()).index(i["subgroup"]))
     return groups
+
+# Paragraphs of an obligatory prayer that tell when and how to say it, or comment on it, rather than words to be said.
+DIRECTION=re.compile(r'To be recited|God hath exempted|"The daily obligatory|\(|\d+\. ')
+
+def directions(item):
+    """Character spans of an obligatory prayer's directions, shown in italics so the prayer itself stands out."""
+    if not set(OBLIGATORY_PRAYERS).intersection(item["tags"]): return []
+    spans=[]; start=0
+    for paragraph in item["text"].split("\n\n"):
+        text=paragraph.strip()
+        if start and text and (text.endswith(":") or DIRECTION.match(text)): spans.append((start,start+len(paragraph)))
+        start+=len(paragraph)+2
+    return spans
 # Passages short enough to read in a moment, from the prayers, the Hidden Words, Gleanings and Prayers and Meditations.
 REFLECTION_BOOKS={BOOKS["gleanings"],BOOKS["meditations"]}
 REFLECTION_WORDS=500
@@ -733,6 +746,9 @@ class Reader(Gtk.Application):
         self.reader.set_direction(Gtk.TextDirection.LTR if self.language_info().get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
         self.stop_scroll()
         buffer=self.reader.get_buffer(); buffer.set_text(item["text"])
+        for start,end in directions(item):
+            tag=buffer.get_tag_table().lookup("direction") or buffer.create_tag("direction",style=Pango.Style.ITALIC)
+            buffer.apply_tag(tag,buffer.get_iter_at_offset(start),buffer.get_iter_at_offset(end))
         if item["citation"]:
             tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
             buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],tag)
