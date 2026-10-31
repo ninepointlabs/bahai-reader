@@ -83,6 +83,7 @@ def clean_settings(data):
         if number(prefs["sidebar_width"]): prefs["sidebar_width"]=max(220,int(prefs["sidebar_width"]))
         else: del prefs["sidebar_width"]
     if not (isinstance(prefs.get("language"),int) and not isinstance(prefs.get("language"),bool)): prefs.pop("language",None)
+    if not (isinstance(prefs.get("compare"),int) and not isinstance(prefs.get("compare"),bool)): prefs.pop("compare",None)
     if prefs.get("section")=="gleanings": prefs["section"]="writings"
     if prefs.get("section") not in SECTIONS: prefs.pop("section",None)
     if prefs.get("theme") not in THEMES: prefs.pop("theme",None)
@@ -252,6 +253,15 @@ def word_label(item):
     count=item["word_count"]
     return f"{count} word{'s' if count != 1 else ''}"
 
+# Passages line up across languages by their numbering, as in BahaiPrayers.net's Matrix (comparison) feeds.
+# Prayers, Days of Remembrance and Riḍván messages (several per year) share no numbering, so they are not paired.
+ALIGN={"hidden":("IsArabic","Number"), "gleanings":("Number",), "meditations":("Number",), "tablets":("TabletNumber","Number"),
+       "iqan":("Part","Number"), "aqdas":("AqdasSection","Number"), "saq":("Number",)}
+
+def align(key,row):
+    fields=ALIGN.get(key)
+    return ":".join([key]+[str(row.get(f)) for f in fields]) if fields else None
+
 def load_library(language=1):
     result=[]; pack=local_pack(language)
     for key in FEEDS:
@@ -298,7 +308,7 @@ def load_library(language=1):
             elif key=="ridvan":
                 year=row.get("Year",""); subgroup=f"{int(year)//10*10}s" if str(year).isdigit() else "Messages"
                 title=f"{year} · {row.get('Title') or 'Riḍván message'}"
-            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, citation=", ".join(filter(None,(citation(key,row),book)))))
+            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, match=align(key,row), citation=", ".join(filter(None,(citation(key,row),book)))))
     return result
 
 class Choice(Gtk.DropDown):
@@ -379,6 +389,9 @@ class Reader(Gtk.Application):
         self.slider(settings, "Text size", "size", 15, 36, 22)
         self.slider(settings, "Line spacing", "spacing", 0, 20, 8)
         self.slider(settings, "Page margins", "margin", 24, 160, 80)
+        settings.append(Gtk.Label(label="Side by side",xalign=0)); self.compare=Choice(); settings.append(self.compare)
+        self.compare.connect("changed",self.compare_changed); self.compare_cache=(None,{}); self.filling_compare=False
+        pop.connect("show",lambda *_: self.fill_compare())
         settings.append(self.button("Languages & offline libraries…", self.language_dialog))
         settings.append(self.button("About Bahá’í Reader (F1)", lambda *_: (pop.popdown(), self.about_dialog())))
         self.window.set_child(outer)
@@ -416,7 +429,13 @@ class Reader(Gtk.Application):
         self.subtitle=Gtk.Label(label="A moment for reflection"); self.subtitle.add_css_class("dim-label"); right.append(self.subtitle)
         self.reader=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
         self.reader.set_top_margin(24); self.reader.set_bottom_margin(50)
-        self.readscroll=Gtk.ScrolledWindow(vexpand=True, kinetic_scrolling=True); self.readscroll.set_child(self.reader); right.append(self.readscroll)
+        self.pages=Gtk.Box(homogeneous=True, vexpand=True); right.append(self.pages)
+        self.readscroll=Gtk.ScrolledWindow(vexpand=True, kinetic_scrolling=True); self.readscroll.set_child(self.reader); self.pages.append(self.readscroll)
+        # A second language beside the passage, from a downloaded library; never fetched while reading.
+        self.second=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
+        self.second.set_top_margin(24); self.second.set_bottom_margin(50)
+        self.secondscroll=Gtk.ScrolledWindow(vexpand=True, visible=False); self.secondscroll.set_child(self.second); self.pages.append(self.secondscroll)
+        self.readscroll.get_vadjustment().connect("value-changed",self.follow_scroll)
         self.scroll_tick=None; self.scroll_target=0.0; self.scroll_time=None; self.scroll_direction=0
         wheel=Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags.VERTICAL)
         wheel.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
@@ -562,7 +581,7 @@ class Reader(Gtk.Application):
                     button.add_css_class("toc-passage")
                     parent.append(button); self.passage_buttons.append((item,button))
         self.no_match=Gtk.Label(wrap=True,xalign=0,visible=False); self.no_match.add_css_class("dim-label"); self.toc.append(self.no_match)
-        self.query=None; self.filter()
+        self.query=None; self.filter(); self.show_second()
     def filter(self,*_):
         if not hasattr(self,"section_items"): return
         query=fold(self.search.get_text().strip())
@@ -634,6 +653,7 @@ class Reader(Gtk.Application):
             tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
             buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],tag)
         self.readscroll.get_vadjustment().set_value(0)
+        self.show_second()
         self.related.set_visible(bool(item["references"]))
         if item["references"]:
             pop=Gtk.Popover(); links=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4)
@@ -710,9 +730,62 @@ label {{ padding-top: 2px; padding-bottom: 2px; }}
 textview {{ font-family: "{font}"; font-size: {size}px; }}
 textview text selection {{ background: {selection}; }}
 .notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''.encode())
-        self.reader.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); self.reader.set_pixels_below_lines(14)
-        self.reader.set_left_margin(int(self.prefs.get("margin",80))); self.reader.set_right_margin(int(self.prefs.get("margin",80)))
+        for view in (self.reader,self.second):
+            view.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); view.set_pixels_below_lines(14)
+            view.set_left_margin(int(self.prefs.get("margin",80))); view.set_right_margin(int(self.prefs.get("margin",80)))
         return True
+    def compare_languages(self):
+        """English and every downloaded library, except the language being read."""
+        downloaded=sorted(int(p.stem) for p in LIBRARY.glob("*.json") if p.stem.isdigit()) if LIBRARY.is_dir() else []
+        return [l for l in dict.fromkeys([1,*downloaded]) if l!=self.language]
+    def fill_compare(self):
+        self.filling_compare=True
+        self.compare.remove_all(); self.compare.append("","Off")
+        for language in self.compare_languages():
+            info=self.language_info(language); self.compare.append(str(language),info.get("English",info["Name"]))
+        self.compare.set_active_id(str(self.prefs.get("compare","")) if str(self.prefs.get("compare","")) in self.compare.ids else "")
+        self.filling_compare=False
+    def compare_changed(self,choice):
+        if self.filling_compare or choice.get_active_id() is None: return
+        if choice.get_active_id(): self.prefs["compare"]=int(choice.get_active_id())
+        else: self.prefs.pop("compare",None)
+        self.save(); self.show_second()
+    def second_items(self,language):
+        """{alignment key: passage} for a language, loaded from disk once."""
+        if self.compare_cache[0]!=language:
+            try: items=load_library(language)
+            except (OSError,ValueError,KeyError,TypeError): items=[]
+            self.compare_cache=(language,{i["match"]:i for i in items if i["match"]})
+        return self.compare_cache[1]
+    def show_second(self):
+        language=self.prefs.get("compare")
+        shown=language is not None and language!=self.language and self.current is not None
+        self.secondscroll.set_visible(shown)
+        if not shown: return
+        info=self.language_info(language); name=info.get("English",info["Name"])
+        other=self.second_items(language); match=self.current.get("match"); item=other.get(match) if match else None
+        buffer=self.second.get_buffer(); buffer.set_text("")
+        table=buffer.get_tag_table()
+        label=table.lookup("language") or buffer.create_tag("language",scale=0.7,pixels_below_lines=12)
+        note=table.lookup("note") or buffer.create_tag("note",style=Pango.Style.ITALIC,scale=0.85)
+        cite=table.lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
+        buffer.insert_with_tags(buffer.get_end_iter(),info["Name"].upper()+"\n",label)
+        if item:
+            self.second.set_direction(Gtk.TextDirection.LTR if info.get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
+            buffer.insert(buffer.get_end_iter(),item["text"])
+            if item["citation"]: buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],cite)
+        else:
+            self.second.set_direction(Gtk.TextDirection.LTR)
+            if not other: text=f"The {name} library is not downloaded or could not be read. Download it in Aa → Languages & offline libraries."
+            elif not match: text="Prayers, Days of Remembrance and Riḍván messages are not numbered the same way in every language, so they cannot be shown side by side."
+            else: text=f"This passage is not in the downloaded {name} library."
+            buffer.insert_with_tags(buffer.get_end_iter(),text,note)
+        self.secondscroll.get_vadjustment().set_value(0)
+    def follow_scroll(self,adjustment):
+        # Keep the second language at the same point in the passage, proportionally.
+        if not self.secondscroll.get_visible(): return
+        other=self.secondscroll.get_vadjustment(); span=adjustment.get_upper()-adjustment.get_page_size()
+        if span>0: other.set_value(adjustment.get_value()/span*(other.get_upper()-other.get_page_size()))
     def language_info(self,language=None):
         language=self.language if language is None else language
         return next((r for r in self.languages["prayers"] if r["Id"]==language), {"Name":str(language)})
@@ -721,7 +794,7 @@ textview text selection {{ background: {selection}; }}
     def use_language(self,language):
         items=load_library(language)
         if not items: raise ValueError("Download this language before switching")
-        self.language=language; self.items=items; self.prefs["language"]=language; self.save()
+        self.language=language; self.items=items; self.prefs["language"]=language; self.save(); self.compare_cache=(None,{})
         self.rebuild(); self.update_status()
     def details(self):
         """Version details to paste into a support email."""

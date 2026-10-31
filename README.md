@@ -82,6 +82,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
+- **Side by side**: Aa → Side by side shows the passage beside the same passage in English or any downloaded language. Passages are paired by their numbering (Hidden Word, Gleanings and Prayers and Meditations number, Tablet and paragraph, Íqán part and paragraph, Aqdas paragraph, note or question, SAQ chapter), as BahaiPrayers.net's Matrix comparison feeds pair them, so it works offline and makes no network request. Prayers, Days of Remembrance and Riḍván messages have no shared numbering across languages and are not paired. A translation that numbers its paragraphs differently is paired the same way the provider pairs it.
 
 Current Omarchy theme location: `$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (defaults to `~/.local/state`). Legacy `~/.config/omarchy/current/theme/colors.toml` is also supported. App settings live in `$XDG_CONFIG_HOME/bahai-reader`; downloaded language libraries in `$XDG_DATA_HOME/bahai-reader/libraries` (default `~/.local/share/bahai-reader/libraries`). No desktop configuration is modified.
 
