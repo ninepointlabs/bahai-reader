@@ -69,7 +69,7 @@ Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packag
 /usr/bin/python3 reader.py
 ```
 
-`bahai-reader --help` and `--version` print and exit; the app takes no other options. If the settings file is damaged, the app starts with defaults, keeps the damaged file as `settings.json.bad`, and says so.
+`bahai-reader --help` and `--version` print and exit; the app takes no other options. If the settings file is damaged, the app starts with defaults, keeps the damaged file as `settings.json.bad` (or `settings.json.bad.1` and so on, never replacing an earlier one), and says so. Damaged collection entries are dropped, but every passage filed in one stays saved.
 
 Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobject gtk4`. Debian 12+/Ubuntu 24.04+: `python3-gi gir1.2-gtk-4.0`. Fedora: `python3-gobject gtk4`.
 
@@ -79,6 +79,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - All ten English collections bundled for offline reading, sourced directly from the API.
 - Topic filtering, full-text section search, saved passages, last passage restoration.
 - Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
+- **Collections** for saved passages, like a personal prayerbook. Saved passages start under *Unsorted*; the **Collection** list under a saved passage moves it, and **Manage collections…** (shown in Saved passages) creates, renames and deletes them. Deleting a collection keeps its passages saved, under Unsorted. Saved passages are listed by collection.
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
