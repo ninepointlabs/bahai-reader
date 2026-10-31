@@ -80,6 +80,10 @@ with tempfile.TemporaryDirectory() as temp:
             assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]
             assert app.branches["obligatory/The three prayers"].get_expanded() and len(app.visible)==19
             assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Prayer"
+            # Its directions are in italics, the words of the prayer are not.
+            buffer=app.reader.get_buffer(); direction=buffer.get_tag_table().lookup("direction")
+            start=app.current["text"].index("To be recited"); words=app.current["text"].index("I bear witness")
+            assert buffer.get_iter_at_offset(start).has_tag(direction) and not buffer.get_iter_at_offset(words).has_tag(direction)
             app.step(1); assert app.current["tags"]==["Medium Obligatory Prayer"]
             app.step(1); app.step(1); assert app.current["tags"]==["Long Obligatory Prayer"]
             app.navigate("hidden")
