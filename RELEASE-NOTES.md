@@ -1,10 +1,15 @@
 Patch release of Bahá’í Reader.
 
-v0.1.4 makes it easier to read on any Linux distribution.
+v0.1.5 adds five reading features and a round of fixes.
 
-- New: a Flatpak bundle, `bahai-reader-0.1.4-x86_64.flatpak`. It brings its own Python and GTK through the GNOME runtime, so it runs on any distribution with Flatpak, even where the system GTK is too old. It is a download here, not a Flathub listing. Install it with `flatpak install --user ./bahai-reader-0.1.4-x86_64.flatpak`.
-- New: the AppImage can add itself to your application menu with `--install-desktop-entry` (and remove itself with `--remove-desktop-entry`), and it now has proper icons and app info for Gear Lever and AppImageLauncher.
-- Changed: if your system’s Python or GTK is missing or too old, the AppImage now says so kindly and points you to the Flatpak instead.
+- New: **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or a prayer’s author and category. Selected words are copied with the citation too.
+- New: an **Obligatory prayers** section with the short, medium and long obligatory prayers, followed by Kitáb-i-Aqdas ¶6 and the notes and Questions and Answers linked to it.
+- New: **collections** for saved passages. Create, rename and delete them, and move passages between them. Existing saved passages are kept as they are, under Unsorted.
+- New: **Today** (Ctrl+T) opens a passage of the day, the same all day and different each day. **Random** (Ctrl+R) opens a random passage. Both work offline.
+- New: **Side by side** (Aa menu) shows the passage beside English or any downloaded language, paired by paragraph or Hidden Word number. It works offline. Prayers, Days of Remembrance and Riḍván messages cannot be paired.
+- Changed: search ignores accents, apostrophes and hyphens, so `Bahaullah` finds Bahá’u’lláh. Searching no longer moves your reading position. Alt+Left/Right and Ctrl+Page Up/Down move between passages.
+- Changed: a damaged settings file never stops the app from starting, and never loses saved passages. It is kept as a numbered `settings.json.bad` backup.
+- Changed: the contents list follows the reading palette, the current passage and keyboard focus are easier to see, and the Epistle to the Son of the Wolf is listed under Writings.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.
