@@ -70,6 +70,13 @@ with tempfile.TemporaryDirectory() as temp:
             else: assert color and close(color,"#fafaf7"), f"contents list background is {color}, not the Light palette's #fafaf7"
             app.navigate("writings")
             assert len([p for p in app.branches if p.count("/")==1])==9
+            # Obligatory prayers: the three prayers first, open, then the Aqdas guidance; Next stays among the prayers.
+            app.navigate("obligatory")
+            assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]
+            assert app.branches["obligatory/The three prayers"].get_expanded() and len(app.visible)==19
+            assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Prayer"
+            app.step(1); assert app.current["tags"]==["Medium Obligatory Prayer"]
+            app.step(1); app.step(1); assert app.current["tags"]==["Long Obligatory Prayer"]
             app.navigate("hidden")
             assert len(app.visible)==153
             buffer=app.reader.get_buffer()

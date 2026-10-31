@@ -76,6 +76,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 ## Features
 
 - Separate Prayers, Hidden Words (Arabic/Persian divisions), and Writings sections.
+- **Obligatory prayers** section: the short, medium and long obligatory prayers in one place, followed by Kitáb-i-Aqdas ¶6, which enjoins obligatory prayer, and the notes and Questions and Answers that the bundled Aqdas links to that paragraph. All from the bundled texts; prayers are found by their BahaiPrayers.net category, which other languages may not use.
 - All ten English collections bundled for offline reading, sourced directly from the API.
 - Topic filtering, full-text section search, saved passages, last passage restoration.
 - **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or the prayer’s author and category. With words selected in the passage, only the selection is copied, still with the citation.
