@@ -28,7 +28,8 @@ with tempfile.TemporaryDirectory() as temp:
             choices=[w for w in widgets(app.window) if isinstance(w,reader.Choice)]
             theme=next(c for c in choices if c.ids==["Omarchy","Light","Dark","Sepia"])
             assert theme.get_active_text()=="Sepia", theme.get_active_text()
-            font=next(c for c in choices if c is not theme)
+            fonts=sorted({f.get_name() for f in app.window.get_pango_context().list_families()})
+            font=next(c for c in choices if c.ids==fonts)
             assert font.get_active_id()==app.prefs.get("font",font.get_active_id()) and font.get_active_id() in font.ids
             theme.set_selected(1)
             assert app.prefs["theme"]=="Light" and json.loads(reader.STATE.read_text())["theme"]=="Light"
