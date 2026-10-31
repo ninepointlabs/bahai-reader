@@ -13,6 +13,7 @@ CASES={
     "invalid-json":('{"saved":["prayers:258"],"la',"settings.json.bad"),
     "read-only-folder":('{"saved":["hidden:1"]}',"cannot be stored"),
     "corrupt-pack":('{"language":4}',"could not be read, so English is shown"),
+    "damaged-collections":('{"saved":"oops","collections":[{"name":"Kept","items":["hidden:2",3]},"junk",{"items":["hidden:1"]}]}',None),
 }
 
 def child(case,temp):
@@ -54,6 +55,7 @@ def main():
                 if result["prefs"].get("saved")!=["hidden:1"] or "size" in result["prefs"] or result["prefs"].get("margin")!=160 or result["section"]!="prayers": problems.append(str(result))
             if case=="invalid-json" and not any("saved passages" in n for n in result["notices"]): problems.append(str(result))
             if case=="corrupt-pack" and result["language"]!=1: problems.append(str(result))
+            if case=="damaged-collections" and (result["prefs"].get("saved")!=["hidden:2","hidden:1"] or result["prefs"].get("collections")!=[{"name":"Kept","items":["hidden:2"]}]): problems.append(str(result))
             if problems: failures.append(f"{case}: "+"; ".join(problems))
             else: print(f"ok {case}")
     if failures: raise SystemExit("\n".join(failures))

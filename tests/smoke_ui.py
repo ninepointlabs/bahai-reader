@@ -79,6 +79,25 @@ with tempfile.TemporaryDirectory() as temp:
             app.step(1); app.step(1); assert app.current["tags"]==["Long Obligatory Prayer"]
             app.navigate("hidden")
             assert len(app.visible)==153
+            # Collections: save two passages, file one, rename and delete; nothing is unsaved along the way.
+            first,second=app.visible[0],app.visible[1]
+            assert not app.filing.get_visible()
+            app.bookmark(); app.show_passage(second,app.active_group); app.bookmark()
+            assert app.filing.get_visible() and app.collection.get_active_text()=="Unsorted"
+            assert app.create_collection(" Morning  prayers ") is None and "already" in app.create_collection("morning prayers")
+            assert "Unsorted" in app.create_collection("unsorted") and app.create_collection("   ")
+            app.collection.set_active_id("Morning prayers")
+            assert app.collection_of(second["id"])=="Morning prayers"
+            app.navigate("saved")
+            assert app.manage.get_visible() and list(app.filed())==["Morning prayers","Unsorted"]
+            assert [p for p in app.branches if p.count("/")==1]==["saved/Morning prayers","saved/Unsorted"] and len(app.visible)==2
+            app.collections_dialog(); assert app.collections_window.get_visible()
+            assert app.rename_collection("Morning prayers","Dawn") is None and app.collection_of(second["id"])=="Dawn"
+            app.delete_collection("Dawn")
+            assert app.prefs["collections"]==[] and app.prefs["saved"]==[first["id"],second["id"]] and app.filed()["Unsorted"]==[first,second]
+            stored=reader.json.loads(reader.STATE.read_text()); assert stored["saved"]==app.prefs["saved"] and stored["collections"]==[]
+            app.collections_window.close(); assert app.collections_window is None
+            app.navigate("hidden")
             buffer=app.reader.get_buffer()
             assert buffer.get_text(buffer.get_start_iter(),buffer.get_end_iter(),False).endswith("— "+app.current["citation"])
             # Ctrl+Shift+C puts the passage and its citation on the clipboard.
