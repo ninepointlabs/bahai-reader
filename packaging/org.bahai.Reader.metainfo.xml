@@ -39,6 +39,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.6" date="2026-10-30">
+      <description><p>The directions in the obligatory prayers are shown in italics, so the words of the prayer stand out.</p></description>
+    </release>
     <release version="0.1.5" date="2026-10-30">
       <description><p>Copy with citation, an Obligatory prayers section, collections for saved passages, a passage of the day, and two languages side by side.</p></description>
     </release>

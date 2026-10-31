@@ -1,15 +1,10 @@
 Patch release of Bahá’í Reader.
 
-v0.1.5 adds five reading features and a round of fixes.
+v0.1.6 makes the obligatory prayers easier to follow.
 
-- New: **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or a prayer’s author and category. Selected words are copied with the citation too.
-- New: an **Obligatory prayers** section with the short, medium and long obligatory prayers, followed by Kitáb-i-Aqdas ¶6 and the notes and Questions and Answers linked to it.
-- New: **collections** for saved passages. Create, rename and delete them, and move passages between them. Existing saved passages are kept as they are, under Unsorted.
-- New: **Today** (Ctrl+T) opens a passage of the day, the same all day and different each day. **Random** (Ctrl+R) opens a random passage. Both work offline.
-- New: **Side by side** (Aa menu) shows the passage beside English or any downloaded language, paired by paragraph or Hidden Word number. It works offline. Prayers, Days of Remembrance and Riḍván messages cannot be paired.
-- Changed: search ignores accents, apostrophes and hyphens, so `Bahaullah` finds Bahá’u’lláh. Searching no longer moves your reading position. Alt+Left/Right and Ctrl+Page Up/Down move between passages.
-- Changed: a damaged settings file never stops the app from starting, and never loses saved passages. It is kept as a numbered `settings.json.bad` backup.
-- Changed: the contents list follows the reading palette, the current passage and keyboard focus are easier to see, and the Epistle to the Son of the Wolf is listed under Writings.
+- Changed: in the short, medium and long obligatory prayers, the directions are shown in italics, so the words of the prayer stand out. These are the line saying when to recite the prayer, the Kitáb-i-Aqdas exemption, each “let him … say:”, the note on the shorter verses, the closing guidance and the footnote. Copied text is unchanged.
+
+v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.
