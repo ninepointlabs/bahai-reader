@@ -75,13 +75,58 @@ with tempfile.TemporaryDirectory() as temp:
             else: assert color and close(color,"#fafaf7"), f"contents list background is {color}, not the Light palette's #fafaf7"
             app.navigate("writings")
             assert len([p for p in app.branches if p.count("/")==1])==9
+            # Obligatory prayers: the three prayers first, open, then the Aqdas guidance; Next stays among the prayers.
+            app.navigate("obligatory")
+            assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]
+            assert app.branches["obligatory/The three prayers"].get_expanded() and len(app.visible)==19
+            assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Prayer"
+            app.step(1); assert app.current["tags"]==["Medium Obligatory Prayer"]
+            app.step(1); app.step(1); assert app.current["tags"]==["Long Obligatory Prayer"]
             app.navigate("hidden")
             assert len(app.visible)==153
+            # Collections: save two passages, file one, rename and delete; nothing is unsaved along the way.
+            first,second=app.visible[0],app.visible[1]
+            assert not app.filing.get_visible()
+            app.bookmark(); app.show_passage(second,app.active_group); app.bookmark()
+            assert app.filing.get_visible() and app.collection.get_active_text()=="Unsorted"
+            assert app.create_collection(" Morning  prayers ") is None and "already" in app.create_collection("morning prayers")
+            assert "Unsorted" in app.create_collection("unsorted") and app.create_collection("   ")
+            app.collection.set_active_id("Morning prayers")
+            assert app.collection_of(second["id"])=="Morning prayers"
+            app.navigate("saved")
+            assert app.manage.get_visible() and list(app.filed())==["Morning prayers","Unsorted"]
+            assert [p for p in app.branches if p.count("/")==1]==["saved/Morning prayers","saved/Unsorted"] and len(app.visible)==2
+            app.collections_dialog(); assert app.collections_window.get_visible()
+            assert app.rename_collection("Morning prayers","Dawn") is None and app.collection_of(second["id"])=="Dawn"
+            app.delete_collection("Dawn")
+            assert app.prefs["collections"]==[] and app.prefs["saved"]==[first["id"],second["id"]] and app.filed()["Unsorted"]==[first,second]
+            stored=reader.json.loads(reader.STATE.read_text()); assert stored["saved"]==app.prefs["saved"] and stored["collections"]==[]
+            app.collections_window.close(); assert app.collections_window is None
+            app.navigate("hidden")
             buffer=app.reader.get_buffer()
             assert buffer.get_text(buffer.get_start_iter(),buffer.get_end_iter(),False).endswith("— "+app.current["citation"])
+            # Ctrl+Shift+C puts the passage and its citation on the clipboard.
+            assert app.key_pressed(None,reader.Gdk.KEY_C,0,reader.Gdk.ModifierType.CONTROL_MASK|reader.Gdk.ModifierType.SHIFT_MASK)
+            assert app.copy.get_label()=="Copied"
+            pasted=[]; loop=reader.GLib.MainLoop()
+            app.window.get_clipboard().read_text_async(None,lambda c,r:(pasted.append(c.read_text_finish(r)),loop.quit()))
+            reader.GLib.timeout_add(3000,loop.quit); loop.run()
+            assert pasted==[app.current["text"]+"\n\n— "+app.current["citation"]], pasted
+            start=buffer.get_start_iter(); end=start.copy(); end.forward_word_end(); buffer.select_range(start,end)
+            assert app.copy_passage()==buffer.get_text(start,end,False)+"\n\n— "+app.current["citation"]
             app.language_dialog()
             assert app.language_window.get_visible()
             app.language_window.close()
+            # Ctrl+T: passage of the day, opened in its own section; Ctrl+R: a different random passage.
+            assert app.key_pressed(None,reader.Gdk.KEY_t,0,reader.Gdk.ModifierType.CONTROL_MASK)
+            today=reader.passage_of_the_day(app.items,reader.datetime.date.today())
+            assert app.current is today and app.section==today["section"] and app.subtitle.get_text().startswith("Passage of the day · ")
+            assert app.active_group is app.groups[today["id"]] and app.prefs["last"]==today["id"]
+            app.search.set_text("zzzz"); app.filter()
+            assert app.key_pressed(None,reader.Gdk.KEY_r,0,reader.Gdk.ModifierType.CONTROL_MASK)
+            assert app.current is not today and app.current in reader.reflections(app.items) and app.subtitle.get_text().startswith("Random passage · ")
+            assert app.search.get_text()=="" or app.section!=today["section"]
+            app.navigate("hidden")
             assert app.key_pressed(None,reader.Gdk.KEY_F1,0,0)
             about=app.about_window
             assert about.get_visible() and about.get_transient_for() is app.window

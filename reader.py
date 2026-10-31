@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 """A quiet, native Linux reader for Bahá’í prayers and writings."""
 import json
+import datetime
 import math
 import os
+import random
 import re
 import threading
 import subprocess
@@ -60,7 +62,7 @@ def version():
     path=shipped("VERSION")
     return path.read_text().strip() if path else "unknown"
 
-SECTIONS=("prayers","hidden","writings","saved")
+SECTIONS=("prayers","obligatory","hidden","writings","saved")
 THEMES=("Omarchy","Light","Dark","Sepia")
 # Slider ranges; loaded values are clamped to them.
 LIMITS={"size":(15,36,22),"spacing":(0,20,8),"margin":(24,160,80)}
@@ -91,9 +93,31 @@ def clean_settings(data):
         if not isinstance(prefs.get(key),str): prefs.pop(key,None)
     saved=prefs.get("saved")
     if saved is not None: prefs["saved"]=[i for i in saved if isinstance(i,str)] if isinstance(saved,list) else []
+    if "collections" in prefs: prefs["collections"]=clean_collections(prefs["collections"],prefs.setdefault("saved",[]))
     expanded=prefs.get("expanded")
     if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
     return prefs
+
+UNSORTED="Unsorted"
+
+def collection_name(name):
+    return " ".join(name.split()) if isinstance(name,str) else ""
+
+def clean_collections(collections,saved):
+    """[{"name","items"}] with usable names, each passage in one collection at most.
+    Every passage filed in a collection stays saved, even when the saved list itself was damaged."""
+    clean={}; filed=set()
+    for entry in collections if isinstance(collections,list) else []:
+        if not isinstance(entry,dict): continue
+        items=[i for i in entry.get("items",[]) if isinstance(i,str)] if isinstance(entry.get("items"),list) else []
+        saved.extend(i for i in dict.fromkeys(items) if i not in saved)
+        name=collection_name(entry.get("name"))
+        # A nameless entry's passages stay saved, as Unsorted; same-named collections are merged.
+        if not name or name.casefold()==UNSORTED.casefold(): continue
+        target=next((c for c in clean.values() if c["name"].casefold()==name.casefold()),None) or clean.setdefault(name,{"name":name,"items":[]})
+        for item in items:
+            if item not in filed: filed.add(item); target["items"].append(item)
+    return list(clean.values())
 
 def load_settings(path):
     """Returns (settings, notice). An unreadable file is set aside, never overwritten."""
@@ -105,7 +129,9 @@ def load_settings(path):
     try: data=json.loads(text)
     except ValueError: data=None
     if isinstance(data,dict): return clean_settings(data),None
-    backup=path.with_name(path.name+".bad")
+    backup=path.with_name(path.name+".bad"); copy=0
+    # Never replace an earlier backup: it may hold the only copy of someone's saved passages.
+    while backup.exists(): copy+=1; backup=path.with_name(f"{path.name}.bad.{copy}")
     try:
         os.replace(path,backup); kept=f"The unreadable file, with any saved passages in it, was kept as {short_path(backup)}."
     except OSError as exc:
@@ -231,6 +257,15 @@ def citation(key,row):
     else: where=""
     return ", ".join(part for part in (author,SECTION_NAMES[key],where) if part)
 
+def clipping(item,excerpt=None):
+    """The passage, or a selected part of it, followed by its citation, for pasting elsewhere."""
+    text=(excerpt or item["text"]).strip(); cite=item["citation"]
+    # A selection that runs into (or is only) the citation line under the passage.
+    if cite: text=text.split("— "+cite)[0].strip() or item["text"]
+    # Prayers carry only an author; the category is the nearest thing to a reference.
+    if item["section"]=="prayers" and item["tags"]: cite=", ".join(filter(None,(cite,"Prayers",item["tags"][0])))
+    return f"{text}\n\n— {cite}" if cite else text
+
 def luminance(color):
     channels=[int(color[i:i+2],16)/255 for i in (1,3,5)]
     r,g,b=[c/12.92 if c<=0.04045 else ((c+0.055)/1.055)**2.4 for c in channels]
@@ -311,6 +346,37 @@ def load_library(language=1):
             result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, match=align(key,row), citation=", ".join(filter(None,(citation(key,row),book)))))
     return result
 
+OBLIGATORY_PRAYERS=("Short Obligatory Prayer","Medium Obligatory Prayer","Long Obligatory Prayer")
+
+def obligatory(items):
+    """Contents of the Obligatory prayers section, as {group: passages}.
+    The three prayers by their prayer-feed category, then Kitáb-i-Aqdas ¶6, which enjoins obligatory
+    prayer, with the notes and Questions and Answers that the Aqdas data itself links to ¶6."""
+    groups={}
+    for name in OBLIGATORY_PRAYERS:
+        prayer=next((i for i in items if i["section"]=="prayers" and name in i["tags"]),None)
+        if prayer: groups.setdefault("The three prayers",[]).append(prayer)
+    paragraph=next((i for i in items if i["id"].endswith("aqdas:Paragraphs:6")),None)
+    if paragraph:
+        by_id={i["id"]:i for i in items}
+        guidance=[paragraph]+[by_id[target] for target,_ in paragraph["references"] if target in by_id]
+        groups["Kitáb-i-Aqdas"]=sorted(guidance,key=lambda i:list(AQDAS_SECTIONS.values()).index(i["subgroup"]))
+    return groups
+# Passages short enough to read in a moment, from the prayers, the Hidden Words, Gleanings and Prayers and Meditations.
+REFLECTION_BOOKS={BOOKS["gleanings"],BOOKS["meditations"]}
+REFLECTION_WORDS=500
+
+def reflections(items):
+    pool=[i for i in items if (i["section"] in ("prayers","hidden") or REFLECTION_BOOKS.intersection(i["tags"])) and i["word_count"]<=REFLECTION_WORDS]
+    return sorted(pool,key=lambda i:i["id"])
+
+def passage_of_the_day(items,day):
+    """The same passage all day; a fixed shuffle walked one step a day, so consecutive days always differ."""
+    pool=reflections(items)
+    if not pool: return None
+    order=list(range(len(pool))); random.Random(1844).shuffle(order)
+    return pool[order[day.toordinal()%len(pool)]]
+
 class Choice(Gtk.DropDown):
     """Gtk.DropDown (ComboBoxText is deprecated since GTK 4.10) with string ids and a "changed" signal."""
     __gsignals__={"changed":(GObject.SignalFlags.RUN_FIRST,None,())}
@@ -378,7 +444,10 @@ class Reader(Gtk.Application):
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
+        today=self.button("Today",lambda *_: self.daily_passage()); today.set_tooltip_text("Passage of the day (Ctrl+T)"); header.pack_start(today)
+        chance=self.button("Random",lambda *_: self.random_passage()); chance.set_tooltip_text("A random passage (Ctrl+R)"); header.pack_start(chance)
         self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
+        self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
         settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
@@ -413,8 +482,9 @@ class Reader(Gtk.Application):
         self.sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.sidebar.set_size_request(220,-1); self.sidebar.add_css_class("sidebar")
         for edge in ("top", "bottom", "start", "end"): getattr(self.sidebar,"set_margin_"+edge)(16)
         body.set_start_child(self.sidebar)
-        for title,key in [("Prayers","prayers"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
+        for title,key in [("Prayers","prayers"),("Obligatory prayers","obligatory"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
             b=self.button(title, lambda _,k=key: self.navigate(k)); self.sidebar.append(b)
+        self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); self.sidebar.append(self.manage)
         self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); self.sidebar.append(self.search)
         into_list=Gtk.EventControllerKey(); into_list.connect("key-pressed", self.search_key); self.search.add_controller(into_list)
         self.count=Gtk.Label(xalign=0); self.count.add_css_class("dim-label"); self.sidebar.append(self.count)
@@ -443,6 +513,10 @@ class Reader(Gtk.Application):
         click=Gtk.GestureClick(); click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         click.connect("pressed",lambda *_:self.stop_scroll()); self.readscroll.add_controller(click)
         self.related=Gtk.MenuButton(label="Related passages",visible=False); right.append(self.related)
+        self.filing=Gtk.Box(spacing=10,halign=Gtk.Align.CENTER,visible=False); right.append(self.filing)
+        self.filing.append(Gtk.Label(label="Collection")); self.collection=Choice(); self.filing.append(self.collection)
+        self.collection.connect("changed",self.file_current); self.filling=False
+        self.filing.append(self.button("Manage…",self.collections_dialog))
         nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); nav.append(self.button("← Previous", lambda *_: self.step(-1))); nav.append(self.button("Next →", lambda *_: self.step(1))); right.append(nav)
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -505,9 +579,12 @@ class Reader(Gtk.Application):
         self.panel_save_source=GLib.timeout_add(250,persist)
     def key_pressed(self, controller, key, code, modifiers):
         if modifiers & Gdk.ModifierType.CONTROL_MASK:
+            if key==Gdk.KEY_t: self.daily_passage(); return True
+            if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
+            if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True
         if key==Gdk.KEY_F1: self.about_dialog(); return True
         if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
         return False
@@ -549,7 +626,7 @@ class Reader(Gtk.Application):
         scale.connect("value-changed",change); box.append(scale)
     def navigate(self,key):
         self.section="writings" if key=="gleanings" else key
-        self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.rebuild()
+        self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.manage.set_visible(self.section=="saved"); self.rebuild()
     def rebuild(self):
         """Build the contents tree for the section once; searching only hides rows."""
         if not hasattr(self,"toc"): return
@@ -560,11 +637,17 @@ class Reader(Gtk.Application):
         groups={}
         for item in self.section_items:
             for tag in item["tags"] or ["Uncategorized"]: groups.setdefault(tag,[]).append(item)
-        for tag,items in sorted(groups.items()):
+        if self.section=="obligatory":
+            # Prayers first, then the guidance, in reading order rather than alphabetically.
+            groups=obligatory(self.items); self.section_items=[i for g in groups.values() for i in g]
+        if self.section=="saved":
+            # A personal prayerbook: collections in their own order, then whatever is not filed yet.
+            groups=self.filed(); self.section_items=[i for g in groups.values() for i in g]
+        for tag,items in (groups.items() if self.section in ("obligatory","saved") else sorted(groups.items())):
             path=f"{self.section}/{tag}"
             container=self.branch(self.toc,tag,path,items)
             subgroups={}
-            for item in items: subgroups.setdefault(item["subgroup"],[]).append(item)
+            for item in items: subgroups.setdefault(item["subgroup"] if self.section!="saved" else None,[]).append(item)
             for subgroup,entries in subgroups.items():
                 parent=self.branch(container,subgroup,path+"/"+subgroup,entries) if subgroup else container
                 for item in entries:
@@ -597,7 +680,7 @@ class Reader(Gtk.Application):
         for expander,total,path,items in self.branch_rows:
             count=sum(1 for i in items if i["id"] in matches)
             expander.set_visible(count>0); total.set_text(self.unit_label(count))
-            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,False))
+            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,self.section=="obligatory"))
         self.restoring=False
         self.count.set_text(f"{len(self.visible)} passage{'s' if len(self.visible)!=1 else ''}")
         self.no_match.set_text(f"No passages match “{self.search.get_text().strip()}”." if query else "")
@@ -611,11 +694,12 @@ class Reader(Gtk.Application):
             item=next((i for i in self.section_items if i["id"]==self.prefs.get("last")),self.section_items[0])
             self.show_passage(item,self.groups[item["id"]])
         else:
-            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False)
+            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False); self.copy.set_sensitive(False); self.filing.set_visible(False)
             if self.section=="saved":
                 self.heading.set_text("No saved passages yet"); self.subtitle.set_text("Press Ctrl+D or ☆ Save to keep one here.")
             else:
-                self.heading.set_text("No passages found"); self.subtitle.set_text("Check this language’s available books in Languages & offline libraries.")
+                self.heading.set_text("No passages found")
+                self.subtitle.set_text("This language’s library does not mark the obligatory prayers." if self.section=="obligatory" else "Check this language’s available books in Languages & offline libraries.")
     def unit_label(self,count):
         unit="prayer" if self.section=="prayers" else "passage"
         return f"{count} {unit}{'s' if count != 1 else ''}"
@@ -665,6 +749,8 @@ class Reader(Gtk.Application):
             scroller=Gtk.ScrolledWindow(max_content_height=320,propagate_natural_height=True,min_content_width=240)
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
         self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
+        self.copy.set_sensitive(True)
+        self.show_filing()
         self.highlight()
     def step(self,delta):
         if self.current in self.active_group:
@@ -673,9 +759,132 @@ class Reader(Gtk.Application):
     def bookmark(self,*_):
         if not self.current: return
         saved=self.prefs.setdefault("saved",[]); key=self.current["id"]
-        saved.remove(key) if key in saved else saved.append(key); self.save()
-        self.star.set_label("★ Saved" if key in saved else "☆ Save")
+        saved.remove(key) if key in saved else saved.append(key)
+        # Unsaving takes the passage out of its collection too.
+        for collection in self.prefs.get("collections",[]):
+            if key in collection["items"] and key not in saved: collection["items"].remove(key)
+        self.save()
+        self.star.set_label("★ Saved" if key in saved else "☆ Save"); self.show_filing()
         if self.section=="saved": self.rebuild()
+    def copy_passage(self,*_):
+        """Copies the selected words, or the whole passage, with the citation."""
+        if not self.current: return None
+        buffer=self.reader.get_buffer(); bounds=buffer.get_selection_bounds()
+        excerpt=buffer.get_text(*bounds,False).strip() if bounds else None
+        text=clipping(self.current,excerpt or None); self.window.get_clipboard().set(text)
+        self.copy.set_label("Copied")
+        if getattr(self,"copy_reset",None): GLib.source_remove(self.copy_reset)
+        def reset():
+            self.copy_reset=None; self.copy.set_label("Copy"); return False
+        self.copy_reset=GLib.timeout_add(1500,reset)
+        return text
+    def filed(self):
+        """{collection name: saved passages in it} for this language, then Unsorted."""
+        by_id={i["id"]:i for i in self.items}; groups={}; filed=set()
+        for collection in self.prefs.get("collections",[]):
+            groups[collection["name"]]=[by_id[i] for i in collection["items"] if i in by_id]; filed.update(collection["items"])
+        groups[UNSORTED]=[by_id[i] for i in self.prefs.get("saved",[]) if i in by_id and i not in filed]
+        return groups
+    def collection_of(self,key):
+        return next((c["name"] for c in self.prefs.get("collections",[]) if key in c["items"]),None)
+    def show_filing(self):
+        saved=bool(self.current) and self.current["id"] in self.prefs.get("saved",[])
+        self.filing.set_visible(saved)
+        if not saved: return
+        self.filling=True
+        self.collection.remove_all(); self.collection.append("",UNSORTED)
+        for collection in self.prefs.get("collections",[]): self.collection.append(collection["name"],collection["name"])
+        self.collection.set_active_id(self.collection_of(self.current["id"]) or "")
+        self.filling=False
+    def file_current(self,choice):
+        if self.filling or not self.current or choice.get_active_id() is None: return
+        self.move_passage(self.current["id"],choice.get_active_id() or None)
+    def move_passage(self,key,name):
+        """Files a saved passage in the named collection, or in none (Unsorted)."""
+        if key not in self.prefs.get("saved",[]) or name==self.collection_of(key): return
+        for collection in self.prefs.get("collections",[]):
+            if key in collection["items"]: collection["items"].remove(key)
+            if collection["name"]==name: collection["items"].append(key)
+        self.save()
+        if self.section=="saved": self.rebuild()
+    def name_problem(self,name,current=None):
+        if not name: return "Type a name for the collection."
+        if name.casefold()==UNSORTED.casefold(): return f"“{UNSORTED}” is where passages outside a collection go; choose another name."
+        if any(c["name"].casefold()==name.casefold() and c["name"]!=current for c in self.prefs.get("collections",[])): return f"There is already a collection called “{name}”."
+        return None
+    def create_collection(self,name):
+        """Returns a problem to show, or None once created."""
+        name=collection_name(name); problem=self.name_problem(name)
+        if problem: return problem
+        self.prefs.setdefault("collections",[]).append({"name":name,"items":[]}); self.collections_changed(); return None
+    def rename_collection(self,old,new):
+        new=collection_name(new); problem=self.name_problem(new,current=old)
+        if problem: return problem
+        for collection in self.prefs.get("collections",[]):
+            if collection["name"]==old: collection["name"]=new
+        expanded=self.prefs.get("expanded",{})
+        if f"saved/{old}" in expanded: expanded[f"saved/{new}"]=expanded.pop(f"saved/{old}")
+        self.collections_changed(); return None
+    def delete_collection(self,name):
+        """Removes the collection only; its passages stay saved, under Unsorted."""
+        self.prefs["collections"]=[c for c in self.prefs.get("collections",[]) if c["name"]!=name]
+        self.prefs.get("expanded",{}).pop(f"saved/{name}",None); self.collections_changed()
+    def collections_changed(self):
+        self.save(); self.show_filing()
+        if self.section=="saved": self.rebuild()
+        if getattr(self,"collections_window",None): self.collections_window.refresh()
+    def collections_dialog(self,*_):
+        if getattr(self,"collections_window",None):
+            self.collections_window.present(); return
+        window=Gtk.Window(title="Collections",transient_for=self.window,modal=True,default_width=460)
+        self.collections_window=window
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",lambda _c,key,*_: key==Gdk.KEY_Escape and (window.close() or True)); window.add_controller(keys)
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12)
+        for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
+        window.set_child(box)
+        box.append(Gtk.Label(label=f"Group saved passages into collections. Deleting a collection keeps its passages saved, under {UNSORTED}.",wrap=True,xalign=0,max_width_chars=52))
+        rows=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8); box.append(rows)
+        message=Gtk.Label(wrap=True,xalign=0,max_width_chars=52); message.add_css_class("dim-label"); box.append(message)
+        create=Gtk.Box(spacing=8); box.append(create)
+        entry=Gtk.Entry(placeholder_text="New collection name",hexpand=True); create.append(entry)
+        def add(*_):
+            problem=self.create_collection(entry.get_text())
+            message.set_text(problem or "")
+            if not problem: entry.set_text("")
+        entry.connect("activate",add); create.append(self.button("Create",add))
+        close=self.button("Close",lambda *_: window.close()); close.set_halign(Gtk.Align.END); box.append(close)
+        def refresh():
+            while child:=rows.get_first_child(): rows.remove(child)
+            if not self.prefs.get("collections"): rows.append(Gtk.Label(label="No collections yet.",xalign=0))
+            for collection in self.prefs.get("collections",[]):
+                line=Gtk.Box(spacing=8); rows.append(line)
+                name=Gtk.Entry(text=collection["name"],hexpand=True); line.append(name)
+                count=len(collection["items"]); total=Gtk.Label(label=f"{count} passage{'s' if count!=1 else ''}"); total.add_css_class("dim-label"); line.append(total)
+                def rename(*_,old=collection["name"],field=name):
+                    problem=self.rename_collection(old,field.get_text()); message.set_text(problem or "")
+                name.connect("activate",rename)
+                line.append(self.button("Rename",rename))
+                line.append(self.button("Delete",lambda *_,n=collection["name"]: (self.delete_collection(n),message.set_text(f"Deleted “{n}”; its passages are under {UNSORTED}."))))
+        window.refresh=refresh; refresh()
+        def closed(*_):
+            self.collections_window=None; return False
+        window.connect("close-request",closed); window.present(); entry.grab_focus()
+    def daily_passage(self):
+        item=passage_of_the_day(self.items,datetime.date.today())
+        if item: self.open_passage(item,"Passage of the day")
+        return item
+    def random_passage(self):
+        pool=[i for i in reflections(self.items) if i is not self.current]
+        item=random.choice(pool) if pool else None
+        if item: self.open_passage(item,"Random passage")
+        return item
+    def open_passage(self,item,label):
+        """Shows a passage from any section, in its place in that section's contents."""
+        if self.section!=item["section"]: self.navigate(item["section"])
+        elif self.search.get_text(): self.search.set_text(""); self.filter()
+        self.show_passage(item,self.groups[item["id"]])
+        self.subtitle.set_text(label+" · "+self.subtitle.get_text())
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
         if mode=="Omarchy":
