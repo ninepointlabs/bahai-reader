@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 """A quiet, native Linux reader for Bahá’í prayers and writings."""
 import json
+import datetime
 import math
 import os
+import random
 import re
 import threading
 import subprocess
@@ -350,6 +352,20 @@ def obligatory(items):
         guidance=[paragraph]+[by_id[target] for target,_ in paragraph["references"] if target in by_id]
         groups["Kitáb-i-Aqdas"]=sorted(guidance,key=lambda i:list(AQDAS_SECTIONS.values()).index(i["subgroup"]))
     return groups
+# Passages short enough to read in a moment, from the prayers, the Hidden Words, Gleanings and Prayers and Meditations.
+REFLECTION_BOOKS={BOOKS["gleanings"],BOOKS["meditations"]}
+REFLECTION_WORDS=500
+
+def reflections(items):
+    pool=[i for i in items if (i["section"] in ("prayers","hidden") or REFLECTION_BOOKS.intersection(i["tags"])) and i["word_count"]<=REFLECTION_WORDS]
+    return sorted(pool,key=lambda i:i["id"])
+
+def passage_of_the_day(items,day):
+    """The same passage all day; a fixed shuffle walked one step a day, so consecutive days always differ."""
+    pool=reflections(items)
+    if not pool: return None
+    order=list(range(len(pool))); random.Random(1844).shuffle(order)
+    return pool[order[day.toordinal()%len(pool)]]
 
 class Choice(Gtk.DropDown):
     """Gtk.DropDown (ComboBoxText is deprecated since GTK 4.10) with string ids and a "changed" signal."""
@@ -418,6 +434,8 @@ class Reader(Gtk.Application):
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
+        today=self.button("Today",lambda *_: self.daily_passage()); today.set_tooltip_text("Passage of the day (Ctrl+T)"); header.pack_start(today)
+        chance=self.button("Random",lambda *_: self.random_passage()); chance.set_tooltip_text("A random passage (Ctrl+R)"); header.pack_start(chance)
         self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
         self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
@@ -542,6 +560,8 @@ class Reader(Gtk.Application):
         self.panel_save_source=GLib.timeout_add(250,persist)
     def key_pressed(self, controller, key, code, modifiers):
         if modifiers & Gdk.ModifierType.CONTROL_MASK:
+            if key==Gdk.KEY_t: self.daily_passage(); return True
+            if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
@@ -830,6 +850,21 @@ class Reader(Gtk.Application):
         def closed(*_):
             self.collections_window=None; return False
         window.connect("close-request",closed); window.present(); entry.grab_focus()
+    def daily_passage(self):
+        item=passage_of_the_day(self.items,datetime.date.today())
+        if item: self.open_passage(item,"Passage of the day")
+        return item
+    def random_passage(self):
+        pool=[i for i in reflections(self.items) if i is not self.current]
+        item=random.choice(pool) if pool else None
+        if item: self.open_passage(item,"Random passage")
+        return item
+    def open_passage(self,item,label):
+        """Shows a passage from any section, in its place in that section's contents."""
+        if self.section!=item["section"]: self.navigate(item["section"])
+        elif self.search.get_text(): self.search.set_text(""); self.filter()
+        self.show_passage(item,self.groups[item["id"]])
+        self.subtitle.set_text(label+" · "+self.subtitle.get_text())
     def apply_theme(self):
         mode=self.prefs.get("theme","Omarchy"); colors={}
         if mode=="Omarchy":
