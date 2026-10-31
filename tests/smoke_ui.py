@@ -140,7 +140,7 @@ with tempfile.TemporaryDirectory() as temp:
             about.close()
             assert app.about_window is None
             # Side by side: on from the start; a Hidden Word pairs with the downloaded library by its number.
-            app.navigate("hidden")
+            app.navigate("hidden"); first=next(i for i in app.section_items if i["id"]=="hidden:1"); app.show_passage(first,app.groups[first["id"]])
             second=app.second.get_buffer(); text=lambda: second.get_text(second.get_start_iter(),second.get_end_iter(),False)
             assert app.secondscroll.get_visible() and app.current["match"]=="hidden:True:1", app.current["match"]
             assert text().split("\n")[1].startswith("[4] ") and app.current["text"][:40] in text(), text()[:120]
