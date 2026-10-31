@@ -76,8 +76,10 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 ## Features
 
 - Separate Prayers, Hidden Words (Arabic/Persian divisions), and Writings sections.
+- **Obligatory prayers** section: the short, medium and long obligatory prayers in one place, followed by Kitáb-i-Aqdas ¶6, which enjoins obligatory prayer, and the notes and Questions and Answers that the bundled Aqdas links to that paragraph. All from the bundled texts; prayers are found by their BahaiPrayers.net category, which other languages may not use.
 - All ten English collections bundled for offline reading, sourced directly from the API.
 - Topic filtering, full-text section search, saved passages, last passage restoration.
+- **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or the prayer’s author and category. With words selected in the passage, only the selection is copied, still with the citation.
 - Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
 - **Collections** for saved passages, like a personal prayerbook. Saved passages start under *Unsorted*; the **Collection** list under a saved passage moves it, and **Manage collections…** (shown in Saved passages) creates, renames and deletes them. Deleting a collection keeps its passages saved, under Unsorted. Saved passages are listed by collection.
 - Installed font selection, text size, line spacing, page margins.
@@ -108,6 +110,7 @@ Square, undecorated window lets Hyprland supply themed borders. Interface uses t
 | Alt+Right or Ctrl+Page Down | Next passage |
 | Alt+Left or Ctrl+Page Up | Previous passage |
 | Ctrl+D | Save or unsave the current passage |
+| Ctrl+Shift+C | Copy the passage (or the selected words) with its citation |
 | F1 | About Bahá’í Reader |
 | Ctrl+Q | Quit (also from the About and Languages windows) |
 | Escape | Show the contents panel again if it is hidden; closes the About window |

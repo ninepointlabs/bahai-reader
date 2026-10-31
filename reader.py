@@ -60,7 +60,7 @@ def version():
     path=shipped("VERSION")
     return path.read_text().strip() if path else "unknown"
 
-SECTIONS=("prayers","hidden","writings","saved")
+SECTIONS=("prayers","obligatory","hidden","writings","saved")
 THEMES=("Omarchy","Light","Dark","Sepia")
 # Slider ranges; loaded values are clamped to them.
 LIMITS={"size":(15,36,22),"spacing":(0,20,8),"margin":(24,160,80)}
@@ -254,6 +254,15 @@ def citation(key,row):
     else: where=""
     return ", ".join(part for part in (author,SECTION_NAMES[key],where) if part)
 
+def clipping(item,excerpt=None):
+    """The passage, or a selected part of it, followed by its citation, for pasting elsewhere."""
+    text=(excerpt or item["text"]).strip(); cite=item["citation"]
+    # A selection that runs into (or is only) the citation line under the passage.
+    if cite: text=text.split("— "+cite)[0].strip() or item["text"]
+    # Prayers carry only an author; the category is the nearest thing to a reference.
+    if item["section"]=="prayers" and item["tags"]: cite=", ".join(filter(None,(cite,"Prayers",item["tags"][0])))
+    return f"{text}\n\n— {cite}" if cite else text
+
 def luminance(color):
     channels=[int(color[i:i+2],16)/255 for i in (1,3,5)]
     r,g,b=[c/12.92 if c<=0.04045 else ((c+0.055)/1.055)**2.4 for c in channels]
@@ -325,6 +334,23 @@ def load_library(language=1):
             result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, citation=", ".join(filter(None,(citation(key,row),book)))))
     return result
 
+OBLIGATORY_PRAYERS=("Short Obligatory Prayer","Medium Obligatory Prayer","Long Obligatory Prayer")
+
+def obligatory(items):
+    """Contents of the Obligatory prayers section, as {group: passages}.
+    The three prayers by their prayer-feed category, then Kitáb-i-Aqdas ¶6, which enjoins obligatory
+    prayer, with the notes and Questions and Answers that the Aqdas data itself links to ¶6."""
+    groups={}
+    for name in OBLIGATORY_PRAYERS:
+        prayer=next((i for i in items if i["section"]=="prayers" and name in i["tags"]),None)
+        if prayer: groups.setdefault("The three prayers",[]).append(prayer)
+    paragraph=next((i for i in items if i["id"].endswith("aqdas:Paragraphs:6")),None)
+    if paragraph:
+        by_id={i["id"]:i for i in items}
+        guidance=[paragraph]+[by_id[target] for target,_ in paragraph["references"] if target in by_id]
+        groups["Kitáb-i-Aqdas"]=sorted(guidance,key=lambda i:list(AQDAS_SECTIONS.values()).index(i["subgroup"]))
+    return groups
+
 class Choice(Gtk.DropDown):
     """Gtk.DropDown (ComboBoxText is deprecated since GTK 4.10) with string ids and a "changed" signal."""
     __gsignals__={"changed":(GObject.SignalFlags.RUN_FIRST,None,())}
@@ -393,6 +419,7 @@ class Reader(Gtk.Application):
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
         self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
+        self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
         settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
@@ -424,7 +451,7 @@ class Reader(Gtk.Application):
         self.sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.sidebar.set_size_request(220,-1); self.sidebar.add_css_class("sidebar")
         for edge in ("top", "bottom", "start", "end"): getattr(self.sidebar,"set_margin_"+edge)(16)
         body.set_start_child(self.sidebar)
-        for title,key in [("Prayers","prayers"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
+        for title,key in [("Prayers","prayers"),("Obligatory prayers","obligatory"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
             b=self.button(title, lambda _,k=key: self.navigate(k)); self.sidebar.append(b)
         self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); self.sidebar.append(self.manage)
         self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); self.sidebar.append(self.search)
@@ -518,6 +545,7 @@ class Reader(Gtk.Application):
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
+            if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True
         if key==Gdk.KEY_F1: self.about_dialog(); return True
         if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
         return False
@@ -570,10 +598,13 @@ class Reader(Gtk.Application):
         groups={}
         for item in self.section_items:
             for tag in item["tags"] or ["Uncategorized"]: groups.setdefault(tag,[]).append(item)
+        if self.section=="obligatory":
+            # Prayers first, then the guidance, in reading order rather than alphabetically.
+            groups=obligatory(self.items); self.section_items=[i for g in groups.values() for i in g]
         if self.section=="saved":
             # A personal prayerbook: collections in their own order, then whatever is not filed yet.
             groups=self.filed(); self.section_items=[i for g in groups.values() for i in g]
-        for tag,items in (groups.items() if self.section=="saved" else sorted(groups.items())):
+        for tag,items in (groups.items() if self.section in ("obligatory","saved") else sorted(groups.items())):
             path=f"{self.section}/{tag}"
             container=self.branch(self.toc,tag,path,items)
             subgroups={}
@@ -610,7 +641,7 @@ class Reader(Gtk.Application):
         for expander,total,path,items in self.branch_rows:
             count=sum(1 for i in items if i["id"] in matches)
             expander.set_visible(count>0); total.set_text(self.unit_label(count))
-            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,False))
+            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,self.section=="obligatory"))
         self.restoring=False
         self.count.set_text(f"{len(self.visible)} passage{'s' if len(self.visible)!=1 else ''}")
         self.no_match.set_text(f"No passages match “{self.search.get_text().strip()}”." if query else "")
@@ -624,11 +655,12 @@ class Reader(Gtk.Application):
             item=next((i for i in self.section_items if i["id"]==self.prefs.get("last")),self.section_items[0])
             self.show_passage(item,self.groups[item["id"]])
         else:
-            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False); self.filing.set_visible(False)
+            self.related.set_visible(False); self.current=None; self.active_group=[]; self.reader.get_buffer().set_text(""); self.star.set_sensitive(False); self.copy.set_sensitive(False); self.filing.set_visible(False)
             if self.section=="saved":
                 self.heading.set_text("No saved passages yet"); self.subtitle.set_text("Press Ctrl+D or ☆ Save to keep one here.")
             else:
-                self.heading.set_text("No passages found"); self.subtitle.set_text("Check this language’s available books in Languages & offline libraries.")
+                self.heading.set_text("No passages found")
+                self.subtitle.set_text("This language’s library does not mark the obligatory prayers." if self.section=="obligatory" else "Check this language’s available books in Languages & offline libraries.")
     def unit_label(self,count):
         unit="prayer" if self.section=="prayers" else "passage"
         return f"{count} {unit}{'s' if count != 1 else ''}"
@@ -677,6 +709,7 @@ class Reader(Gtk.Application):
             scroller=Gtk.ScrolledWindow(max_content_height=320,propagate_natural_height=True,min_content_width=240)
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
         self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
+        self.copy.set_sensitive(True)
         self.show_filing()
         self.highlight()
     def step(self,delta):
@@ -693,6 +726,18 @@ class Reader(Gtk.Application):
         self.save()
         self.star.set_label("★ Saved" if key in saved else "☆ Save"); self.show_filing()
         if self.section=="saved": self.rebuild()
+    def copy_passage(self,*_):
+        """Copies the selected words, or the whole passage, with the citation."""
+        if not self.current: return None
+        buffer=self.reader.get_buffer(); bounds=buffer.get_selection_bounds()
+        excerpt=buffer.get_text(*bounds,False).strip() if bounds else None
+        text=clipping(self.current,excerpt or None); self.window.get_clipboard().set(text)
+        self.copy.set_label("Copied")
+        if getattr(self,"copy_reset",None): GLib.source_remove(self.copy_reset)
+        def reset():
+            self.copy_reset=None; self.copy.set_label("Copy"); return False
+        self.copy_reset=GLib.timeout_add(1500,reset)
+        return text
     def filed(self):
         """{collection name: saved passages in it} for this language, then Unsorted."""
         by_id={i["id"]:i for i in self.items}; groups={}; filed=set()
