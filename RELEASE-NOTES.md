@@ -1,10 +1,10 @@
 Patch release of Bahá’í Reader.
 
-v0.1.6 makes the obligatory prayers easier to follow.
+v0.1.7 completes the Kitáb-i-Aqdas guidance in the Obligatory prayers section.
 
-- Changed: in the short, medium and long obligatory prayers, the directions are shown in italics, so the words of the prayer stand out. These are the line saying when to recite the prayer, the Kitáb-i-Aqdas exemption, each “let him … say:”, the note on the shorter verses, the closing guidance and the footnote. Copied text is unchanged.
+- Changed: the **Obligatory prayers** section now has every Kitáb-i-Aqdas paragraph on obligatory prayer: ¶6, ¶8, ¶10, ¶12, ¶13 and ¶14. Each comes with the notes and Questions and Answers linked to it, so the section has 44 Aqdas passages instead of 16.
 
-v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
+v0.1.6 showed the directions in the obligatory prayers in italics. v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.
