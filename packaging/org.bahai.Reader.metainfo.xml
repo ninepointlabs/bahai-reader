@@ -39,6 +39,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.7" date="2026-10-31">
+      <description><p>The Obligatory prayers section now has every Kitáb-i-Aqdas paragraph on obligatory prayer, with their notes and Questions and Answers.</p></description>
+    </release>
     <release version="0.1.6" date="2026-10-30">
       <description><p>The directions in the obligatory prayers are shown in italics, so the words of the prayer stand out.</p></description>
     </release>
