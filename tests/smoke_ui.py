@@ -77,6 +77,16 @@ with tempfile.TemporaryDirectory() as temp:
             app.language_dialog()
             assert app.language_window.get_visible()
             app.language_window.close()
+            # Ctrl+T: passage of the day, opened in its own section; Ctrl+R: a different random passage.
+            assert app.key_pressed(None,reader.Gdk.KEY_t,0,reader.Gdk.ModifierType.CONTROL_MASK)
+            today=reader.passage_of_the_day(app.items,reader.datetime.date.today())
+            assert app.current is today and app.section==today["section"] and app.subtitle.get_text().startswith("Passage of the day · ")
+            assert app.active_group is app.groups[today["id"]] and app.prefs["last"]==today["id"]
+            app.search.set_text("zzzz"); app.filter()
+            assert app.key_pressed(None,reader.Gdk.KEY_r,0,reader.Gdk.ModifierType.CONTROL_MASK)
+            assert app.current is not today and app.current in reader.reflections(app.items) and app.subtitle.get_text().startswith("Random passage · ")
+            assert app.search.get_text()=="" or app.section!=today["section"]
+            app.navigate("hidden")
             assert app.key_pressed(None,reader.Gdk.KEY_F1,0,0)
             about=app.about_window
             assert about.get_visible() and about.get_transient_for() is app.window

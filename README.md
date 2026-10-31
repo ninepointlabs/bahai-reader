@@ -79,6 +79,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - All ten English collections bundled for offline reading, sourced directly from the API.
 - Topic filtering, full-text section search, saved passages, last passage restoration.
 - Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
+- **Today** (Ctrl+T) opens the passage of the day: the same passage all day, a different one each day, until every passage has had its day. **Random** (Ctrl+R) opens a random passage. Both pick from the prayers, the Hidden Words, Gleanings and Prayers and Meditations, up to 500 words, in the current language, and work offline.
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
@@ -109,6 +110,8 @@ Square, undecorated window lets Hyprland supply themed borders. Interface uses t
 | Ctrl+D | Save or unsave the current passage |
 | F1 | About Bahá’í Reader |
 | Ctrl+Q | Quit (also from the About and Languages windows) |
+| Ctrl+T | Passage of the day |
+| Ctrl+R | Random passage |
 | Escape | Show the contents panel again if it is hidden; closes the About window |
 | Tab / Shift+Tab | Move between search, the contents list and the reading pane. The contents list is a single stop; use the arrow keys and Enter inside it |
 | Page Up / Page Down | Scroll the passage |
