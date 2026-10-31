@@ -8,6 +8,7 @@ import struct
 import zlib
 from collections import Counter
 from gi.repository import Gio, Gtk, Graphene
+from compare_pack import write_pack
 
 def png_pixels(data):
     """Decode a non-interlaced 8/16-bit RGB(A) PNG; GdkPixbuf's loader can't run in the Flatpak sandbox."""
@@ -52,8 +53,12 @@ with tempfile.TemporaryDirectory() as temp:
     reader.STATE=Path(temp)/"settings.json"
     reader.LIBRARY=Path(temp)/"libraries"
     reader.CACHE=Path(temp)/"cache"
-    # Light palette from the start, so the first frame is drawn with it.
-    reader.STATE.write_text('{"theme":"Light"}')
+    # Light palette from the start, so the first frame is drawn with it; side by side with a downloaded language.
+    reader.STATE.write_text('{"theme":"Light","compare":4}')
+    write_pack(reader.LIBRARY)
+    # Reading, including side by side, never uses the network.
+    def offline(*args,**kwargs): raise AssertionError(f"network request while reading: {args}")
+    reader.urllib.request.urlopen=offline
     app=reader.Reader()
     app.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
     errors=[]
@@ -134,6 +139,25 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.details().startswith("Bahá’í Reader "+reader.version())
             about.close()
             assert app.about_window is None
+            # Side by side: on from the start; a Hidden Word pairs with the downloaded library by its number.
+            app.navigate("hidden"); first=next(i for i in app.section_items if i["id"]=="hidden:1"); app.show_passage(first,app.groups[first["id"]])
+            second=app.second.get_buffer(); text=lambda: second.get_text(second.get_start_iter(),second.get_end_iter(),False)
+            assert app.secondscroll.get_visible() and app.current["match"]=="hidden:True:1", app.current["match"]
+            assert text().split("\n")[1].startswith("[4] ") and app.current["text"][:40] in text(), text()[:120]
+            app.navigate("prayers")
+            assert app.secondscroll.get_visible() and "cannot be shown side by side" in text()
+            app.navigate("writings"); gleaning=next(i for i in app.section_items if i["id"]=="gleanings:1"); app.show_passage(gleaning,app.groups[gleaning["id"]])
+            assert "not in the downloaded" in text()
+            app.fill_compare()
+            assert app.compare.ids==["","4"] and app.compare.get_active_id()=="4"
+            app.compare.set_active_id("")
+            assert not app.secondscroll.get_visible() and "compare" not in reader.json.loads(reader.STATE.read_text())
+            app.compare.set_active_id("4"); assert app.secondscroll.get_visible() and reader.json.loads(reader.STATE.read_text())["compare"]==4
+            app.use_language(4)  # reading the downloaded language: English is offered beside it
+            app.fill_compare(); assert app.compare.ids==["","1"] and not app.secondscroll.get_visible()
+            app.compare.set_active_id("1"); app.navigate("hidden")
+            assert app.current["text"].startswith("[4]") and text().startswith("ENGLISH\n") and "[4]" not in text()
+            app.use_language(1)
             app.prefs["theme"]="Light"
             app.apply_theme()
             passed.append(True)
