@@ -347,20 +347,28 @@ def load_library(language=1):
     return result
 
 OBLIGATORY_PRAYERS=("Short Obligatory Prayer","Medium Obligatory Prayer","Long Obligatory Prayer")
+# Kitáb-i-Aqdas paragraphs on obligatory prayer: enjoined (6), details in another Tablet (8), who must pray (10),
+# individual, not congregational (12), women in their courses (13), travel (14).
+AQDAS_ON_PRAYER=(6,8,10,12,13,14)
 
 def obligatory(items):
     """Contents of the Obligatory prayers section, as {group: passages}.
-    The three prayers by their prayer-feed category, then Kitáb-i-Aqdas ¶6, which enjoins obligatory
-    prayer, with the notes and Questions and Answers that the Aqdas data itself links to ¶6."""
+    The three prayers by their prayer-feed category, then the Kitáb-i-Aqdas paragraphs on obligatory prayer,
+    with the notes and Questions and Answers that the Aqdas data itself links to them."""
     groups={}
     for name in OBLIGATORY_PRAYERS:
         prayer=next((i for i in items if i["section"]=="prayers" and name in i["tags"]),None)
         if prayer: groups.setdefault("The three prayers",[]).append(prayer)
-    paragraph=next((i for i in items if i["id"].endswith("aqdas:Paragraphs:6")),None)
-    if paragraph:
-        by_id={i["id"]:i for i in items}
-        guidance=[paragraph]+[by_id[target] for target,_ in paragraph["references"] if target in by_id]
-        groups["Kitáb-i-Aqdas"]=sorted(guidance,key=lambda i:list(AQDAS_SECTIONS.values()).index(i["subgroup"]))
+    by_id={i["id"]:i for i in items}; guidance={}
+    for number in AQDAS_ON_PRAYER:
+        paragraph=next((i for i in items if i["id"].endswith(f"aqdas:Paragraphs:{number}")),None)
+        if paragraph:
+            for passage in [paragraph]+[by_id[target] for target,_ in paragraph["references"] if target in by_id]: guidance.setdefault(passage["id"],passage)
+    if guidance:
+        def order(i):
+            number=i["title"].split(" · ")[0]
+            return list(AQDAS_SECTIONS.values()).index(i["subgroup"]),int(number) if number.isdigit() else 0
+        groups["Kitáb-i-Aqdas"]=sorted(guidance.values(),key=order)
     return groups
 
 # Paragraphs of an obligatory prayer that tell when and how to say it, or comment on it, rather than words to be said.
