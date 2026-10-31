@@ -74,6 +74,15 @@ with tempfile.TemporaryDirectory() as temp:
             assert len(app.visible)==153
             buffer=app.reader.get_buffer()
             assert buffer.get_text(buffer.get_start_iter(),buffer.get_end_iter(),False).endswith("— "+app.current["citation"])
+            # Ctrl+Shift+C puts the passage and its citation on the clipboard.
+            assert app.key_pressed(None,reader.Gdk.KEY_C,0,reader.Gdk.ModifierType.CONTROL_MASK|reader.Gdk.ModifierType.SHIFT_MASK)
+            assert app.copy.get_label()=="Copied"
+            pasted=[]; loop=reader.GLib.MainLoop()
+            app.window.get_clipboard().read_text_async(None,lambda c,r:(pasted.append(c.read_text_finish(r)),loop.quit()))
+            reader.GLib.timeout_add(3000,loop.quit); loop.run()
+            assert pasted==[app.current["text"]+"\n\n— "+app.current["citation"]], pasted
+            start=buffer.get_start_iter(); end=start.copy(); end.forward_word_end(); buffer.select_range(start,end)
+            assert app.copy_passage()==buffer.get_text(start,end,False)+"\n\n— "+app.current["citation"]
             app.language_dialog()
             assert app.language_window.get_visible()
             app.language_window.close()

@@ -78,6 +78,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - Separate Prayers, Hidden Words (Arabic/Persian divisions), and Writings sections.
 - All ten English collections bundled for offline reading, sourced directly from the API.
 - Topic filtering, full-text section search, saved passages, last passage restoration.
+- **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or the prayer’s author and category. With words selected in the passage, only the selection is copied, still with the citation.
 - Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
@@ -107,6 +108,7 @@ Square, undecorated window lets Hyprland supply themed borders. Interface uses t
 | Alt+Right or Ctrl+Page Down | Next passage |
 | Alt+Left or Ctrl+Page Up | Previous passage |
 | Ctrl+D | Save or unsave the current passage |
+| Ctrl+Shift+C | Copy the passage (or the selected words) with its citation |
 | F1 | About Bahá’í Reader |
 | Ctrl+Q | Quit (also from the About and Languages windows) |
 | Escape | Show the contents panel again if it is hidden; closes the About window |
