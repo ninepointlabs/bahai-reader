@@ -9,8 +9,10 @@ Outside the table the functions return None or nothing rather than a guess.
 import datetime
 import functools
 import json
+import math
 from pathlib import Path
 from typing import NamedTuple, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 ROOT=Path(__file__).resolve().parent
 TABLE=ROOT/"data"/"badi-dates.json"
@@ -183,3 +185,106 @@ def next_fast(date):
 
 def gregorian_text(date,year=False):
     return f"{date.day} {GREGORIAN_MONTHS[date.month-1]}"+(f" {date.year}" if year else "")
+
+# Sun times: the NOAA solar calculation (https://gml.noaa.gov/grad/solcalc/calcdetails.html), which is public domain and follows
+# Meeus's Astronomical Algorithms, using the standard altitude of -0.833° for sunrise and sunset.
+SUN_ALTITUDE=90.833
+
+def _century(moment):
+    days=(moment-datetime.datetime(2000,1,1,12,tzinfo=datetime.timezone.utc)).total_seconds()/86400
+    return days/36525
+
+def _sun(t):
+    """(equation of time in minutes, declination in degrees) at t Julian centuries from J2000."""
+    mean_long=math.radians((280.46646+t*(36000.76983+t*0.0003032))%360)
+    anomaly=math.radians(357.52911+t*(35999.05029-0.0001537*t))
+    eccentricity=0.016708634-t*(0.000042037+0.0000001267*t)
+    centre=math.sin(anomaly)*(1.914602-t*(0.004817+0.000014*t))+math.sin(2*anomaly)*(0.019993-0.000101*t)+math.sin(3*anomaly)*0.000289
+    omega=math.radians(125.04-1934.136*t)
+    apparent=math.radians(math.degrees(mean_long)+centre-0.00569-0.00478*math.sin(omega))
+    mean_obliquity=23+(26+(21.448-t*(46.815+t*(0.00059-t*0.001813)))/60)/60
+    obliquity=math.radians(mean_obliquity+0.00256*math.cos(omega))
+    declination=math.degrees(math.asin(math.sin(obliquity)*math.sin(apparent)))
+    y=math.tan(obliquity/2)**2
+    equation=(y*math.sin(2*mean_long)-2*eccentricity*math.sin(anomaly)+4*eccentricity*y*math.sin(anomaly)*math.cos(2*mean_long)
+              -0.5*y*y*math.sin(4*mean_long)-1.25*eccentricity*eccentricity*math.sin(2*anomaly))
+    return math.degrees(equation)*4,declination
+
+def _hour_angle(latitude,declination):
+    """Degrees either side of solar noon, or None with the reason: the sun stays up ("day") or down ("night")."""
+    lat,dec=math.radians(latitude),math.radians(declination)
+    value=math.cos(math.radians(SUN_ALTITUDE))/(math.cos(lat)*math.cos(dec))-math.tan(lat)*math.tan(dec)
+    if value<-1: return None,"day"
+    if value>1: return None,"night"
+    return math.degrees(math.acos(value)),None
+
+class SunTimes(NamedTuple):
+    date: datetime.date
+    sunrise: Optional[datetime.datetime]
+    noon: datetime.datetime
+    sunset: Optional[datetime.datetime]
+    polar: Optional[str]  # "day" when the sun does not set, "night" when it does not rise
+
+def sun_times(date,latitude,longitude,zone):
+    """Sunrise, solar noon and sunset of the solar day whose noon falls on this local date, in that zone.
+    On a day near the polar circles the sunset can fall after midnight, on the next calendar date."""
+    if isinstance(zone,str): zone=ZoneInfo(zone)
+    latitude=max(-89.99,min(89.99,latitude))
+    utc=datetime.timezone.utc
+    base=datetime.datetime(date.year,date.month,date.day,tzinfo=utc)
+    def noon_of(day):
+        moment=day+datetime.timedelta(minutes=720-4*longitude)
+        for _ in range(2):
+            moment=day+datetime.timedelta(minutes=720-4*longitude-_sun(_century(moment))[0])
+        return moment
+    noon=noon_of(base)
+    # Where the zone is far from the longitude, the UTC date can differ from the local date (Kiritimati is UTC+14 at 157° W).
+    for _ in range(2):
+        local=noon.astimezone(zone).date()
+        if local==date: break
+        base+=datetime.timedelta(days=1 if local<date else -1); noon=noon_of(base)
+    def event(rise):
+        moment=noon; reason=None
+        for _ in range(3):
+            equation,declination=_sun(_century(moment))
+            angle,reason=_hour_angle(latitude,declination)
+            if angle is None: return None,reason
+            moment=base+datetime.timedelta(minutes=720-4*(longitude+(angle if rise else -angle))-equation)
+        return moment.astimezone(zone),None
+    sunrise,why_rise=event(True); sunset,why_set=event(False)
+    polar=why_set or why_rise
+    return SunTimes(date,sunrise,noon.astimezone(zone),sunset,polar)
+
+def valid_zone(name):
+    """A time zone this computer knows. With no time zone data at all, keep what was saved instead of discarding it."""
+    if not isinstance(name,str) or not name: return False
+    try: ZoneInfo(name); return True
+    except (ZoneInfoNotFoundError,ValueError,OSError): return not available_timezones()
+
+def clean_place(value):
+    """{"label","lat","lon","tz"} with latitude and longitude rounded to 2 decimals, or None if unusable."""
+    if not isinstance(value,dict): return None
+    lat,lon=value.get("lat"),value.get("lon")
+    for number in (lat,lon):
+        if not isinstance(number,(int,float)) or isinstance(number,bool) or not math.isfinite(number): return None
+    if not (-90<=lat<=90 and -180<=lon<=180) or not valid_zone(value.get("tz")): return None
+    lat,lon=round(float(lat),2),round(float(lon),2)
+    label=" ".join(value["label"].split()) if isinstance(value.get("label"),str) else ""
+    return dict(label=label or f"{lat}, {lon}",lat=lat,lon=lon,tz=value["tz"])
+
+def place_sun(place,date):
+    """Sun times at a saved place, or None without one, or when this computer lacks its time zone."""
+    if not place: return None
+    try: return sun_times(date,place["lat"],place["lon"],place["tz"])
+    except (ZoneInfoNotFoundError,ValueError,OSError): return None
+
+def sun_summary(sun,clock):
+    """One line for the sun times; clock formats a datetime in the user's locale."""
+    parts=[]
+    if sun.sunrise: parts.append("sunrise "+clock(sun.sunrise))
+    parts.append("noon "+clock(sun.noon))
+    if sun.sunset: parts.append("sunset "+clock(sun.sunset))
+    text=", ".join(parts); text=text[0].upper()+text[1:]
+    if sun.polar=="day": text+=". The sun does not set today."
+    if sun.polar=="night": text+=". The sun does not rise today."
+    return text

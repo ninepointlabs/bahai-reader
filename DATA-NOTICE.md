@@ -24,3 +24,18 @@ https://www.bahai.org/library/authoritative-texts/the-universal-house-of-justice
 Copyright © Bahá’í International Community. The dates are credited to the Bahá’í World
 Centre and the Universal House of Justice; they are not covered by this project's MIT
 software license.
+
+# City list
+
+data/cities.json is a trimmed copy of the GeoNames cities15000 list: name, ASCII name,
+country, region, latitude, longitude and time zone, with coordinates rounded to 2 decimals
+and everything else removed. City data © GeoNames (https://www.geonames.org/), licensed under
+the Creative Commons Attribution 4.0 License:
+https://creativecommons.org/licenses/by/4.0/
+GeoNames provides the data "as is" and does not endorse this app. The list is searched on
+this computer only.
+
+# Sun times
+
+Sunrise, solar noon and sunset use the public-domain NOAA solar calculation
+(https://gml.noaa.gov/grad/solcalc/calcdetails.html), computed on this computer.
