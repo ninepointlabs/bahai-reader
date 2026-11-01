@@ -113,6 +113,33 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.said_marks()==[] and reader.json.loads(reader.STATE.read_text())["keep_records"] is False
             app.mark_said("2026-11-02:medium:noon",True); assert app.said_marks()==["2026-11-02:medium:noon"], "today's state still works with the history off"
             app.records_check.set_active(True); app.location_window.close(); app.prefs["prayer"]="none"
+            # The Fast: hidden far from it, a line when near, and during it the day, the hours and a private check.
+            at(2026,11,1,10,0,place=HAIFA); assert not app.today_cards["fast"].get_visible()
+            at(2027,2,10,10,0,place=HAIFA); assert texts(app,"fast")[1]=="The Fast begins at sunrise on 2 March.", texts(app,"fast")
+            at(2027,3,8,8,0,place=HAIFA); lines=texts(app,"fast")
+            assert "Day 7 of 19" in lines and any(t.startswith("Fasting hours: sunrise at") for t in lines), lines
+            toggle=app.today_buttons["fast","Fasted today"]; assert not toggle.get_active(); toggle.set_active(True)
+            assert reader.json.loads(reader.STATE.read_text())["records"]["fasted"]==["2027-03-08"] and app.today_buttons["fast","Fasted today"].get_active()
+            app.today_buttons["fast","Prayers for the Fast"].emit("clicked"); assert "The Fast" in app.current["tags"]
+            at(2027,3,8,8,0,place=HAIFA); app.today_buttons["fast","Read about the Fast (¶16)"].emit("clicked")
+            assert app.current["title"].startswith("16 · ") and "fasting" in app.current["text"].casefold() and app.section=="writings"
+            # The evening before a day of the Fast already counts as that day; the last evening does not.
+            at(2027,3,8,17,0,place=HAIFA); assert "Day 8 of 19" in texts(app,"fast"), texts(app,"fast")
+            at(2027,3,20,17,0,place=HAIFA); assert not app.today_cards["fast"].get_visible()
+            # Without a location: the hours in words, and a way to add one. No streak or score anywhere.
+            at(2027,3,8,8,0); lines=texts(app,"fast"); assert "The fasting hours run from sunrise to sunset." in lines and ("fast","Add location…") in app.today_buttons and not any("streak" in t.casefold() or "score" in t.casefold() for t in lines), lines
+            # Polar: the sun doesn't set near the end of the Fast only in far southern places; the text points to the guidance.
+            at(2027,3,8,8,0,place={"label":"South","lat":-85.0,"lon":0.0,"tz":"UTC"}); lines=texts(app,"fast"); assert any("gauge the times by clocks" in t for t in lines) and ("fast","Read the guidance (Note 17)") in app.today_buttons, lines
+            app.today_buttons["fast","Read the guidance (Note 17)"].emit("clicked"); assert app.current["title"].startswith("17 · ")
+            # After 221 B.E. the Fast isn't guessed either.
+            at(2065,3,25,10,0,place=HAIFA); assert not app.today_cards["fast"].get_visible()
+            # Clearing covers the Fast too, with a confirmation first.
+            at(2027,3,8,8,0,place=HAIFA); assert app.fasted_marks()==["2027-03-08"]
+            app.location_dialog(); app.records_clear.emit("clicked"); assert app.fasted_marks()==["2027-03-08"]; app.records_confirm.emit("clicked"); assert app.fasted_marks()==[]
+            # Each reminder has its own switch, off until turned on, and each is stored.
+            assert all(not check.get_active() for check in app.reminder_checks.values()) and set(app.reminder_checks)==set(reader.REMINDER_SWITCHES)
+            app.reminder_checks["holy"].set_active(True); assert reader.json.loads(reader.STATE.read_text())["reminders"]["holy"] is True
+            app.reminder_checks["holy"].set_active(False); app.location_window.close()
             # Polar day: no sunset, and the date says so.
             at(2026,6,21,22,0,place=TROMSO)
             assert "The sun does not set today." in texts(app,"sun") and any("does not set here today" in t for t in texts(app,"date"))

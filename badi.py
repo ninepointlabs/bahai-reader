@@ -476,7 +476,68 @@ def candidate_reminders(settings,moment,place,clock):
     prayer=settings.get("prayer")
     if switches.get("prayer") and prayer:
         for day in days: found+=prayer_reminders(prayer,day,place,clock)
+    for event in upcoming(today-datetime.timedelta(1),3):
+        if switches.get(event.kind if event.kind=="holy" else "feast"): found+=event_reminders(event,place)
+    if switches.get("fast"): found+=fast_notice_reminders(today,place)
+    if switches.get("fast_daily"):
+        for day in days: found+=fast_daily_reminders(day,place,clock)
     return found
+
+FEAST_HOUR=15  # the afternoon of the day a Feast begins at sunset
+HOLY_DAY_HOUR=9
+FAST_NOTICE_DAYS=(5,3,1)
+FAST_NEAR_DAYS=30  # the Fast appears on Today this close to it
+FAST_LEAD_MINUTES=30
+
+def _at_hour(date,hour,place):
+    """A clock time on a day at the saved place, or on this computer."""
+    if place:
+        try: return datetime.datetime(date.year,date.month,date.day,hour,tzinfo=ZoneInfo(place["tz"]))
+        except (ZoneInfoNotFoundError,ValueError,OSError): pass
+    return _clock_time(date,hour)
+
+def _sunset_or_clock(date,place):
+    sun=place_sun(place,date)
+    return sun.sunset if sun and sun.sunset else _at_hour(date,CLOCK_SUNSET,place)
+
+def event_reminders(event,place):
+    """A Feast, on the afternoon of the day it begins at sunset. A Holy Day, the afternoon before, and on the day."""
+    found=[]; begins=event.begins; sunset=_sunset_or_clock(begins,place)
+    # Where the sun sets before the usual hour, an hour before sunset instead.
+    afternoon=min(_at_hour(begins,FEAST_HOUR,place),(sunset.astimezone(datetime.timezone.utc)-datetime.timedelta(hours=1)).astimezone(sunset.tzinfo),key=lambda m:m.timestamp())
+    title=f"{event.name} ({event.meaning})" if event.meaning else event.name
+    note=" Work is suspended." if event.work_suspended else ""
+    found.append(Reminder(f"{begins.isoformat()}:{event.kind}:{event.name}:before",f"{event.kind}:{event.date.isoformat()}",title,f"Begins at sunset today.{note}",afternoon,sunset))
+    if event.kind=="holy":
+        found.append(Reminder(f"{event.date.isoformat()}:holy:{event.name}:day",f"holy:{event.date.isoformat()}",title,f"Today.{note}",_at_hour(event.date,HOLY_DAY_HOUR,place),_sunset_or_clock(event.date,place)))
+    return found
+
+def fast_notice_reminders(today,place):
+    """5, 3 and 1 days before the Fast."""
+    first=next_fast(today)
+    if not first: return []
+    found=[]
+    for days in FAST_NOTICE_DAYS:
+        day=first-datetime.timedelta(days)
+        when="tomorrow" if days==1 else f"on {gregorian_text(first)}"
+        found.append(Reminder(f"{day.isoformat()}:fast:notice",f"fast:{day.isoformat()}","The Fast",f"The Fast begins at sunrise {when}.",_at_hour(day,HOLY_DAY_HOUR,place),_at_hour(day,CLOCK_SUNSET+3,place)))
+    return found
+
+def fast_daily_reminders(date,place,clock):
+    """Each day of the Fast, before sunrise and at sunset. Clock times without a location; none where the sun does not rise or set."""
+    number=fast_day(date)
+    if not number: return []
+    if place:
+        sun=place_sun(place,date)
+        if not sun or not sun.sunrise or not sun.sunset: return []
+        sunrise,sunset=sun.sunrise,sun.sunset
+    else:
+        sunrise,sunset=_at_hour(date,CLOCK_SUNRISE,None),_at_hour(date,CLOCK_SUNSET,None)
+    utc=datetime.timezone.utc
+    lead=(sunrise.astimezone(utc)-datetime.timedelta(minutes=FAST_LEAD_MINUTES)).astimezone(sunrise.tzinfo)
+    after=(sunset.astimezone(utc)+datetime.timedelta(hours=1)).astimezone(sunset.tzinfo)
+    return [Reminder(f"{date.isoformat()}:fast:sunrise",f"fastday:{date.isoformat()}","The Fast",f"Day {number} of {MONTH_DAYS}. Sunrise is at {clock(sunrise)}.",lead,sunrise),
+            Reminder(f"{date.isoformat()}:fast:sunset",f"fastday:{date.isoformat()}","The Fast",f"Day {number} of {MONTH_DAYS}. Sunset is at {clock(sunset)}.",sunset,after)]
 
 def due_reminders(settings,moment,place,clock,sent,said):
     """(reminders to send now, ids to mark as sent). Each is sent at most once and only while still in its time; after a long sleep
@@ -494,3 +555,15 @@ def prune_sent(sent,today):
     """Forget what was sent more than a few days ago; the date starts each id."""
     oldest=(today-datetime.timedelta(SENT_DAYS)).isoformat()
     return [key for key in sent if key[:10]>=oldest]
+
+class FastState(NamedTuple):
+    day: Optional[int]  # 1-19 during the Fast
+    date: datetime.date  # the Gregorian day concerned: a fasting day, or the first one ahead
+
+def fast_state(observed):
+    """During the Fast, its day; else its first day if it is near; else None. The evening before a fasting day already counts,
+    as the Bahá’í day begins at sunset; the fasting itself runs from sunrise to sunset (Note 25 to the Kitáb-i-Aqdas)."""
+    number=fast_day(observed)
+    if number: return FastState(number,observed)
+    first=next_fast(observed)
+    return FastState(None,first) if first and (first-observed).days<=FAST_NEAR_DAYS else None
