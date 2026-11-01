@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 sys.path.insert(0, "/usr/share/bahai-reader" if "installed" in sys.argv else "/app/share/bahai-reader" if "flatpak" in sys.argv else str(Path(__file__).resolve().parents[1]))
 import reader
-from gi.repository import Gio, Gdk
+from gi.repository import Gio, Gdk, Gtk
 UTC=datetime.timezone.utc
 HAIFA={"label":"Haifa, Israel","lat":32.81,"lon":35.0,"tz":"Asia/Jerusalem"}
 TROMSO={"label":"Tromsø, Norway","lat":69.65,"lon":18.96,"tz":"Europe/Oslo"}
@@ -15,7 +15,11 @@ TROMSO={"label":"Tromsø, Norway","lat":69.65,"lon":18.96,"tz":"Europe/Oslo"}
 def texts(app,card):
     found=[]; child=app.today_cards[card].get_first_child()
     while child:
-        found.append(child.get_label()); child=child.get_next_sibling()
+        if isinstance(child,Gtk.FlowBox):
+            item=child.get_first_child()
+            while item: found.append(item.get_child().get_label()); item=item.get_next_sibling()
+        else: found.append(child.get_label())
+        child=child.get_next_sibling()
     return found
 
 with tempfile.TemporaryDirectory() as temp:
@@ -94,7 +98,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert not app.today_buttons["prayer","Said at noon"].get_active()
             app.today_buttons["prayer","Read the guidance (Question and Answer 83)"].emit("clicked"); assert app.current["title"].startswith("83 · ") and app.current["subgroup"]=="Questions and Answers" and app.section=="obligatory" and "sunrise, noon and sunset" in app.current["text"]
             # Long: guidance, and no toggle until its day is settled.
-            app.prefs["prayer"]="long"; at(2026,11,2,5,0,place=HAIFA); lines=texts(app,"prayer"); assert any("Once in twenty-four hours" in t for t in lines) and not any("Said" in t for t in lines), lines
+            app.prefs["prayer"]="long"; at(2026,11,2,5,0,place=HAIFA); lines=texts(app,"prayer"); assert any("Once in twenty-four hours" in t for t in lines) and not any(t.startswith("Said") or t.startswith("✓") for t in lines), lines
             app.today_buttons["prayer","Read the guidance (Question and Answer 82)"].emit("clicked"); assert app.current["title"].startswith("82 · ") and "Once in twenty-four hours" in app.current["text"]
             # Polar night: no window, and the card points to ¶10 rather than inventing hours.
             app.prefs["prayer"]="short"; at(2026,12,21,10,0,place=TROMSO); lines=texts(app,"prayer"); assert any("gauge the times of prayer by clocks" in t for t in lines) and not any("Said" in t for t in lines), lines
@@ -147,6 +151,15 @@ with tempfile.TemporaryDirectory() as temp:
             at(2065,3,20,10,0,place=HAIFA)
             assert reader.badi.UNPUBLISHED in texts(app,"date") and reader.badi.UNPUBLISHED in texts(app,"events") and not app.section_items, texts(app,"date")
             assert any("20 March 2065" in t for t in texts(app,"date"))
+            # The keyboard: Ctrl+T lands on Today's first action, and Tab walks the cards from top to bottom.
+            app.navigate("hidden"); assert app.key_pressed(None,Gdk.KEY_t,0,Gdk.ModifierType.CONTROL_MASK) and app.views.get_visible_child_name()=="today"
+            first=app.window.get_focus(); assert isinstance(first,Gtk.Button) and first.is_ancestor(app.today_cards["sun"]), first
+            app.location_dialog(); app.location_window.close()
+            # A library without the guidance offers no button for it, rather than one that does nothing.
+            app.items=[i for i in app.items if reader.BOOKS["aqdas"] not in i["tags"]]; app.prefs["prayer"]="short"; at(2026,11,2,10,0,place=HAIFA)
+            assert not any("guidance" in t for t in texts(app,"prayer")) and app.today_cards["passage"].get_visible(), texts(app,"prayer")
+            app.show_counter(); assert not app.counter_verse.get_visible(); app.leave_counter()
+            app._items=None; app.prefs["prayer"]="none"
             # A card that hasn't changed isn't rebuilt: the focused button survives the 30-second refresh.
             at(2026,11,1,10,0,place=HAIFA)
             button=app.today_buttons["sun","Change location…"]; app.fixed_now+=datetime.timedelta(seconds=30); app.tick(); assert app.today_buttons["sun","Change location…"] is button

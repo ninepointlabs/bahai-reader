@@ -1,3 +1,17 @@
+## Unreleased
+
+A new **Today** view brings the day together, and the header is reorganized around it.
+
+- New: **Today**, the first sidebar entry: the Badí‘ date, sunrise, noon and sunset, your obligatory prayer’s time, the next Feast and Holy Day, the Fast and the passage of the day. In the sidebar it lists the next 12 months and this year’s months. New installs open here; existing installs keep their place.
+- Changed: **Ctrl+T and the Today button now open the Today view** instead of the passage of the day, which is a card there.
+- Changed: **Languages & offline libraries and About moved from Aa to a new ⋮ menu**, with Location & reminders and Keyboard shortcuts. Aa keeps the reading settings. F1 still opens About.
+- New: **Location**: type a city, found offline in a bundled GeoNames list, or enter coordinates. It is never detected and never sent anywhere.
+- New: **Obligatory prayer times and Said today**, taken from the bundled texts. The Long prayer has no Said today or reminders yet.
+- New: **Alláh-u-Abhá counter** (Ctrl+Shift+A), with Kitáb-i-Aqdas ¶18.
+- New: **Reminders**, all off by default, for the prayer, Feasts, Holy Days and the Fast, with an opt-in to keep them running when the window is closed.
+- New: **The Fast**: the day, the fasting hours and an optional private Fasted today check.
+- Badí‘ dates come from the Universal House of Justice’s table for 172 to 221 B.E.; after that the app says they have not been published yet.
+
 Patch release of Bahá’í Reader.
 
 v0.1.7 completes the Kitáb-i-Aqdas guidance in the Obligatory prayers section.
