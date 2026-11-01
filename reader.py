@@ -20,7 +20,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gdk, GLib, GObject, Pango
+from gi.repository import Gtk, Gdk, Gio, GLib, GObject, Pango
 import badi
 
 APP_NAME = "Bahá’í Reader"
@@ -43,6 +43,7 @@ FEEDS.update({"meditations": "PMsByLanguage?languageid=1", "tablets": "TabsByLan
 
 BOOKS.update({"aqdas":"The Kitáb-i-Aqdas", "saq":"Some Answered Questions", "days":"Days of Remembrance", "ridvan":"Riḍván Messages"})
 FEEDS.update({"aqdas":"AqdasByLanguage?languageid=1&html=true", "saq":"SaqTopicsByLanguage?languageid=1", "days":"DaysRemembersByLanguage?languageid=1", "ridvan":"RidvansByLanguage?languageid=1"})
+AUTOSTART = Path(os.environ.get("XDG_CONFIG_HOME", Path.home()/".config"))/"autostart"/"org.bahai.Reader-reminders.desktop"
 LIBRARY = Path(os.environ.get("XDG_DATA_HOME", Path.home()/".local/share"))/"bahai-reader"/"libraries"
 LANGUAGE_ENDPOINTS = {"prayers":"Languages", "hidden":"HiddenLanguages", "gleanings":"GleaningLanguages", "meditations":"PMLanguages", "tablets":"TabLanguages", "iqan":"IqanLanguages"}
 LANGUAGE_ENDPOINTS.update({"aqdas":"AqdasLanguages", "saq":"SaqLanguages", "days":"DaysRememberLanguages", "ridvan":"RidvanLanguages"})
@@ -105,6 +106,13 @@ def clean_settings(data):
         if badi.Counter.valid_target(target): pass
         else: del prefs["counter_target"]
     if prefs.get("prayer") not in ("short","medium","long","none"): prefs.pop("prayer",None)
+    if "reminders" in prefs:
+        reminders=prefs["reminders"] if isinstance(prefs["reminders"],dict) else {}
+        prefs["reminders"]={k:v for k,v in reminders.items() if k in REMINDER_SWITCHES and isinstance(v,bool)}
+    if not isinstance(prefs.get("keep_running"),bool): prefs.pop("keep_running",None)
+    if "reminders_sent" in prefs:
+        sent=prefs["reminders_sent"] if isinstance(prefs["reminders_sent"],list) else []
+        prefs["reminders_sent"]=[k for k in sent if isinstance(k,str) and DAY_KEY.match(k)]
     if not isinstance(prefs.get("keep_records"),bool): prefs.pop("keep_records",None)
     if "records" in prefs: prefs["records"]=clean_records(prefs["records"])
     expanded=prefs.get("expanded")
@@ -112,6 +120,8 @@ def clean_settings(data):
     return prefs
 
 UNSORTED="Unsorted"
+# All reminders are off until turned on in Location & reminders.
+REMINDER_SWITCHES=("prayer",)
 SAID_KEY=re.compile(r"\d{4}-\d\d-\d\d:(short|medium|long):(morning|noon|evening)")
 DAY_KEY=re.compile(r"\d{4}-\d\d-\d\d")
 
@@ -420,6 +430,32 @@ def passage_of_the_day(items,day):
     order=list(range(len(pool))); random.Random(1844).shuffle(order)
     return pool[order[day.toordinal()%len(pool)]]
 
+def in_flatpak():
+    return Path("/.flatpak-info").exists()
+
+def desktop_quote(text):
+    """An argument in a desktop entry's Exec line: quoted when it needs to be, with \\ " ` $ escaped and % doubled."""
+    text=text.replace("%","%%")
+    if not re.search(r"""[\s"'`$\\&;<>|*?()#~=]""",text): return text
+    return '"'+re.sub(r'([\\"`$])',r"\\\1",text)+'"'
+
+def launch_command():
+    """How to start this copy of the app: the AppImage file, the installed command, or the checkout's launcher."""
+    if os.environ.get("APPIMAGE"): return os.environ["APPIMAGE"]
+    if str(ROOT).startswith(("/usr/","/app/")): return "bahai-reader"
+    return str(ROOT/"launch.sh")
+
+def autostart_entry():
+    return ("[Desktop Entry]\nType=Application\nName=Bahá’í Reader reminders\nComment=Keeps reminders running when the Bahá’í Reader window is closed\n"
+            f"Exec={desktop_quote(launch_command())} --background\nIcon=org.bahai.Reader\nTerminal=false\nX-GNOME-Autostart-enabled=true\n")
+
+def write_autostart():
+    AUTOSTART.parent.mkdir(parents=True,exist_ok=True)
+    temp=AUTOSTART.with_suffix(".tmp"); temp.write_text(autostart_entry()); temp.replace(AUTOSTART)
+
+def remove_autostart():
+    AUTOSTART.unlink(missing_ok=True)
+
 def load_cities(path=None):
     """The bundled city list, largest first, as (name, ASCII name, label, latitude, longitude, zone); loaded when first searched."""
     if path is None and CITIES: return CITIES
@@ -501,9 +537,9 @@ class Choice(Gtk.DropDown):
         if id in self.ids: self.set_selected(self.ids.index(id))
 
 class Reader(Gtk.Application):
-    def __init__(self):
+    def __init__(self,background=False):
         super().__init__(application_id="org.bahai.Reader")
-        self.window=None; self.notices=[]; self.save_failed=False
+        self.window=None; self.notices=[]; self.save_failed=False; self.background_launch=background; self.ticking=False; self.held=False
         self.prefs,notice=load_settings(STATE)
         if notice: self.notices.append(notice)
         self.languages=catalog(); self.language=self.prefs.get("language",1); self.downloading=False
@@ -512,8 +548,17 @@ class Reader(Gtk.Application):
             if (LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in ⋮ → Languages & offline libraries.")
             else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
             self.language=1
-        self.items=load_library(self.language); self.section="today"; self.fixed_now=None; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
+        self._items=None; self.section="today"; self.fixed_now=None; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
         self.connect("activate", self.activate)
+        said=Gio.SimpleAction.new("said",GLib.VariantType.new("s")); said.connect("activate",lambda _a,key:self.notification_said(key.get_string())); self.add_action(said)
+        opening=Gio.SimpleAction.new("open",GLib.VariantType.new("s")); opening.connect("activate",lambda _a,target:self.notification_open(target.get_string())); self.add_action(opening)
+    @property
+    def items(self):
+        # A background process that never opens a window never loads the library.
+        if self._items is None: self._items=load_library(self.language)
+        return self._items
+    @items.setter
+    def items(self,value): self._items=value
     def save(self):
         temp=STATE.with_suffix(".tmp")
         try:
@@ -541,6 +586,11 @@ class Reader(Gtk.Application):
     def place(self):
         return self.prefs.get("location")
     def activate(self, app):
+        self.start_ticking()
+        if self.background_launch:
+            # --background: reminders run with no window until the next launch asks for one.
+            self.background_launch=False; self.apply_keep_running(True); return
+        self.apply_keep_running(bool(self.prefs.get("keep_running")) or self.held)
         if self.window: self.window.present(); return
         try: self.build()
         except Exception:
@@ -549,6 +599,7 @@ class Reader(Gtk.Application):
             self.window=None; self.quit(); raise
     def build(self):
         self.window=Gtk.ApplicationWindow(application=self, title="Bahá’í Reader", default_width=1160, default_height=790)
+        self.window.connect("close-request",self.window_closing)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
@@ -640,9 +691,27 @@ class Reader(Gtk.Application):
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         # New installs open on Today; everyone else keeps the section they were in.
-        self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.apply_theme)
-        GLib.timeout_add_seconds(30,self.tick)
+        self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.theme_tick)
         self.window.present()
+    def theme_tick(self):
+        # A hidden window in the background has nothing to repaint.
+        if self.window.get_visible(): self.apply_theme()
+        return True
+    def window_closing(self,window):
+        """Closing the window keeps the process alive only when reminders are to keep running."""
+        if not self.held: return False
+        for name in ("about_window","language_window","collections_window","location_window","shortcuts_window"):
+            other=getattr(self,name,None)
+            if other: other.close()
+        window.set_visible(False); return True
+    def quit_app(self):
+        """Ctrl+Q ends the app, or, while reminders keep running, closes the window as the close button does."""
+        if self.held and self.window: self.window_closing(self.window)
+        else: self.quit()
+    def apply_keep_running(self,wanted):
+        """The hold that keeps a process with no window alive. Turning the option off releases it, so closing the window then ends the process."""
+        if wanted and not self.held: self.hold(); self.held=True
+        elif self.held and not wanted: self.held=False; self.release()
     def stop_scroll(self):
         if self.scroll_tick is not None:
             self.readscroll.remove_tick_callback(self.scroll_tick); self.scroll_tick=None
@@ -703,7 +772,7 @@ class Reader(Gtk.Application):
             if key==Gdk.KEY_t: self.navigate("today"); return True
             if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
-            if key==Gdk.KEY_q: self.quit(); return True
+            if key==Gdk.KEY_q: self.quit_app(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
             if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True
         if key==Gdk.KEY_F1: self.about_dialog(); return True
@@ -735,7 +804,7 @@ class Reader(Gtk.Application):
         return False
     def quit_key(self, controller, key, code, modifiers):
         # Dialogs are plain windows; keep Ctrl+Q working while they have focus.
-        if modifiers & Gdk.ModifierType.CONTROL_MASK and key==Gdk.KEY_q: self.quit(); return True
+        if modifiers & Gdk.ModifierType.CONTROL_MASK and key==Gdk.KEY_q: self.quit_app(); return True
         return False
     def search_key(self, controller, key, code, modifiers):
         if key in (Gdk.KEY_Tab,Gdk.KEY_Down) and not modifiers & (Gdk.ModifierType.SHIFT_MASK|Gdk.ModifierType.CONTROL_MASK):
@@ -1099,13 +1168,44 @@ class Reader(Gtk.Application):
         """The time now at the saved place, or on this computer without one. The computer's own zone may have changed."""
         time.tzset()
         return badi.local_now(self.place(),self.fixed_now)
+    def start_ticking(self):
+        if self.ticking: return
+        self.ticking=True
+        GLib.timeout_add_seconds(30,self.tick); GLib.idle_add(lambda:(self.tick(),False)[1])
     def tick(self):
-        """The wall clock, every 30 seconds: a long timeout would not survive suspend or a change of the clock."""
+        """The wall clock, every 30 seconds, with a window or without: a long timeout would not survive suspend or a change of
+        the clock. Waking from suspend, the next tick catches up; what has gone stale is skipped."""
+        self.send_due_reminders()
+        if not self.window or not self.window.get_visible(): return True
         if getattr(self,"today_day",None)!=badi.observed_date(self.now(),self.place()) and self.section=="today":
             self.rebuild()
         if self.views.get_visible_child_name()=="today": self.refresh_today()
         self.show_said()
         return True
+    def send_due_reminders(self):
+        moment=self.now()
+        due,marked=badi.due_reminders(self.prefs,moment,self.place(),clock,self.prefs.get("reminders_sent",[]),self.said_marks())
+        if not marked: return
+        for reminder in due: self.send_reminder(reminder)
+        self.prefs["reminders_sent"]=badi.prune_sent(self.prefs.get("reminders_sent",[])+marked,moment.date()); self.save()
+    def send_reminder(self,reminder):
+        note=Gio.Notification.new(reminder.title); note.set_body(reminder.body)
+        note.set_icon(Gio.ThemedIcon.new("org.bahai.Reader"))
+        note.set_default_action_and_target("app.open",GLib.Variant("s",reminder.opens))
+        if reminder.said:
+            note.add_button_with_target("Said today","app.said",GLib.Variant("s",reminder.said))
+        note.add_button_with_target("Open","app.open",GLib.Variant("s",reminder.opens))
+        self.send_notification(reminder.group,note)
+    def notification_said(self,key):
+        """"Said today" on a notification: marked without opening the window."""
+        if not SAID_KEY.fullmatch(key): return
+        self.mark_said(key,True); self.withdraw_notification(f"prayer:{key.split(':')[1]}")
+    def notification_open(self,target):
+        self.activate(self)
+        chosen=target.split(":",1)[1] if target.startswith("prayer:") else None
+        item=self.prayer_item(chosen) if chosen in badi.PRAYERS else None
+        if item: self.open_obligatory(item)
+        else: self.navigate("today")
     def build_counter(self):
         self.counter=badi.Counter(self.prefs.get("counter_target",badi.Counter.DEFAULT)); self.counter_return="reading"
         scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True,hscrollbar_policy=Gtk.PolicyType.NEVER); self.views.add_named(scroll,"counter")
@@ -1330,7 +1430,7 @@ class Reader(Gtk.Application):
         if not getattr(self,"said_syncing",False) and getattr(toggle,"window_key",None): self.mark_said(toggle.window_key,toggle.get_active())
     def refresh_today(self):
         """Rebuilds only the cards whose content changed, so the keyboard focus stays where it is."""
-        if not getattr(self,"today_box",None): return
+        if not getattr(self,"today_box",None) or not self.window: return
         cards=self.today_content(); focus=self.window.get_focus()
         focused=next((name for name,widget in self.today_buttons.items() if widget is focus),None)
         for key,card in self.today_cards.items():
@@ -1673,6 +1773,11 @@ textview text selection {{ background: {selection}; }}
         def prayer_changed(c):
             if c.get_active_id(): self.prefs["prayer"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today()
         choice.connect("changed",prayer_changed)
+        reminder=Gtk.CheckButton(label="Remind me when its time opens and before it closes",active=self.prefs.get("reminders",{}).get("prayer",False)); self.reminder_checks={"prayer":reminder}; box.append(reminder)
+        def switch(check,key):
+            self.prefs.setdefault("reminders",{})[key]=check.get_active(); self.save(); self.tick()
+        reminder.connect("toggled",switch,"prayer")
+        clock_note=Gtk.Label(label="Without a location, reminders use clock times. Add a location and they follow the sun.",wrap=True,xalign=0,max_width_chars=56); clock_note.add_css_class("dim-label"); box.append(clock_note)
         record=Gtk.CheckButton(child=Gtk.Label(label="Keep a private record of “Said today” and “Fasted today” on this computer",wrap=True,xalign=0,max_width_chars=52),active=self.prefs.get("keep_records",True)); self.records_check=record; box.append(record)
         def record_changed(check):
             self.prefs["keep_records"]=check.get_active()
@@ -1689,8 +1794,54 @@ textview text selection {{ background: {selection}; }}
         def ask(showing):
             confirm.set_visible(showing); cancel.set_visible(showing); forget.set_visible(not showing)
             if showing: cancel.grab_focus()
+        heading=Gtk.Label(label="Feasts, Holy Days and the Fast",xalign=0,margin_top=10); heading.add_css_class("heading"); box.append(heading); self.events_heading=heading
+        running=Gtk.CheckButton(child=Gtk.Label(label="Keep reminders running when the window is closed",wrap=True,xalign=0,max_width_chars=52),active=bool(self.prefs.get("keep_running"))); self.keep_running_check=running; box.append(running)
+        explain=Gtk.Label(label="A quiet background process starts when you log in and has no tray icon. Turn this off to stop it.",wrap=True,xalign=0,max_width_chars=56); explain.add_css_class("dim-label"); box.append(explain)
+        running_status=Gtk.Label(wrap=True,xalign=0,max_width_chars=56,visible=False); self.keep_running_status=running_status; box.append(running_status)
+        running.connect("toggled",lambda check:self.set_keep_running(check.get_active()))
         close=self.button("Close",lambda *_: window.close()); close.set_halign(Gtk.Align.END); box.append(close)
         refresh(); window.present(); search.grab_focus()
+    def set_keep_running(self,wanted):
+        """The opt-in background mode: an XDG autostart entry, or the Background portal inside Flatpak, whose sandbox cannot write one."""
+        self.prefs["keep_running"]=wanted; self.save(); self.apply_keep_running(wanted)
+        if in_flatpak(): self.request_background(wanted); return
+        try:
+            write_autostart() if wanted else remove_autostart()
+            self.running_message("Starts when you log in." if wanted else None)
+        except OSError as exc:
+            print(f"bahai-reader: could not change {AUTOSTART}: {exc}",file=sys.stderr)
+            self.running_message(f"The login entry could not be changed ({exc.strerror or exc}). Reminders run only while the app is open.")
+    def running_message(self,text):
+        label=getattr(self,"keep_running_status",None)
+        if label: label.set_text(text or ""); label.set_visible(bool(text))
+    def request_background(self,wanted):
+        """Asks the XDG Background portal to start the app at login. Some desktops (Hyprland's portal among them) do not offer it, and then the
+        settings window says so plainly; the setting still keeps the process alive after closing the window until logout."""
+        unavailable="This desktop does not offer the Background portal, so reminders cannot start at login in the Flatpak. They run while the app is open."
+        declined="The desktop declined to start the app at login. Reminders run while the app is open."
+        bus=self.get_dbus_connection()
+        if bus is None: self.running_message(unavailable); return
+        token=f"bahai{random.randrange(10**8)}"
+        sender=bus.get_unique_name()[1:].replace(".","_")
+        path=f"/org/freedesktop/portal/desktop/request/{sender}/{token}"
+        state={"source":None}
+        def finish(text):
+            if state["source"] is not None: bus.signal_unsubscribe(state["source"]); state["source"]=None
+            self.running_message(text)
+        def responded(_bus,_sender,_path,_interface,_signal,parameters):
+            code,results=parameters.unpack()
+            if code!=0: finish(declined if wanted else None); return
+            if wanted and not results.get("autostart"): finish(declined)
+            else: finish("Starts when you log in." if wanted else None)
+        state["source"]=bus.signal_subscribe(None,"org.freedesktop.portal.Request","Response",path,None,Gio.DBusSignalFlags.NONE,responded)
+        options={"handle_token":GLib.Variant("s",token),"reason":GLib.Variant("s","Keep reminders running when the window is closed"),
+                 "autostart":GLib.Variant("b",wanted),"commandline":GLib.Variant("as",["bahai-reader","--background"]),"dbus-activatable":GLib.Variant("b",False)}
+        def called(connection,result):
+            try: connection.call_finish(result)
+            except GLib.Error as exc:
+                print(f"bahai-reader: Background portal: {exc.message}",file=sys.stderr); finish(unavailable)
+        bus.call("org.freedesktop.portal.Desktop","/org/freedesktop/portal/desktop","org.freedesktop.portal.Background","RequestBackground",
+                 GLib.Variant("(sa{sv})",("",options)),GLib.VariantType.new("(o)"),Gio.DBusCallFlags.NONE,30000,None,called)
     def language_dialog(self,*_):
         if hasattr(self,"language_window") and self.language_window:
             self.language_window.present(); return
@@ -1772,20 +1923,29 @@ textview text selection {{ background: {selection}; }}
         populate(self.language); details(); window.present()
 
 def usage():
-    return (f"Usage: bahai-reader [--help | --version]\n\n{TAGLINE}\n"
+    return (f"Usage: bahai-reader [--help | --version | --background]\n\n{TAGLINE}\n"
             "With no options it opens the reader window; a second launch shows the open window.\n\n"
-            "Options:\n  -h, --help     Show this help and exit\n  --version      Show the version and exit\n\n"
+            "Options:\n  -h, --help     Show this help and exit\n  --version      Show the version and exit\n"
+            "  --background   Run reminders with no window; a later launch opens the window in the same process\n\n"
             f"Settings and saved passages: {short_path(STATE)}\nDownloaded languages: {short_path(LIBRARY)}\n"
             f"Support: {SUPPORT_EMAIL}")
 
 def main(args):
     if args in (["-h"],["--help"]): print(usage()); return 0
     if args==["--version"]: print(f"{APP_NAME} {version()}"); return 0
-    if args:
+    background=args==["--background"]
+    if args and not background:
         print(f"bahai-reader: unknown option {args[0]!r}. Try bahai-reader --help.",file=sys.stderr); return 2
     # X11 WM_CLASS comes from the program name; match StartupWMClass and the Wayland app_id.
     GLib.set_prgname("org.bahai.Reader")
-    return Reader().run([sys.argv[0]])
+    app=Reader(background=background)
+    if background:
+        # Already running: nothing to do, and no window to open.
+        try: app.register(None)
+        except GLib.Error as exc:
+            print(f"bahai-reader: {exc.message}",file=sys.stderr); return 1
+        if app.get_is_remote(): return 0
+    return app.run([sys.argv[0]])
 
 if __name__=="__main__":
     sys.exit(main(sys.argv[1:]))
