@@ -325,3 +325,37 @@ def event_summary(event,today):
     if event.date==today: return "Today."
     if event.begins==today: return "Begins at sunset today."
     return f"Begins at sunset on {gregorian_text(event.begins)}."
+
+class Counter:
+    """The count of Alláh-u-Abhá, kept only while the app runs; it is not a record. It stops at the target."""
+    DEFAULT=95
+    PRESETS=(95,19,9)
+    LIMIT=9999
+    def __init__(self,target=DEFAULT):
+        self.count=0; self.target=self.valid_target(target) or self.DEFAULT
+    @classmethod
+    def valid_target(cls,value):
+        """A whole number from 1 to the limit, or None."""
+        if isinstance(value,bool): return None
+        if isinstance(value,str):
+            try: value=int(value.strip())
+            except ValueError: return None
+        return value if isinstance(value,int) and 1<=value<=cls.LIMIT else None
+    @property
+    def done(self): return self.count>=self.target
+    def add(self):
+        if self.done: return False
+        self.count+=1; return True
+    def undo(self):
+        if not self.count: return False
+        self.count-=1; return True
+    def reset(self): self.count=0
+    def set_target(self,value):
+        target=self.valid_target(value)
+        if target is None: return False
+        self.target=target; self.count=min(self.count,target); return True
+    @property
+    def milestone(self):
+        """Screen readers are told only at every nineteenth and at the target, so counting isn't drowned out."""
+        return self.count>0 and (self.done or self.count%19==0)
+    def __str__(self): return f"{self.count} of {self.target}"

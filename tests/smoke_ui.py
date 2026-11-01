@@ -173,6 +173,41 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.details().startswith("Bahá’í Reader "+reader.version())
             about.close()
             assert app.about_window is None
+            # The Alláh-u-Abhá counter: Space counts, holding it counts once, Backspace undoes, Ctrl+0 starts over, Esc goes back.
+            Gdk=reader.Gdk; control=Gdk.ModifierType.CONTROL_MASK; shift=Gdk.ModifierType.SHIFT_MASK
+            app.navigate("hidden"); passage=app.current
+            assert app.counter_key(None,Gdk.KEY_A,0,control|shift) and app.views.get_visible_child_name()=="counter" and not app.star.get_sensitive()
+            assert app.window.get_focus() is app.counter_button
+            assert app.counter_verse.get_text().startswith("It hath been ordained") and "Alláh-u-Abhá" in app.counter_verse.get_text() and "¶18" in app.counter_source.get_text() and "Kitáb-i-Aqdas" in app.counter_source.get_text()
+            assert app.counter.target==95 and app.counter_state.get_text()=="0 of 95"
+            saved=list(app.prefs.get("saved",[])); app.bookmark(); assert app.prefs.get("saved",[])==saved and app.copy_passage() is None  # nothing acts on the hidden passage
+            assert app.counter_key(None,Gdk.KEY_space,0,0) and app.counter.count==1
+            assert app.counter_key(None,Gdk.KEY_space,0,0) and app.counter.count==1  # a held key repeats without release
+            app.counter_held.clear()
+            assert app.counter_key(None,Gdk.KEY_Return,0,0) and app.counter.count==2 and app.counter_count.get_text()=="2"; app.counter_held.clear()
+            app.counter_button.emit("clicked"); assert app.counter.count==3
+            assert app.counter_key(None,Gdk.KEY_BackSpace,0,0) and app.counter.count==2
+            assert app.counter_key(None,Gdk.KEY_0,0,control) and app.counter.count==0
+            # Other buttons keep their own Space and Enter; the entry keeps its Backspace.
+            app.counter_reset_button.grab_focus(); assert not app.counter_key(None,Gdk.KEY_space,0,0)
+            # A target: 9, then custom; it is remembered. Reaching it is a quiet "9 of 9" and counting stops there.
+            app.counter_target.set_active_id("9"); assert app.counter.target==9 and reader.json.loads(reader.STATE.read_text())["counter_target"]==9
+            for _ in range(12): app.counter_add()
+            assert app.counter_state.get_text()=="9 of 9" and app.counter_count.has_css_class("counter-done") and app.counter_button.get_label()=="Complete"
+            app.counter_undo(); assert not app.counter_count.has_css_class("counter-done")
+            app.counter_target.set_active_id("custom"); assert app.counter_custom.get_visible()
+            app.counter_custom.grab_focus(); assert not app.counter_key(None,Gdk.KEY_BackSpace,0,0)
+            app.counter_custom.set_text("5"); assert app.counter.target==5 and app.counter.count==5
+            app.counter_custom.set_text("abc"); assert app.counter.target==5
+            app.counter_target.set_active_id("95"); assert not app.counter_custom.get_visible() and app.counter.target==95
+            app.counter_reset()
+            assert app.counter_key(None,Gdk.KEY_Escape,0,0) and app.views.get_visible_child_name()=="reading" and app.current is passage and app.star.get_sensitive()
+            # Also from Today, and from the top of the Obligatory prayers section.
+            app.navigate("today"); app.today_buttons["counter","Open the counter"].emit("clicked"); assert app.views.get_visible_child_name()=="counter"
+            app.leave_counter(); assert app.views.get_visible_child_name()=="today"
+            app.navigate("obligatory"); assert app.toc.get_first_child() is app.counter_row
+            app.counter_row.emit("clicked"); assert app.views.get_visible_child_name()=="counter"
+            app.leave_counter(); assert app.views.get_visible_child_name()=="reading" and app.current is not None
             # Side by side: on from the start; a Hidden Word pairs with the downloaded library by its number.
             app.navigate("hidden"); first=next(i for i in app.section_items if i["id"]=="hidden:1"); app.show_passage(first,app.groups[first["id"]])
             second=app.second.get_buffer(); text=lambda: second.get_text(second.get_start_iter(),second.get_end_iter(),False)

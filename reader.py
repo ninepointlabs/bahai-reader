@@ -100,6 +100,10 @@ def clean_settings(data):
         place=badi.clean_place(prefs["location"])
         if place: prefs["location"]=place
         else: del prefs["location"]
+    if "counter_target" in prefs:
+        target=prefs["counter_target"] if isinstance(prefs["counter_target"],int) else None
+        if badi.Counter.valid_target(target): pass
+        else: del prefs["counter_target"]
     expanded=prefs.get("expanded")
     if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
     return prefs
@@ -458,7 +462,8 @@ DAYS_OF_NOTE=30  # how near Ayyám-i-Há must be to be mentioned on Today
 
 # Header menu → Keyboard shortcuts, and the README table.
 SHORTCUTS=(("Ctrl+F","Show the contents panel and search this section"),("Alt+Right or Ctrl+Page Down","Next passage"),("Alt+Left or Ctrl+Page Up","Previous passage"),
-           ("Ctrl+D","Save or unsave the current passage"),("Ctrl+Shift+C","Copy the passage (or the selected words) with its citation"),("Ctrl+T","Today"),("Ctrl+R","Random passage"),
+           ("Ctrl+D","Save or unsave the current passage"),("Ctrl+Shift+C","Copy the passage (or the selected words) with its citation"),("Ctrl+T","Today"),("Ctrl+R","Random passage"),("Ctrl+Shift+A","Alláh-u-Abhá counter"),
+           ("Space or Enter","In the counter: count one"),("Backspace","In the counter: undo one"),("Ctrl+0","In the counter: start over"),("Escape","In the counter: back to where you were"),
            ("F1","About Bahá’í Reader"),("Ctrl+Q","Quit"),("Escape","Show the contents panel again if it is hidden; closes the small windows"),
            ("Tab / Shift+Tab","Move between search, the contents list and the reading pane"),("Page Up / Page Down","Scroll the passage"))
 
@@ -566,6 +571,8 @@ class Reader(Gtk.Application):
         for text in self.notices: self.notice(text)
         self.notices=[]
         keys=Gtk.EventControllerKey(); keys.connect("key-pressed", self.key_pressed); self.window.add_controller(keys)
+        self.counter_held=set()
+        counting=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); counting.connect("key-pressed",self.counter_key); counting.connect("key-released",lambda _c,key,*_:self.counter_held.discard(key)); self.window.add_controller(counting)
         # Previous/Next before the reading view's own cursor keys see them.
         paging=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); paging.connect("key-pressed", self.page_key); self.window.add_controller(paging)
         body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
@@ -593,7 +600,7 @@ class Reader(Gtk.Application):
         self.views=Gtk.Stack(hexpand=True,vexpand=True,transition_type=Gtk.StackTransitionType.NONE); body.set_end_child(self.views)
         right=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True)
         right.set_margin_top(32); self.views.add_named(right,"reading")
-        self.build_today()
+        self.build_today(); self.build_counter()
         self.heading=Gtk.Label(label="Prayers", wrap=True); self.heading.add_css_class("heading"); right.append(self.heading)
         self.subtitle=Gtk.Label(label="A moment for reflection"); self.subtitle.add_css_class("dim-label"); right.append(self.subtitle)
         self.reader=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
@@ -689,6 +696,23 @@ class Reader(Gtk.Application):
         if key==Gdk.KEY_F1: self.about_dialog(); return True
         if key==Gdk.KEY_Escape: self.sidebar.set_visible(True); return True
         return False
+    def counter_key(self,controller,key,code,modifiers):
+        """Before the focused widget sees the key: GTK's text views bind Ctrl+Shift+A to Deselect, and holding Space must not count on."""
+        control=bool(modifiers & Gdk.ModifierType.CONTROL_MASK); shift=bool(modifiers & Gdk.ModifierType.SHIFT_MASK)
+        if control and shift and key in (Gdk.KEY_a,Gdk.KEY_A): self.show_counter(); return True
+        if self.views.get_visible_child_name()!="counter": return False
+        if key==Gdk.KEY_Escape: self.leave_counter(); return True
+        if control and key in (Gdk.KEY_0,Gdk.KEY_KP_0): self.counter_reset(); return True
+        if control or modifiers & Gdk.ModifierType.ALT_MASK: return False
+        focus=self.window.get_focus()
+        typing=isinstance(focus,Gtk.Text) or isinstance(focus,Gtk.Editable)
+        if key==Gdk.KEY_BackSpace and not typing: self.counter_undo(); return True
+        if key in (Gdk.KEY_space,Gdk.KEY_Return,Gdk.KEY_KP_Enter,Gdk.KEY_ISO_Enter):
+            # Other buttons and the target list keep their own Space and Enter.
+            if focus is self.counter_button or focus is None or focus is self.window:
+                if key not in self.counter_held: self.counter_held.add(key); self.counter_add()
+                return True
+        return False
     def page_key(self, controller, key, code, modifiers):
         # Alt+Left/Right and Ctrl+Page Up/Down, as in browsers and document viewers.
         if modifiers & Gdk.ModifierType.ALT_MASK and key in (Gdk.KEY_Left,Gdk.KEY_Right):
@@ -762,6 +786,8 @@ class Reader(Gtk.Application):
         if self.section=="saved":
             # A personal prayerbook: collections in their own order, then whatever is not filed yet.
             groups=self.filed(); self.section_items=[i for g in groups.values() for i in g]
+        if self.section=="obligatory":
+            row=self.button("Alláh-u-Abhá counter",self.show_counter); row.add_css_class("toc-passage"); row.get_child().set_xalign(0); self.toc.append(row); self.counter_row=row
         for tag,items in (groups.items() if self.section in ("obligatory","saved") else sorted(groups.items())):
             path=f"{self.section}/{tag}"
             container=self.branch(self.toc,tag,path,items)
@@ -935,12 +961,15 @@ class Reader(Gtk.Application):
         self.copy.set_sensitive(True)
         self.show_filing()
         self.highlight()
+    def on_passage(self):
+        """Copy, Save and Previous/Next act on the passage on show, not one behind the counter."""
+        return bool(self.current) and self.views.get_visible_child_name()=="reading"
     def step(self,delta):
-        if self.current in self.active_group:
+        if self.on_passage() and self.current in self.active_group:
             index=self.active_group.index(self.current)+delta
             if 0<=index<len(self.active_group): self.show_passage(self.active_group[index],self.active_group)
     def bookmark(self,*_):
-        if not self.current: return
+        if not self.on_passage(): return
         saved=self.prefs.setdefault("saved",[]); key=self.current["id"]
         saved.remove(key) if key in saved else saved.append(key)
         # Unsaving takes the passage out of its collection too.
@@ -951,7 +980,7 @@ class Reader(Gtk.Application):
         if self.section=="saved": self.rebuild()
     def copy_passage(self,*_):
         """Copies the selected words, or the whole passage, with the citation."""
-        if not self.current: return None
+        if not self.on_passage(): return None
         buffer=self.reader.get_buffer(); bounds=buffer.get_selection_bounds()
         excerpt=buffer.get_text(*bounds,False).strip() if bounds else None
         text=clipping(self.current,excerpt or None); self.window.get_clipboard().set(text)
@@ -1063,12 +1092,80 @@ class Reader(Gtk.Application):
             self.rebuild()
         if self.views.get_visible_child_name()=="today": self.refresh_today()
         return True
+    def build_counter(self):
+        self.counter=badi.Counter(self.prefs.get("counter_target",badi.Counter.DEFAULT)); self.counter_return="reading"
+        scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True,hscrollbar_policy=Gtk.PolicyType.NEVER); self.views.add_named(scroll,"counter")
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,halign=Gtk.Align.CENTER,margin_top=32,margin_bottom=32,margin_start=16,margin_end=16); scroll.set_child(box)
+        title=Gtk.Label(label="Alláh-u-Abhá"); title.add_css_class("heading"); box.append(title)
+        self.counter_count=Gtk.Label(label="0"); self.counter_count.add_css_class("counter-count"); box.append(self.counter_count)
+        self.counter_state=Gtk.Label(); box.append(self.counter_state)
+        self.counter_button=self.button("Count",lambda *_:self.counter_add()); self.counter_button.add_css_class("counter-button"); self.counter_button.set_halign(Gtk.Align.CENTER); box.append(self.counter_button)
+        controls=Gtk.Box(spacing=10,halign=Gtk.Align.CENTER); box.append(controls)
+        controls.append(Gtk.Label(label="Target"))
+        self.counter_target=Choice(); self.name_widget(self.counter_target,"Target")
+        for preset in badi.Counter.PRESETS: self.counter_target.append(str(preset),str(preset))
+        self.counter_target.append("custom","Custom…"); controls.append(self.counter_target)
+        self.counter_custom=Gtk.Entry(visible=False,width_chars=6,placeholder_text="Number"); self.name_widget(self.counter_custom,"Custom target"); controls.append(self.counter_custom)
+        self.counter_custom.connect("activate",lambda *_:self.counter_apply_custom())
+        self.counter_custom.connect("changed",lambda *_:self.counter_apply_custom())
+        self.counter_undo_button=self.button("Undo",lambda *_:self.counter_undo()); controls.append(self.counter_undo_button)
+        self.counter_reset_button=self.button("Reset",lambda *_:self.counter_reset()); controls.append(self.counter_reset_button)
+        back=self.button("Back",lambda *_:self.leave_counter()); back.set_tooltip_text("Back to where you were (Esc)"); controls.append(back)
+        self.counter_verse=Gtk.Label(wrap=True,xalign=0,max_width_chars=60,margin_top=18); self.counter_verse.add_css_class("today-reading"); box.append(self.counter_verse)
+        self.counter_source=Gtk.Label(wrap=True,xalign=0,max_width_chars=60); self.counter_source.add_css_class("dim-label"); box.append(self.counter_source)
+        target=self.counter.target
+        if target in badi.Counter.PRESETS: self.counter_target.set_active_id(str(target))
+        else: self.counter_target.set_active_id("custom"); self.counter_custom.set_visible(True); self.counter_custom.set_text(str(target))
+        self.counter_target.connect("changed",self.counter_target_changed)
+        self.counter_show()
+    def counter_verse_item(self):
+        """Kitáb-i-Aqdas ¶18 from the current library, with its citation."""
+        return next((i for i in self.items if i["id"].endswith("aqdas:Paragraphs:18")),None)
+    def show_counter(self,*_):
+        current=self.views.get_visible_child_name()
+        if current!="counter": self.counter_return=current
+        self.show_view("counter")
+        item=self.counter_verse_item()
+        self.counter_verse.set_visible(bool(item)); self.counter_source.set_visible(bool(item))
+        if item: self.counter_verse.set_text(item["text"]); self.counter_source.set_text("— "+item["citation"])
+        self.counter_button.grab_focus()
+    def leave_counter(self):
+        self.show_view(self.counter_return)
+        if self.counter_return=="reading" and self.current: self.reader.grab_focus()
+        else: self.focus_view()
+    def counter_show(self):
+        counter=self.counter; state=str(counter)
+        self.counter_count.set_text(str(counter.count)); self.counter_state.set_text(state)
+        if counter.done: self.counter_count.add_css_class("counter-done")
+        else: self.counter_count.remove_css_class("counter-done")
+        self.counter_button.set_label("Complete" if counter.done else "Count")
+        # The label stays current for anyone who asks for it; only milestones are spoken unprompted.
+        self.name_widget(self.counter_count,state)
+    def counter_announce(self):
+        if self.counter.milestone and hasattr(self.counter_state,"announce"):
+            self.counter_state.announce(str(self.counter),Gtk.AccessibleAnnouncementPriority.MEDIUM)
+    def counter_add(self):
+        if self.counter.add(): self.counter_show(); self.counter_announce()
+    def counter_undo(self):
+        if self.counter.undo(): self.counter_show()
+    def counter_reset(self):
+        self.counter.reset(); self.counter_show()
+    def counter_set_target(self,value):
+        if not self.counter.set_target(value): return False
+        self.prefs["counter_target"]=self.counter.target; self.save(); self.counter_show(); return True
+    def counter_target_changed(self,choice):
+        chosen=choice.get_active_id()
+        self.counter_custom.set_visible(chosen=="custom")
+        if chosen=="custom": self.counter_apply_custom(); self.counter_custom.grab_focus()
+        elif chosen: self.counter_set_target(chosen)
+    def counter_apply_custom(self):
+        self.counter_set_target(self.counter_custom.get_text())
     def build_today(self):
         scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True,hscrollbar_policy=Gtk.PolicyType.NEVER); self.views.add_named(scroll,"today")
         # One calm column; it narrows with the window.
         self.today_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,halign=Gtk.Align.CENTER,margin_top=32,margin_bottom=32,margin_start=16,margin_end=16)
         scroll.set_child(self.today_box); self.today_cards={}; self.today_rows={}; self.today_buttons={}
-        for key in ("date","sun","events","passage"):
+        for key in ("date","sun","counter","events","passage"):
             card=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8,visible=False); card.add_css_class("today-card")
             self.today_box.append(card); self.today_cards[key]=card
         self.today_box.append(Gtk.Label(label="x"*200,max_width_chars=68,ellipsize=Pango.EllipsizeMode.END,opacity=0,accessible_role=Gtk.AccessibleRole.PRESENTATION))
@@ -1108,6 +1205,8 @@ class Reader(Gtk.Application):
             rows.append(("text","Add your location to see sunrise, noon and sunset"))
             rows.append(("button","Add location…",self.location_dialog))
         cards["sun"]=rows
+        # Alláh-u-Abhá
+        cards["counter"]=[("title","Alláh-u-Abhá"),("dim","Kitáb-i-Aqdas ¶18"),("button","Open the counter",self.show_counter)]
         # Next Feast and Holy Day
         rows=[("title","Next Feast and Holy Day")]
         feast=badi.next_feast(day); holy=badi.next_holy_day(day)
@@ -1234,6 +1333,9 @@ textview text selection {{ background: {selection}; }}
 .today-large {{ font-family: "{font}"; font-size: {size+4}px; color: {accent}; }}
 .today-reading {{ font-family: "{font}"; font-size: {max(15,size-4)}px; }}
 .toc-date {{ padding: 8px; }}
+.counter-count {{ font-family: "{font}"; font-size: 96px; }}
+.counter-done {{ color: {accent}; }}
+.counter-button {{ padding: 14px 48px; }}
 .notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''.encode())
         for view in (self.reader,self.second):
             view.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); view.set_pixels_below_lines(14)
