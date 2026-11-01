@@ -1,0 +1,958 @@
+{
+ "source": "Badí‘ dates 172 to 221 B.E., table A. Prepared by an ad hoc committee at the Bahá’í World Centre using data provided by Her Majesty’s Nautical Almanac Office; sent with the letter of the Universal House of Justice of 11 December 2014. Rules: message of the Universal House of Justice, 10 July 2014.",
+ "source_url": "https://bahai-library.com/pdf/uhj/uhj_bahai_dates_172-221.pdf",
+ "rules_url": "https://www.bahai.org/library/authoritative-texts/the-universal-house-of-justice/messages/20140710_001/20140710_001.xhtml",
+ "credit": "Dates: Bahá’í World Centre and the Universal House of Justice.",
+ "years": [
+  {
+   "year": 172,
+   "naw_ruz": "2015-03-21",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 10,
+    "gregorian": "2015-11-13"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 11,
+    "gregorian": "2015-11-14"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2016-02-26",
+    "2016-02-29"
+   ]
+  },
+  {
+   "year": 173,
+   "naw_ruz": "2016-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 18,
+    "gregorian": "2016-11-01"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 19,
+    "gregorian": "2016-11-02"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2017-02-25",
+    "2017-02-28"
+   ]
+  },
+  {
+   "year": 174,
+   "naw_ruz": "2017-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 7,
+    "gregorian": "2017-10-21"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 8,
+    "gregorian": "2017-10-22"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2018-02-25",
+    "2018-03-01"
+   ]
+  },
+  {
+   "year": 175,
+   "naw_ruz": "2018-03-21",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 6,
+    "gregorian": "2018-11-09"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 7,
+    "gregorian": "2018-11-10"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2019-02-26",
+    "2019-03-01"
+   ]
+  },
+  {
+   "year": 176,
+   "naw_ruz": "2019-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 14,
+    "gregorian": "2019-10-29"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 15,
+    "gregorian": "2019-10-30"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2020-02-26",
+    "2020-02-29"
+   ]
+  },
+  {
+   "year": 177,
+   "naw_ruz": "2020-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 4,
+    "gregorian": "2020-10-18"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 5,
+    "gregorian": "2020-10-19"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2021-02-25",
+    "2021-02-28"
+   ]
+  },
+  {
+   "year": 178,
+   "naw_ruz": "2021-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 4,
+    "gregorian": "2021-11-06"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 5,
+    "gregorian": "2021-11-07"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2022-02-25",
+    "2022-03-01"
+   ]
+  },
+  {
+   "year": 179,
+   "naw_ruz": "2022-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 11,
+    "gregorian": "2022-10-26"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 12,
+    "gregorian": "2022-10-27"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2023-02-26",
+    "2023-03-01"
+   ]
+  },
+  {
+   "year": 180,
+   "naw_ruz": "2023-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 1,
+    "gregorian": "2023-10-16"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 2,
+    "gregorian": "2023-10-17"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2024-02-26",
+    "2024-02-29"
+   ]
+  },
+  {
+   "year": 181,
+   "naw_ruz": "2024-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 19,
+    "gregorian": "2024-11-02"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 1,
+    "gregorian": "2024-11-03"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2025-02-25",
+    "2025-02-28"
+   ]
+  },
+  {
+   "year": 182,
+   "naw_ruz": "2025-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 8,
+    "gregorian": "2025-10-22"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 9,
+    "gregorian": "2025-10-23"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2026-02-25",
+    "2026-03-01"
+   ]
+  },
+  {
+   "year": 183,
+   "naw_ruz": "2026-03-21",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 7,
+    "gregorian": "2026-11-10"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 8,
+    "gregorian": "2026-11-11"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2027-02-26",
+    "2027-03-01"
+   ]
+  },
+  {
+   "year": 184,
+   "naw_ruz": "2027-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 15,
+    "gregorian": "2027-10-30"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 16,
+    "gregorian": "2027-10-31"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2028-02-26",
+    "2028-02-29"
+   ]
+  },
+  {
+   "year": 185,
+   "naw_ruz": "2028-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 5,
+    "gregorian": "2028-10-19"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 6,
+    "gregorian": "2028-10-20"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2029-02-25",
+    "2029-02-28"
+   ]
+  },
+  {
+   "year": 186,
+   "naw_ruz": "2029-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 5,
+    "gregorian": "2029-11-07"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 6,
+    "gregorian": "2029-11-08"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2030-02-25",
+    "2030-02-28"
+   ]
+  },
+  {
+   "year": 187,
+   "naw_ruz": "2030-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 14,
+    "gregorian": "2030-10-28"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 15,
+    "gregorian": "2030-10-29"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2031-02-25",
+    "2031-03-01"
+   ]
+  },
+  {
+   "year": 188,
+   "naw_ruz": "2031-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 2,
+    "gregorian": "2031-10-17"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 3,
+    "gregorian": "2031-10-18"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2032-02-26",
+    "2032-02-29"
+   ]
+  },
+  {
+   "year": 189,
+   "naw_ruz": "2032-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 2,
+    "gregorian": "2032-11-04"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 3,
+    "gregorian": "2032-11-05"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2033-02-25",
+    "2033-02-28"
+   ]
+  },
+  {
+   "year": 190,
+   "naw_ruz": "2033-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 10,
+    "gregorian": "2033-10-24"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 11,
+    "gregorian": "2033-10-25"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2034-02-25",
+    "2034-02-28"
+   ]
+  },
+  {
+   "year": 191,
+   "naw_ruz": "2034-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 10,
+    "gregorian": "2034-11-12"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 11,
+    "gregorian": "2034-11-13"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2035-02-25",
+    "2035-03-01"
+   ]
+  },
+  {
+   "year": 192,
+   "naw_ruz": "2035-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 17,
+    "gregorian": "2035-11-01"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 18,
+    "gregorian": "2035-11-02"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2036-02-26",
+    "2036-02-29"
+   ]
+  },
+  {
+   "year": 193,
+   "naw_ruz": "2036-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 6,
+    "gregorian": "2036-10-20"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 7,
+    "gregorian": "2036-10-21"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2037-02-25",
+    "2037-02-28"
+   ]
+  },
+  {
+   "year": 194,
+   "naw_ruz": "2037-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 6,
+    "gregorian": "2037-11-08"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 7,
+    "gregorian": "2037-11-09"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2038-02-25",
+    "2038-02-28"
+   ]
+  },
+  {
+   "year": 195,
+   "naw_ruz": "2038-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 15,
+    "gregorian": "2038-10-29"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 16,
+    "gregorian": "2038-10-30"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2039-02-25",
+    "2039-03-01"
+   ]
+  },
+  {
+   "year": 196,
+   "naw_ruz": "2039-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 4,
+    "gregorian": "2039-10-19"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 5,
+    "gregorian": "2039-10-20"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2040-02-26",
+    "2040-02-29"
+   ]
+  },
+  {
+   "year": 197,
+   "naw_ruz": "2040-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 4,
+    "gregorian": "2040-11-06"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 5,
+    "gregorian": "2040-11-07"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2041-02-25",
+    "2041-02-28"
+   ]
+  },
+  {
+   "year": 198,
+   "naw_ruz": "2041-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 12,
+    "gregorian": "2041-10-26"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 13,
+    "gregorian": "2041-10-27"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2042-02-25",
+    "2042-02-28"
+   ]
+  },
+  {
+   "year": 199,
+   "naw_ruz": "2042-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 1,
+    "gregorian": "2042-10-15"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 2,
+    "gregorian": "2042-10-16"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2043-02-25",
+    "2043-03-01"
+   ]
+  },
+  {
+   "year": 200,
+   "naw_ruz": "2043-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 19,
+    "gregorian": "2043-11-03"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 1,
+    "gregorian": "2043-11-04"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2044-02-26",
+    "2044-02-29"
+   ]
+  },
+  {
+   "year": 201,
+   "naw_ruz": "2044-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 8,
+    "gregorian": "2044-10-22"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 9,
+    "gregorian": "2044-10-23"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2045-02-25",
+    "2045-02-28"
+   ]
+  },
+  {
+   "year": 202,
+   "naw_ruz": "2045-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 8,
+    "gregorian": "2045-11-10"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 9,
+    "gregorian": "2045-11-11"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2046-02-25",
+    "2046-02-28"
+   ]
+  },
+  {
+   "year": 203,
+   "naw_ruz": "2046-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 16,
+    "gregorian": "2046-10-30"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 17,
+    "gregorian": "2046-10-31"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2047-02-25",
+    "2047-03-01"
+   ]
+  },
+  {
+   "year": 204,
+   "naw_ruz": "2047-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 5,
+    "gregorian": "2047-10-20"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 6,
+    "gregorian": "2047-10-21"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2048-02-26",
+    "2048-02-29"
+   ]
+  },
+  {
+   "year": 205,
+   "naw_ruz": "2048-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 5,
+    "gregorian": "2048-11-07"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 6,
+    "gregorian": "2048-11-08"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2049-02-25",
+    "2049-02-28"
+   ]
+  },
+  {
+   "year": 206,
+   "naw_ruz": "2049-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 14,
+    "gregorian": "2049-10-28"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 15,
+    "gregorian": "2049-10-29"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2050-02-25",
+    "2050-02-28"
+   ]
+  },
+  {
+   "year": 207,
+   "naw_ruz": "2050-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 3,
+    "gregorian": "2050-10-17"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 4,
+    "gregorian": "2050-10-18"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2051-02-25",
+    "2051-03-01"
+   ]
+  },
+  {
+   "year": 208,
+   "naw_ruz": "2051-03-21",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 2,
+    "gregorian": "2051-11-05"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 3,
+    "gregorian": "2051-11-06"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2052-02-26",
+    "2052-02-29"
+   ]
+  },
+  {
+   "year": 209,
+   "naw_ruz": "2052-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 10,
+    "gregorian": "2052-10-24"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 11,
+    "gregorian": "2052-10-25"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2053-02-25",
+    "2053-02-28"
+   ]
+  },
+  {
+   "year": 210,
+   "naw_ruz": "2053-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 9,
+    "gregorian": "2053-11-11"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 10,
+    "gregorian": "2053-11-12"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2054-02-25",
+    "2054-02-28"
+   ]
+  },
+  {
+   "year": 211,
+   "naw_ruz": "2054-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 18,
+    "gregorian": "2054-11-01"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 19,
+    "gregorian": "2054-11-02"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2055-02-25",
+    "2055-03-01"
+   ]
+  },
+  {
+   "year": 212,
+   "naw_ruz": "2055-03-21",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 6,
+    "gregorian": "2055-10-21"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 7,
+    "gregorian": "2055-10-22"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2056-02-26",
+    "2056-02-29"
+   ]
+  },
+  {
+   "year": 213,
+   "naw_ruz": "2056-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 6,
+    "gregorian": "2056-11-08"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 7,
+    "gregorian": "2056-11-09"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2057-02-25",
+    "2057-02-28"
+   ]
+  },
+  {
+   "year": 214,
+   "naw_ruz": "2057-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 15,
+    "gregorian": "2057-10-29"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 16,
+    "gregorian": "2057-10-30"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2058-02-25",
+    "2058-02-28"
+   ]
+  },
+  {
+   "year": 215,
+   "naw_ruz": "2058-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 4,
+    "gregorian": "2058-10-18"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 5,
+    "gregorian": "2058-10-19"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2059-02-25",
+    "2059-02-28"
+   ]
+  },
+  {
+   "year": 216,
+   "naw_ruz": "2059-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 4,
+    "gregorian": "2059-11-06"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 5,
+    "gregorian": "2059-11-07"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2060-02-25",
+    "2060-02-29"
+   ]
+  },
+  {
+   "year": 217,
+   "naw_ruz": "2060-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 11,
+    "gregorian": "2060-10-25"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 12,
+    "gregorian": "2060-10-26"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2061-02-25",
+    "2061-02-28"
+   ]
+  },
+  {
+   "year": 218,
+   "naw_ruz": "2061-03-20",
+   "birth_bab": {
+    "month": "Mashíyyat",
+    "day": 19,
+    "gregorian": "2061-10-14"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 1,
+    "gregorian": "2061-10-15"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2062-02-25",
+    "2062-02-28"
+   ]
+  },
+  {
+   "year": 219,
+   "naw_ruz": "2062-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 19,
+    "gregorian": "2062-11-02"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 1,
+    "gregorian": "2062-11-03"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2063-02-25",
+    "2063-02-28"
+   ]
+  },
+  {
+   "year": 220,
+   "naw_ruz": "2063-03-20",
+   "birth_bab": {
+    "month": "‘Ilm",
+    "day": 9,
+    "gregorian": "2063-10-23"
+   },
+   "birth_bahaullah": {
+    "month": "‘Ilm",
+    "day": 10,
+    "gregorian": "2063-10-24"
+   },
+   "ayyam_i_ha_days": 5,
+   "ayyam_i_ha_gregorian": [
+    "2064-02-25",
+    "2064-02-29"
+   ]
+  },
+  {
+   "year": 221,
+   "naw_ruz": "2064-03-20",
+   "birth_bab": {
+    "month": "Qudrat",
+    "day": 8,
+    "gregorian": "2064-11-10"
+   },
+   "birth_bahaullah": {
+    "month": "Qudrat",
+    "day": 9,
+    "gregorian": "2064-11-11"
+   },
+   "ayyam_i_ha_days": 4,
+   "ayyam_i_ha_gregorian": [
+    "2065-02-25",
+    "2065-02-28"
+   ]
+  }
+ ]
+}

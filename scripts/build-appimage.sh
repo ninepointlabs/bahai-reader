@@ -20,7 +20,7 @@ command -v zsyncmake >/dev/null || { echo "zsyncmake is required (install the zs
 
 rm -rf "$ROOT"
 mkdir -p "$ROOT/usr/share/bahai-reader/data" "$ROOT/usr/share/applications" "$ROOT/usr/share/metainfo" "$ROOT/usr/share/licenses/bahai-reader"
-cp reader.py VERSION "$ROOT/usr/share/bahai-reader/"
+cp reader.py badi.py VERSION "$ROOT/usr/share/bahai-reader/"
 cp data/*.json "$ROOT/usr/share/bahai-reader/data/"
 cp LICENSE DATA-NOTICE.md "$ROOT/usr/share/licenses/bahai-reader/"
 cp packaging/AppRun "$ROOT/AppRun"
