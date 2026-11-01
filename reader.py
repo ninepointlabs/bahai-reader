@@ -104,11 +104,23 @@ def clean_settings(data):
         target=prefs["counter_target"] if isinstance(prefs["counter_target"],int) else None
         if badi.Counter.valid_target(target): pass
         else: del prefs["counter_target"]
+    if prefs.get("prayer") not in ("short","medium","long","none"): prefs.pop("prayer",None)
+    if not isinstance(prefs.get("keep_records"),bool): prefs.pop("keep_records",None)
+    if "records" in prefs: prefs["records"]=clean_records(prefs["records"])
     expanded=prefs.get("expanded")
     if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
     return prefs
 
 UNSORTED="Unsorted"
+SAID_KEY=re.compile(r"\d{4}-\d\d-\d\d:(short|medium|long):(morning|noon|evening)")
+DAY_KEY=re.compile(r"\d{4}-\d\d-\d\d")
+
+def clean_records(records):
+    """{"said":[marks],"fasted":[days]}: the private history. Anything not in its form is dropped, the rest kept."""
+    records=records if isinstance(records,dict) else {}
+    said=records.get("said") if isinstance(records.get("said"),list) else []
+    fasted=records.get("fasted") if isinstance(records.get("fasted"),list) else []
+    return dict(said=[k for k in said if isinstance(k,str) and SAID_KEY.fullmatch(k)],fasted=[k for k in fasted if isinstance(k,str) and DAY_KEY.fullmatch(k)])
 
 def collection_name(name):
     return " ".join(name.split()) if isinstance(name,str) else ""
@@ -619,6 +631,7 @@ class Reader(Gtk.Application):
         click=Gtk.GestureClick(); click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         click.connect("pressed",lambda *_:self.stop_scroll()); self.readscroll.add_controller(click)
         self.related=Gtk.MenuButton(label="Related passages",visible=False); right.append(self.related)
+        self.said_toggle=Gtk.ToggleButton(label="Said today",halign=Gtk.Align.CENTER,visible=False); self.said_toggle.connect("toggled",self.said_toggled); right.append(self.said_toggle)
         self.filing=Gtk.Box(spacing=10,halign=Gtk.Align.CENTER,visible=False); right.append(self.filing)
         self.filing.append(Gtk.Label(label="Collection")); self.collection=Choice(); self.filing.append(self.collection)
         self.collection.connect("changed",self.file_current); self.filling=False
@@ -959,7 +972,7 @@ class Reader(Gtk.Application):
             scroller.set_child(links); pop.set_child(scroller); self.related.set_popover(pop)
         self.star.set_sensitive(True); self.star.set_label("★ Saved" if item["id"] in self.prefs.get("saved",[]) else "☆ Save")
         self.copy.set_sensitive(True)
-        self.show_filing()
+        self.show_filing(); self.show_said()
         self.highlight()
     def on_passage(self):
         """Copy, Save and Previous/Next act on the passage on show, not one behind the counter."""
@@ -1091,6 +1104,7 @@ class Reader(Gtk.Application):
         if getattr(self,"today_day",None)!=badi.observed_date(self.now(),self.place()) and self.section=="today":
             self.rebuild()
         if self.views.get_visible_child_name()=="today": self.refresh_today()
+        self.show_said()
         return True
     def build_counter(self):
         self.counter=badi.Counter(self.prefs.get("counter_target",badi.Counter.DEFAULT)); self.counter_return="reading"
@@ -1165,7 +1179,7 @@ class Reader(Gtk.Application):
         # One calm column; it narrows with the window.
         self.today_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,halign=Gtk.Align.CENTER,margin_top=32,margin_bottom=32,margin_start=16,margin_end=16)
         scroll.set_child(self.today_box); self.today_cards={}; self.today_rows={}; self.today_buttons={}
-        for key in ("date","sun","counter","events","passage"):
+        for key in ("date","sun","prayer","counter","events","passage"):
             card=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8,visible=False); card.add_css_class("today-card")
             self.today_box.append(card); self.today_cards[key]=card
         self.today_box.append(Gtk.Label(label="x"*200,max_width_chars=68,ellipsize=Pango.EllipsizeMode.END,opacity=0,accessible_role=Gtk.AccessibleRole.PRESENTATION))
@@ -1205,6 +1219,9 @@ class Reader(Gtk.Application):
             rows.append(("text","Add your location to see sunrise, noon and sunset"))
             rows.append(("button","Add location…",self.location_dialog))
         cards["sun"]=rows
+        # Obligatory prayer
+        rows=self.prayer_card(moment)
+        if rows: cards["prayer"]=rows
         # Alláh-u-Abhá
         cards["counter"]=[("title","Alláh-u-Abhá"),("dim","Kitáb-i-Aqdas ¶18"),("button","Open the counter",self.show_counter)]
         # Next Feast and Holy Day
@@ -1239,24 +1256,104 @@ class Reader(Gtk.Application):
             rows.append(("button","Read the passage of the day",lambda *_:self.daily_passage()))
             cards["passage"]=rows
         return cards
+    def prayer_card(self,moment):
+        """The chosen prayer's times and "Said" state; a quiet prompt when none is chosen; nothing with "Don't track"."""
+        chosen=self.prefs.get("prayer"); place=self.place()
+        if chosen=="none": return None
+        rows=[("title","Obligatory prayer")]
+        if chosen is None:
+            rows+=[("text","Choose which obligatory prayer you say to see its times here."),("button","Choose a prayer…",self.location_dialog)]
+            return rows
+        name=badi.PRAYERS[chosen]; rows.append(("text",name))
+        if chosen=="long":
+            rows.append(("text","Once in twenty-four hours, at whatever time you find yourself in a state of humbleness and longing adoration."))
+            rows.append(("button","Read the guidance (Question and Answer 82)",self.guidance_opener("Questions and Answers",82)))
+        else:
+            windows=badi.prayer_windows(chosen,badi.prayer_day(chosen,moment,place),place)
+            if not windows:
+                rows.append(("text","The sun does not rise or set here today, so its times cannot be taken from the sun. In such regions the Kitáb-i-Aqdas says to gauge the times of prayer by clocks."))
+                rows.append(("button","Read the guidance (¶10)",self.guidance_opener("Text",10)))
+            for window in windows:
+                label=badi.window_line(window,moment,clock)
+                rows.append(("text",label if chosen=="short" else f"{badi.PART_NAMES[window.part]}: {label}"))
+                if window.part=="morning" and moment.timestamp()<window.closes.timestamp(): rows.append(("dim","The morning prayer may be said as early as dawn (Note 5)."))
+                rows.append(("toggle",badi.said_label(window),window.key in self.said_marks(),lambda active,key=window.key:self.mark_said(key,active)))
+            if windows and not place:
+                rows.append(("dim","Without a location these use the clock instead of the sun. Add a location to follow the sun."))
+                rows.append(("button","Add location…",self.location_dialog))
+            if windows: rows.append(("button","Read the guidance (Question and Answer 83)",self.guidance_opener("Questions and Answers",83)))
+        prayer=self.prayer_item(chosen)
+        if prayer: rows.append(("button",f"Open the {name}",lambda *_:self.open_obligatory(prayer)))
+        return rows
+    def prayer_item(self,chosen):
+        return next((i for i in self.items if i["section"]=="prayers" and badi.PRAYERS[chosen] in i["tags"]),None)
+    def obligatory_group(self,item):
+        """The passage's group within the Obligatory prayers section, so Next stays among them."""
+        return next((g for g in obligatory(self.items).values() if item in g),[item])
+    def open_obligatory(self,item,label=None):
+        if self.section!="obligatory": self.navigate("obligatory")
+        elif self.search.get_text(): self.search.set_text(""); self.filter()
+        self.show_passage(item,self.obligatory_group(item))
+        if label: self.subtitle.set_text(label+" · "+self.subtitle.get_text())
+    def guidance_opener(self,part,number):
+        """Opens a Kitáb-i-Aqdas passage by its printed number; Ids in the feed are not always the same as numbers."""
+        item=next((i for i in self.items if BOOKS["aqdas"] in i["tags"] and i["subgroup"]==part and i["title"].startswith(f"{number} · ")),None)
+        if not item: return lambda *_:None
+        return lambda *_:self.open_obligatory(item)
+    def said_marks(self):
+        return self.prefs.get("records",{}).get("said",[])
+    def mark_said(self,key,active):
+        """The one place "Said" changes: the Today card, the toggle while reading and the notification action all come here."""
+        records=self.prefs.setdefault("records",{"said":[],"fasted":[]})
+        if active and key not in records["said"]: records["said"].append(key)
+        elif not active and key in records["said"]: records["said"].remove(key)
+        records["said"]=badi.prune_said(records["said"],self.now().date(),self.prefs.get("keep_records",True))
+        self.save(); self.show_said(); self.refresh_today()
+    def clear_records(self):
+        self.prefs["records"]={"said":[],"fasted":[]}; self.save(); self.show_said(); self.refresh_today()
+    def said_window(self,item):
+        """The window to mark for the obligatory prayer being read, or None for other passages, the long prayer and "Don't track"."""
+        if not item or self.prefs.get("prayer")=="none": return None
+        prayer=next((k for k,name in badi.PRAYERS.items() if name in item["tags"]),None)
+        if not prayer or not badi.is_tracked(prayer): return None
+        return badi.current_window(prayer,self.now(),self.place())
+    def show_said(self):
+        if not hasattr(self,"said_toggle"): return
+        window=self.said_window(self.current)
+        self.said_toggle.set_visible(window is not None)
+        if not window: return
+        self.said_syncing=True
+        said=window.key in self.said_marks()
+        self.said_toggle.set_label(("✓ " if said else "")+badi.said_label(window)); self.said_toggle.set_active(said); self.said_toggle.window_key=window.key
+        self.said_syncing=False
+    def said_toggled(self,toggle):
+        if not getattr(self,"said_syncing",False) and getattr(toggle,"window_key",None): self.mark_said(toggle.window_key,toggle.get_active())
     def refresh_today(self):
         """Rebuilds only the cards whose content changed, so the keyboard focus stays where it is."""
         if not getattr(self,"today_box",None): return
         cards=self.today_content(); focus=self.window.get_focus()
+        focused=next((name for name,widget in self.today_buttons.items() if widget is focus),None)
         for key,card in self.today_cards.items():
             rows=cards.get(key)
-            signature=[r[:2] for r in rows] if rows else None
+            signature=[(r[0],r[1],r[2]) if r[0]=="toggle" else r[:2] for r in rows] if rows else None
             if signature==self.today_rows.get(key): continue
             self.today_rows[key]=signature
             held=focus is not None and focus.is_ancestor(card)
             while child:=card.get_first_child(): card.remove(child)
             card.set_visible(bool(rows))
             for row in rows or []: card.append(self.today_row(key,row))
-            if held: card.child_focus(Gtk.DirectionType.TAB_FORWARD)
+            if held:
+                # Back on the same action if it is still there, else the card's first.
+                again=self.today_buttons.get(focused) if focused and focused[0]==key else None
+                again.grab_focus() if again and again.get_parent() is card else card.child_focus(Gtk.DirectionType.TAB_FORWARD)
     def today_row(self,key,row):
         kind,text=row[:2]
         if kind=="button":
             widget=self.button(text,lambda _,action=row[2]:action()); widget.set_halign(Gtk.Align.START); self.today_buttons[key,text]=widget
+            return widget
+        if kind=="toggle":
+            widget=Gtk.ToggleButton(label=("✓ " if row[2] else "")+text,active=row[2],halign=Gtk.Align.START); self.today_buttons[key,text]=widget
+            widget.connect("toggled",lambda toggle,action=row[3]:action(toggle.get_active()))
             return widget
         label=Gtk.Label(label=text,wrap=True,xalign=0)
         label.add_css_class({"title":"heading","large":"today-large","reading":"today-reading","dim":"dim-label"}.get(kind,"today-text"))
@@ -1317,7 +1414,7 @@ button {{ border: 1px solid {selection}; border-radius: 0px; padding: 8px 12px; 
 .toc-branch > title {{ min-height: 32px; padding: 6px 0; }}
 .toc-passage {{ min-height: 28px; }}
 button.current-passage {{ color: {current}; background: {selection}; }}
-button:hover, row:selected {{ background: {selection}; }}
+button:hover, row:selected, button:checked {{ background: {selection}; }}
 button:focus-visible, .toc-branch > title:focus-visible {{ outline: 2px solid {focus}; outline-offset: -2px; }}
 button.current-passage:focus-visible {{ outline-color: {current_focus}; }}
 paned > separator {{ min-width: 5px; background: {selection}; }}
@@ -1568,6 +1665,30 @@ textview text selection {{ background: {selection}; }}
         latitude.connect("activate",apply_coordinates); longitude.connect("activate",apply_coordinates)
         form.attach(self.button("Use these coordinates",apply_coordinates),0,3,2,1)
         box.append(clear)
+        heading=Gtk.Label(label="Obligatory prayer",xalign=0,margin_top=10); heading.add_css_class("heading"); box.append(heading)
+        box.append(Gtk.Label(label="Which prayer you say. Its times then appear on Today.",wrap=True,xalign=0,max_width_chars=56))
+        choice=Choice(); self.name_widget(choice,"Which prayer you say"); self.prayer_choice=choice
+        for key,name in (("short","Short"),("medium","Medium"),("long","Long"),("none","Don’t track")): choice.append(key,name)
+        choice.set_active_id(self.prefs.get("prayer","none")); box.append(choice)
+        def prayer_changed(c):
+            if c.get_active_id(): self.prefs["prayer"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today()
+        choice.connect("changed",prayer_changed)
+        record=Gtk.CheckButton(child=Gtk.Label(label="Keep a private record of “Said today” and “Fasted today” on this computer",wrap=True,xalign=0,max_width_chars=52),active=self.prefs.get("keep_records",True)); self.records_check=record; box.append(record)
+        def record_changed(check):
+            self.prefs["keep_records"]=check.get_active()
+            records=self.prefs.get("records")
+            if records and not check.get_active(): records["said"]=badi.prune_said(records["said"],self.now().date(),False)
+            self.save()
+        record.connect("toggled",record_changed)
+        box.append(Gtk.Label(label="These records are never sent anywhere. There are no scores or streaks.",wrap=True,xalign=0,max_width_chars=56))
+        clearing=Gtk.Box(spacing=8); box.append(clearing)
+        forget=self.button("Clear my records",lambda *_: ask(True)); clearing.append(forget)
+        confirm=self.button("Yes, clear them",lambda *_: (self.clear_records(),ask(False),forget.grab_focus())); confirm.set_visible(False); clearing.append(confirm)
+        cancel=self.button("Keep them",lambda *_: (ask(False),forget.grab_focus())); cancel.set_visible(False); clearing.append(cancel)
+        self.records_clear=forget; self.records_confirm=confirm
+        def ask(showing):
+            confirm.set_visible(showing); cancel.set_visible(showing); forget.set_visible(not showing)
+            if showing: cancel.grab_focus()
         close=self.button("Close",lambda *_: window.close()); close.set_halign(Gtk.Align.END); box.append(close)
         refresh(); window.present(); search.grab_focus()
     def language_dialog(self,*_):

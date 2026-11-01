@@ -359,3 +359,85 @@ class Counter:
         """Screen readers are told only at every nineteenth and at the target, so counting isn't drowned out."""
         return self.count>0 and (self.done or self.count%19==0)
     def __str__(self): return f"{self.count} of {self.target}"
+
+# Obligatory prayer times, all from texts the app bundles:
+# - Short: "To be recited once in twenty-four hours, at noon" (the prayer's own heading). Note 5 to the Kitáb-i-Aqdas: the definition of
+#   "noon" as the period "from noon till sunset" applies to the short prayer as well as the medium one.
+# - Medium: "To be recited daily, in the morning, at noon, and in the evening" (its heading). Q&A 83: "These are sunrise, noon and sunset.
+#   The allowable times for Obligatory Prayers are from morning till noon, from noon till sunset, and from sunset till two hours thereafter."
+#   Note 5 adds that, as ‘Abdu’l-Bahá stated, the morning prayer "may be said as early as dawn". The window here opens at sunrise, and the card
+#   quotes the note. No dawn time is computed: the texts do not define one.
+# - Long: "To be recited once in twenty-four hours" (its heading). Q&A 82: "at whatever time one findeth oneself in a state of humbleness and
+#   longing adoration"; "Once in twenty-four hours is sufficient". It has no window. No text says which twenty-four hours, so it has no
+#   "Said today" state or reminder until that is decided (see LONG_PRAYER_TRACKED).
+# - In regions where days and nights grow long, ¶10 and Q&A 64 say to gauge times by clocks, without giving hours, so no window is shown there.
+PRAYERS={"short":"Short Obligatory Prayer","medium":"Medium Obligatory Prayer","long":"Long Obligatory Prayer"}
+LONG_PRAYER_TRACKED=False
+EVENING_HOURS=2
+# Without a location, the clock stands in for the sun. The card says so.
+CLOCK_SUNRISE,CLOCK_NOON,CLOCK_SUNSET=6,12,18
+
+class Window(NamedTuple):
+    prayer: str
+    part: str  # "noon", or "morning", "noon" or "evening" for the medium prayer
+    date: datetime.date  # the solar day it belongs to
+    opens: datetime.datetime
+    closes: datetime.datetime
+    @property
+    def key(self): return f"{self.date.isoformat()}:{self.prayer}:{self.part}"
+    def is_open(self,moment): return self.opens.timestamp()<=moment.timestamp()<self.closes.timestamp()
+    def is_past(self,moment): return moment.timestamp()>=self.closes.timestamp()
+
+def _clock_time(date,hour):
+    """A clock time today on this computer, with its own daylight saving offset."""
+    return datetime.datetime(date.year,date.month,date.day,hour).astimezone()
+
+def prayer_windows(prayer,date,place=None):
+    """The windows of a prayer on a day. Empty for the long prayer, and where the sun does not rise or set that day."""
+    if prayer not in ("short","medium"): return []
+    if place:
+        sun=place_sun(place,date)
+        if not sun or not sun.sunrise or not sun.sunset: return []
+        sunrise,noon,sunset=sun.sunrise,sun.noon,sun.sunset
+    else:
+        sunrise,noon,sunset=_clock_time(date,CLOCK_SUNRISE),_clock_time(date,CLOCK_NOON),_clock_time(date,CLOCK_SUNSET)
+    afternoon=Window(prayer,"noon",date,noon,sunset)
+    if prayer=="short": return [afternoon]
+    # Two hours by elapsed time, across a change of the clock if there is one.
+    evening_end=(sunset.astimezone(datetime.timezone.utc)+datetime.timedelta(hours=EVENING_HOURS)).astimezone(sunset.tzinfo)
+    return [Window(prayer,"morning",date,sunrise,noon),afternoon,Window(prayer,"evening",date,sunset,evening_end)]
+
+def prayer_day(prayer,moment,place=None):
+    """The day whose windows apply: today, or yesterday while its last window is still open after midnight."""
+    today=moment.date(); yesterday=today-datetime.timedelta(1)
+    return yesterday if any(w.is_open(moment) for w in prayer_windows(prayer,yesterday,place)) else today
+
+def current_window(prayer,moment,place=None):
+    """The window open now, or else the next one to open; None when there are none (the long prayer, polar days)."""
+    today=moment.date()
+    for day in (today-datetime.timedelta(1),today,today+datetime.timedelta(1)):
+        for window in prayer_windows(prayer,day,place):
+            if not window.is_past(moment): return window
+    return None
+
+def is_tracked(prayer):
+    return prayer in ("short","medium") or (prayer=="long" and LONG_PRAYER_TRACKED)
+
+PART_NAMES={"morning":"Morning","noon":"Noon","evening":"Evening"}
+SAID_LABELS={"morning":"Said this morning","noon":"Said at noon","evening":"Said this evening"}
+
+def said_label(window):
+    return "Said today" if window.prayer=="short" else SAID_LABELS[window.part]
+
+def window_line(window,moment,clock):
+    """Whether a window is open, and when it opens or closes. It never says anything was missed."""
+    span=f"{clock(window.opens)} to {clock(window.closes)}"
+    if window.is_open(moment): return f"Open now, until {clock(window.closes)}"
+    if window.is_past(moment): return f"Its time has ended ({span})"
+    return f"Opens at {clock(window.opens)}, until {clock(window.closes)}"
+
+def prune_said(said,today,keep_history=True):
+    """Marks worth keeping: all of them, or with the history off only what the current day's state needs."""
+    if keep_history: return said
+    oldest=(today-datetime.timedelta(1)).isoformat()
+    return [key for key in said if key[:10]>=oldest]
