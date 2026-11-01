@@ -288,3 +288,40 @@ def sun_summary(sun,clock):
     if sun.polar=="day": text+=". The sun does not set today."
     if sun.polar=="night": text+=". The sun does not rise today."
     return text
+
+def local_now(place=None,moment=None):
+    """The time now (or at an aware moment) at a saved place, or in this computer's time zone without one.
+    time.tzset() in the caller picks up a change of the system time zone."""
+    moment=moment or datetime.datetime.now(datetime.timezone.utc)
+    if place:
+        try: return moment.astimezone(ZoneInfo(place["tz"]))
+        except (ZoneInfoNotFoundError,ValueError,OSError): pass
+    return moment.astimezone()
+
+def observed_date(moment,place=None):
+    """The Gregorian day whose Badí‘ date is current. With a place, the next Badí‘ day begins at local sunset; where the sun
+    does not set that day, and without a place, the date follows the calendar day."""
+    day=moment.date()
+    if not place: return day
+    before=place_sun(place,day-datetime.timedelta(1))
+    # A sunset after midnight still belongs to the solar day before.
+    if before and before.sunset and moment<before.sunset: return day-datetime.timedelta(1)
+    sun=place_sun(place,day)
+    if sun and sun.sunset and moment>=sun.sunset: return day+datetime.timedelta(1)
+    return day
+
+def ayyam_i_ha(year):
+    """Ayyám-i-Há of a year as a Period, or None outside the table."""
+    return next((p for p in year_months(year) if p.badi.month==INTERCALARY),None)
+
+def next_ayyam_i_ha(date):
+    """Ayyám-i-Há that is under way or still to come in this Badí‘ year, or None."""
+    badi=from_gregorian(date)
+    period=ayyam_i_ha(badi.year) if badi else None
+    return period if period and date<=period.last else None
+
+def event_summary(event,today):
+    """When an event begins, as a sentence."""
+    if event.date==today: return "Today."
+    if event.begins==today: return "Begins at sunset today."
+    return f"Begins at sunset on {gregorian_text(event.begins)}."

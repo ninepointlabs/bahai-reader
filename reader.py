@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 import tempfile
 import sys
+import time
 import unicodedata
 from pathlib import Path
 from html.parser import HTMLParser
@@ -63,7 +64,7 @@ def version():
     path=shipped("VERSION")
     return path.read_text().strip() if path else "unknown"
 
-SECTIONS=("prayers","obligatory","hidden","writings","saved")
+SECTIONS=("today","prayers","obligatory","hidden","writings","saved")
 THEMES=("Omarchy","Light","Dark","Sepia")
 # Slider ranges; loaded values are clamped to them.
 LIMITS={"size":(15,36,22),"spacing":(0,20,8),"margin":(24,160,80)}
@@ -435,6 +436,11 @@ def search_cities(query,limit=8,cities=None):
         found[rank].append(row)
     return [row for rank in found for row in rank][:limit]
 
+def badi_days_tag(item):
+    """The HolyDay tag of a Days of Remembrance passage, or None."""
+    if BOOKS["days"] not in item["tags"]: return None
+    return next((tag for tag,name in HOLY_DAYS.items() if name==item["subgroup"]),None)
+
 def clock_style(locale_time,marker):
     """12 when the locale's own time format uses AM/PM, otherwise 24."""
     return 12 if marker and marker in locale_time else 24
@@ -445,9 +451,14 @@ def clock(moment):
     if clock_style(wall.format("%X") or "",wall.format("%p") or "")==12: return " ".join(wall.format("%l:%M %p").split())
     return wall.format("%H:%M")
 
+# Prayer-feed categories for the periods that have no Holy Day of their own.
+AYYAM_PRAYERS="Intercalary Days"
+FAST_PRAYERS="The Fast"
+DAYS_OF_NOTE=30  # how near Ayyám-i-Há must be to be mentioned on Today
+
 # Header menu → Keyboard shortcuts, and the README table.
 SHORTCUTS=(("Ctrl+F","Show the contents panel and search this section"),("Alt+Right or Ctrl+Page Down","Next passage"),("Alt+Left or Ctrl+Page Up","Previous passage"),
-           ("Ctrl+D","Save or unsave the current passage"),("Ctrl+Shift+C","Copy the passage (or the selected words) with its citation"),("Ctrl+T","Passage of the day"),("Ctrl+R","Random passage"),
+           ("Ctrl+D","Save or unsave the current passage"),("Ctrl+Shift+C","Copy the passage (or the selected words) with its citation"),("Ctrl+T","Today"),("Ctrl+R","Random passage"),
            ("F1","About Bahá’í Reader"),("Ctrl+Q","Quit"),("Escape","Show the contents panel again if it is hidden; closes the small windows"),
            ("Tab / Shift+Tab","Move between search, the contents list and the reading pane"),("Page Up / Page Down","Scroll the passage"))
 
@@ -484,7 +495,7 @@ class Reader(Gtk.Application):
             if (LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in ⋮ → Languages & offline libraries.")
             else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
             self.language=1
-        self.items=load_library(self.language); self.section="prayers"; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
+        self.items=load_library(self.language); self.section="today"; self.fixed_now=None; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
         self.connect("activate", self.activate)
     def save(self):
         temp=STATE.with_suffix(".tmp")
@@ -524,7 +535,7 @@ class Reader(Gtk.Application):
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); header.set_title_widget(Gtk.Label(label="BAHÁ’Í READER"))
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
-        today=self.button("Today",lambda *_: self.daily_passage()); today.set_tooltip_text("Passage of the day (Ctrl+T)"); header.pack_start(today)
+        today=self.button("Today",lambda *_: self.navigate("today")); today.set_tooltip_text("Today (Ctrl+T)"); header.pack_start(today)
         chance=self.button("Random",lambda *_: self.random_passage()); chance.set_tooltip_text("A random passage (Ctrl+R)"); header.pack_start(chance)
         # The menu holds what concerns the whole app; Aa holds only how the text reads.
         more=Gtk.MenuButton(label="⋮"); more.set_tooltip_text("Menu"); more.add_css_class("app-menu"); self.name_widget(more,"Menu"); self.app_menu=more; header.pack_end(more)
@@ -567,7 +578,7 @@ class Reader(Gtk.Application):
         self.sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.sidebar.set_size_request(220,-1); self.sidebar.add_css_class("sidebar")
         for edge in ("top", "bottom", "start", "end"): getattr(self.sidebar,"set_margin_"+edge)(16)
         body.set_start_child(self.sidebar)
-        for title,key in [("Prayers","prayers"),("Obligatory prayers","obligatory"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
+        for title,key in [("Today","today"),("Prayers","prayers"),("Obligatory prayers","obligatory"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
             b=self.button(title, lambda _,k=key: self.navigate(k)); self.sidebar.append(b)
         self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); self.sidebar.append(self.manage)
         self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); self.sidebar.append(self.search)
@@ -578,8 +589,11 @@ class Reader(Gtk.Application):
         # The contents list is one Tab stop; arrow keys move inside it.
         out_of_list=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); out_of_list.connect("key-pressed", self.list_key); scroll.add_controller(out_of_list)
         self.branches={}; self.passage_buttons=[]; self.active_group=[]; self.restoring=False; self.query=None
+        # No transition between views: nothing moves, so there is nothing to reduce for gtk-enable-animations.
+        self.views=Gtk.Stack(hexpand=True,vexpand=True,transition_type=Gtk.StackTransitionType.NONE); body.set_end_child(self.views)
         right=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True)
-        right.set_margin_top(32); body.set_end_child(right)
+        right.set_margin_top(32); self.views.add_named(right,"reading")
+        self.build_today()
         self.heading=Gtk.Label(label="Prayers", wrap=True); self.heading.add_css_class("heading"); right.append(self.heading)
         self.subtitle=Gtk.Label(label="A moment for reflection"); self.subtitle.add_css_class("dim-label"); right.append(self.subtitle)
         self.reader=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
@@ -605,7 +619,9 @@ class Reader(Gtk.Application):
         nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); nav.append(self.button("← Previous", lambda *_: self.step(-1))); nav.append(self.button("Next →", lambda *_: self.step(1))); right.append(nav)
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        self.update_status(); self.navigate(self.prefs.get("section", "prayers")); self.apply_theme(); GLib.timeout_add_seconds(1,self.apply_theme)
+        # New installs open on Today; everyone else keeps the section they were in.
+        self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.apply_theme)
+        GLib.timeout_add_seconds(30,self.tick)
         self.window.present()
     def stop_scroll(self):
         if self.scroll_tick is not None:
@@ -664,7 +680,7 @@ class Reader(Gtk.Application):
         self.panel_save_source=GLib.timeout_add(250,persist)
     def key_pressed(self, controller, key, code, modifiers):
         if modifiers & Gdk.ModifierType.CONTROL_MASK:
-            if key==Gdk.KEY_t: self.daily_passage(); return True
+            if key==Gdk.KEY_t: self.navigate("today"); return True
             if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit(); return True
@@ -695,8 +711,12 @@ class Reader(Gtk.Application):
     def list_key(self, controller, key, code, modifiers):
         if key==Gdk.KEY_ISO_Left_Tab or (key==Gdk.KEY_Tab and modifiers & Gdk.ModifierType.SHIFT_MASK):
             self.search.grab_focus(); return True
-        if key==Gdk.KEY_Tab: self.reader.grab_focus(); return True
+        if key==Gdk.KEY_Tab: return self.focus_view()
         return False
+    def focus_view(self):
+        """Into whichever view is showing: the reading pane, or the first action on it."""
+        if self.views.get_visible_child_name()=="reading": self.reader.grab_focus(); return True
+        return self.views.get_visible_child().child_focus(Gtk.DirectionType.TAB_FORWARD)
     def option(self, box, title, key, options, default):
         box.append(Gtk.Label(label=title,xalign=0)); combo=Choice()
         for item in options: combo.append_text(item)
@@ -711,7 +731,17 @@ class Reader(Gtk.Application):
         scale.connect("value-changed",change); box.append(scale)
     def navigate(self,key):
         self.section="writings" if key=="gleanings" else key
-        self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.manage.set_visible(self.section=="saved"); self.rebuild()
+        self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.manage.set_visible(self.section=="saved")
+        if self.section=="today":
+            self.current=None; self.active_group=[]; self.filing.set_visible(False); self.related.set_visible(False)
+        self.show_view("today" if self.section=="today" else "reading")
+        self.rebuild()
+        if self.section=="today": self.refresh_today()
+    def show_view(self,name):
+        """The right pane: a passage, or Today. Copy and Save act on a passage, so they rest elsewhere."""
+        self.views.set_visible_child_name(name)
+        ready=name=="reading" and self.current is not None
+        self.star.set_sensitive(ready); self.copy.set_sensitive(ready)
     def rebuild(self):
         """Build the contents tree for the section once; searching only hides rows."""
         if not hasattr(self,"toc"): return
@@ -719,6 +749,10 @@ class Reader(Gtk.Application):
         self.section_items=[i for i in self.items if (i["id"] in saved if self.section=="saved" else i["section"]==self.section)]
         while child:=self.toc.get_first_child(): self.toc.remove(child)
         self.branches={}; self.branch_rows=[]; self.passage_buttons=[]; self.groups={}
+        if self.section=="today":
+            self.build_calendar()
+            self.no_match=Gtk.Label(wrap=True,xalign=0,visible=False); self.no_match.add_css_class("dim-label"); self.toc.append(self.no_match)
+            self.query=None; self.filter(); self.secondscroll.set_visible(False); return
         groups={}
         for item in self.section_items:
             for tag in item["tags"] or ["Uncategorized"]: groups.setdefault(tag,[]).append(item)
@@ -765,11 +799,13 @@ class Reader(Gtk.Application):
         for expander,total,path,items in self.branch_rows:
             count=sum(1 for i in items if i["id"] in matches)
             expander.set_visible(count>0); total.set_text(self.unit_label(count))
-            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,self.section=="obligatory"))
+            expander.set_expanded(bool(query) or self.prefs.get("expanded",{}).get(path,self.section in ("obligatory","today")))
         self.restoring=False
-        self.count.set_text(f"{len(self.visible)} passage{'s' if len(self.visible)!=1 else ''}")
-        self.no_match.set_text(f"No passages match “{self.search.get_text().strip()}”." if query else "")
+        unit="date" if self.section=="today" else "passage"
+        self.count.set_text(f"{len(self.visible)} {unit}{'s' if len(self.visible)!=1 else ''}")
+        self.no_match.set_text(f"No {unit}s match “{self.search.get_text().strip()}”." if query else "")
         self.no_match.set_visible(bool(query) and not self.visible)
+        if self.section=="today": return  # Today's contents are dates; choosing one opens its readings.
         # Searching never moves the reading position; it only narrows the list.
         current=next((i for i in self.section_items if self.current and i["id"]==self.current["id"]),None)
         if current is not None:
@@ -786,7 +822,7 @@ class Reader(Gtk.Application):
                 self.heading.set_text("No passages found")
                 self.subtitle.set_text("This language’s library does not mark the obligatory prayers." if self.section=="obligatory" else "Check this language’s available books in Languages & offline libraries.")
     def unit_label(self,count):
-        unit="prayer" if self.section=="prayers" else "passage"
+        unit="prayer" if self.section=="prayers" else "date" if self.section=="today" else "passage"
         return f"{count} {unit}{'s' if count != 1 else ''}"
     def branch(self,parent,title,path,items):
         expander=Gtk.Expander(hexpand=True, vexpand=False)
@@ -806,12 +842,71 @@ class Reader(Gtk.Application):
                 self.prefs.setdefault("expanded",{})[path]=widget.get_expanded(); self.save()
         expander.connect("notify::expanded",toggled)
         return box
+    def build_calendar(self):
+        """Upcoming Holy Days and Feasts, then this Badí‘ year, as contents rows that search can narrow."""
+        day=badi.observed_date(self.now(),self.place()); today=badi.from_gregorian(day)
+        if not today:
+            self.section_items=[]; note=Gtk.Label(label=badi.UNPUBLISHED,wrap=True,xalign=0); note.add_css_class("dim-label"); self.toc.append(note); return
+        rows=[]
+        def row(group,name,detail,opens=None):
+            rows.append(dict(id=f"{group}:{len(rows)}",group=group,title=name,detail=detail,opens=opens,search=fold(f"{name} {detail}")))
+        for event in badi.upcoming(day):
+            detail=f"{badi.gregorian_text(event.date)}. {badi.event_summary(event,day)}"
+            if event.work_suspended: detail+=" Work is suspended."
+            name=f"{event.name} ({event.meaning})" if event.meaning else event.name
+            row("Upcoming",name,detail,self.event_opener(event))
+        this_year=f"This year, {today.year} B.E."
+        for period in badi.year_months(today.year):
+            name=f"{period.name} ({period.meaning})" if period.meaning else period.name
+            detail=f"{badi.gregorian_text(period.first)} to {badi.gregorian_text(period.last)}"
+            prayers=AYYAM_PRAYERS if period.badi.month==badi.INTERCALARY else FAST_PRAYERS if period.badi.month==badi.FAST_MONTH else None
+            row(this_year,name,detail,self.prayer_opener(prayers,f"Prayers for {period.name}") if prayers else None)
+        self.section_items=rows
+        for group in ("Upcoming",this_year):
+            entries=[r for r in rows if r["group"]==group]
+            if not entries: continue
+            parent=self.branch(self.toc,group,f"today/{group.split(',')[0]}",entries)
+            for entry in entries:
+                content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3)
+                content.append(Gtk.Label(label=entry["title"],xalign=0,wrap=True,max_width_chars=30))
+                detail=Gtk.Label(label=entry["detail"],xalign=0,wrap=True,max_width_chars=30); detail.add_css_class("dim-label"); content.append(detail)
+                if entry["opens"]:
+                    # Only a date with readings or prayers is a button; the rest are plain text, not stops for the keyboard.
+                    widget=Gtk.Button(child=content); widget.connect("clicked",lambda _,o=entry["opens"]:o()); widget.add_css_class("toc-passage")
+                else:
+                    widget=content; widget.add_css_class("toc-date")
+                widget.set_tooltip_text(entry["title"]); parent.append(widget); self.passage_buttons.append((entry,widget))
+    def prayer_group(self,category):
+        return [i for i in self.items if i["section"]=="prayers" and category in i["tags"]]
+    def readings_group(self,tag):
+        """The Days of Remembrance readings for a HolyDay tag, in this language's library."""
+        return [i for i in self.items if badi_days_tag(i)==tag]
+    def prayer_opener(self,category,label):
+        """A callback opening the first prayer of a category, or None if this library has none."""
+        if not category or not self.prayer_group(category): return None
+        def go():
+            group=self.prayer_group(category)
+            self.open_in_section(group[0],group,label)
+        return go
+    def event_opener(self,event):
+        """What choosing a date opens: its readings in Days of Remembrance, else its prayers, else nothing."""
+        if event.readings and self.readings_group(event.readings):
+            def go():
+                group=self.readings_group(event.readings)
+                self.open_in_section(group[0],group,f"Readings for {event.name}")
+            return go
+        return self.prayer_opener(event.prayers,f"Prayers for {event.name}")
+    def open_in_section(self,item,group,label):
+        if self.section!=item["section"]: self.navigate(item["section"])
+        elif self.search.get_text(): self.search.set_text(""); self.filter()
+        self.show_passage(item,group)
+        self.subtitle.set_text(label+" · "+self.subtitle.get_text())
     def highlight(self):
         for item,button in self.passage_buttons:
             if self.current and item["id"]==self.current["id"]: button.add_css_class("current-passage")
             else: button.remove_css_class("current-passage")
     def show_passage(self,item,group):
-        self.current=item; self.active_group=group; self.prefs["last"]=item["id"]; self.save()
+        self.current=item; self.active_group=group; self.prefs["last"]=item["id"]; self.save(); self.show_view("reading")
         self.heading.set_text("Prayer" if item["section"]=="prayers" else item["title"].split(" · ")[0])
         self.subtitle.set_text(" · ".join(item["tags"]+([item["subgroup"]] if item["subgroup"] else [])+([word_label(item)] if item["section"]=="prayers" else [])))
         self.subtitle.set_wrap(True)
@@ -958,6 +1053,115 @@ class Reader(Gtk.Application):
         def closed(*_):
             self.collections_window=None; return False
         window.connect("close-request",closed); window.present(); entry.grab_focus()
+    def now(self):
+        """The time now at the saved place, or on this computer without one. The computer's own zone may have changed."""
+        time.tzset()
+        return badi.local_now(self.place(),self.fixed_now)
+    def tick(self):
+        """The wall clock, every 30 seconds: a long timeout would not survive suspend or a change of the clock."""
+        if getattr(self,"today_day",None)!=badi.observed_date(self.now(),self.place()) and self.section=="today":
+            self.rebuild()
+        if self.views.get_visible_child_name()=="today": self.refresh_today()
+        return True
+    def build_today(self):
+        scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True,hscrollbar_policy=Gtk.PolicyType.NEVER); self.views.add_named(scroll,"today")
+        # One calm column; it narrows with the window.
+        self.today_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,halign=Gtk.Align.CENTER,margin_top=32,margin_bottom=32,margin_start=16,margin_end=16)
+        scroll.set_child(self.today_box); self.today_cards={}; self.today_rows={}; self.today_buttons={}
+        for key in ("date","sun","events","passage"):
+            card=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8,visible=False); card.add_css_class("today-card")
+            self.today_box.append(card); self.today_cards[key]=card
+        self.today_box.append(Gtk.Label(label="x"*200,max_width_chars=68,ellipsize=Pango.EllipsizeMode.END,opacity=0,accessible_role=Gtk.AccessibleRole.PRESENTATION))
+    def today_content(self):
+        """{card: rows} for the moment, where a row is (kind, text[, action]). Plain data, so a card is only rebuilt when it changes."""
+        moment=self.now(); place=self.place(); day=badi.observed_date(moment,place); today=badi.from_gregorian(day); self.today_day=day
+        sun=badi.place_sun(place,moment.date())
+        cards={}
+        # Date
+        rows=[]
+        if today:
+            rows.append(("large",str(today)))
+            evening=day!=moment.date()
+            rows.append(("text",badi.gregorian_text(moment.date(),year=True)+(", after sunset" if day>moment.date() else ", before sunset" if evening else "")))
+            if today.month==badi.INTERCALARY: rows.append(("text",f"{badi.AYYAM_I_HA}: the days before the month of ‘Alá’."))
+            else: rows.append(("text",f"The month of {today.month_name}: {today.meaning}."))
+            if not place: rows.append(("dim","The Bahá’í day begins at sunset. Without a location, this date follows the calendar day."))
+            elif sun and sun.polar=="day": rows.append(("dim","The Bahá’í day begins at sunset. The sun does not set here today, so this date follows the calendar day."))
+            elif sun and sun.polar=="night": rows.append(("dim","The Bahá’í day begins at sunset. The sun does not rise here today, so this date follows the calendar day."))
+            else: rows.append(("dim","The Bahá’í day begins at sunset."))
+        else:
+            rows.append(("text",badi.gregorian_text(moment.date(),year=True)))
+            rows.append(("text",badi.UNPUBLISHED))
+            rows.append(("dim","Badí‘ dates here come from the Universal House of Justice’s table for 172 to 221 B.E."))
+        cards["date"]=rows
+        # Sun
+        rows=[("title","Sun")]
+        if sun:
+            if sun.sunrise: rows.append(("text",f"Sunrise: {clock(sun.sunrise)}"))
+            rows.append(("text",f"Solar noon: {clock(sun.noon)}"))
+            if sun.sunset: rows.append(("text",f"Sunset: {clock(sun.sunset)}"))
+            if sun.polar=="day": rows.append(("text","The sun does not set today."))
+            if sun.polar=="night": rows.append(("text","The sun does not rise today."))
+            rows.append(("dim",place["label"]))
+            rows.append(("button","Change location…",self.location_dialog))
+        else:
+            rows.append(("text","Add your location to see sunrise, noon and sunset"))
+            rows.append(("button","Add location…",self.location_dialog))
+        cards["sun"]=rows
+        # Next Feast and Holy Day
+        rows=[("title","Next Feast and Holy Day")]
+        feast=badi.next_feast(day); holy=badi.next_holy_day(day)
+        if feast:
+            rows.append(("text",f"{feast.name} ({feast.meaning})"))
+            rows.append(("dim",badi.event_summary(feast,day)))
+            opener=self.event_opener(feast)
+            if opener: rows.append(("button",f"Prayers for {feast.name}",opener))
+        if holy:
+            rows.append(("text",holy.name))
+            rows.append(("dim",badi.event_summary(holy,day)+(" Work is suspended." if holy.work_suspended else " Work is not suspended.")))
+            if holy.readings and self.readings_group(holy.readings): rows.append(("button",f"Readings for {holy.name}",self.event_opener(holy)))
+            opener=self.prayer_opener(holy.prayers,f"Prayers for {holy.name}")
+            if opener: rows.append(("button",f"Prayers for {holy.name}",opener))
+        ayyam=badi.next_ayyam_i_ha(day)
+        if ayyam and (ayyam.first-day).days<=DAYS_OF_NOTE:
+            rows.append(("text",badi.AYYAM_I_HA))
+            begins=ayyam.first-datetime.timedelta(1)
+            rows.append(("dim","Now." if ayyam.first<=day else f"Begins at sunset on {badi.gregorian_text(begins)}."))
+            opener=self.prayer_opener(AYYAM_PRAYERS,f"Prayers for {badi.AYYAM_I_HA}")
+            if opener: rows.append(("button",f"Prayers for {badi.AYYAM_I_HA}",opener))
+        if not feast and not holy: rows.append(("text",badi.UNPUBLISHED))
+        cards["events"]=rows
+        # Passage of the day
+        passage=passage_of_the_day(self.items,moment.date())
+        if passage:
+            opening=" ".join(passage["text"].split()); excerpt=opening if len(opening)<=240 else opening[:240].rsplit(" ",1)[0]+"…"
+            rows=[("title","Passage of the day"),("reading",excerpt)]
+            if passage["citation"]: rows.append(("dim","— "+passage["citation"]))
+            rows.append(("button","Read the passage of the day",lambda *_:self.daily_passage()))
+            cards["passage"]=rows
+        return cards
+    def refresh_today(self):
+        """Rebuilds only the cards whose content changed, so the keyboard focus stays where it is."""
+        if not getattr(self,"today_box",None): return
+        cards=self.today_content(); focus=self.window.get_focus()
+        for key,card in self.today_cards.items():
+            rows=cards.get(key)
+            signature=[r[:2] for r in rows] if rows else None
+            if signature==self.today_rows.get(key): continue
+            self.today_rows[key]=signature
+            held=focus is not None and focus.is_ancestor(card)
+            while child:=card.get_first_child(): card.remove(child)
+            card.set_visible(bool(rows))
+            for row in rows or []: card.append(self.today_row(key,row))
+            if held: card.child_focus(Gtk.DirectionType.TAB_FORWARD)
+    def today_row(self,key,row):
+        kind,text=row[:2]
+        if kind=="button":
+            widget=self.button(text,lambda _,action=row[2]:action()); widget.set_halign(Gtk.Align.START); self.today_buttons[key,text]=widget
+            return widget
+        label=Gtk.Label(label=text,wrap=True,xalign=0)
+        label.add_css_class({"title":"heading","large":"today-large","reading":"today-reading","dim":"dim-label"}.get(kind,"today-text"))
+        return label
     def daily_passage(self):
         item=passage_of_the_day(self.items,datetime.date.today())
         if item: self.open_passage(item,"Passage of the day")
@@ -1026,6 +1230,10 @@ label {{ padding-top: 2px; padding-bottom: 2px; }}
 .dim-label {{ opacity: 0.7; font-size: 13px; min-height: 18px; padding-top: 3px; padding-bottom: 3px; }}
 textview {{ font-family: "{font}"; font-size: {size}px; }}
 textview text selection {{ background: {selection}; }}
+.today-card {{ border: 1px solid {selection}; padding: 16px; }}
+.today-large {{ font-family: "{font}"; font-size: {size+4}px; color: {accent}; }}
+.today-reading {{ font-family: "{font}"; font-size: {max(15,size-4)}px; }}
+.toc-date {{ padding: 8px; }}
 .notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''.encode())
         for view in (self.reader,self.second):
             view.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); view.set_pixels_below_lines(14)
@@ -1092,7 +1300,7 @@ textview text selection {{ background: {selection}; }}
         items=load_library(language)
         if not items: raise ValueError("Download this language before switching")
         self.language=language; self.items=items; self.prefs["language"]=language; self.save(); self.compare_cache=(None,{})
-        self.rebuild(); self.update_status()
+        self.rebuild(); self.update_status(); self.refresh_today()
     def details(self):
         """Version details to paste into a support email."""
         display=Gdk.Display.get_default()
@@ -1198,6 +1406,8 @@ textview text selection {{ background: {selection}; }}
         if place: self.prefs["location"]=place
         else: self.prefs.pop("location",None)
         self.save()
+        if self.section=="today": self.rebuild()
+        self.refresh_today()
         return place
     def place_summary(self):
         """The saved place, its time zone and today's sun times, as a check."""
