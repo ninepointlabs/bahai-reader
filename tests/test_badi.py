@@ -16,6 +16,7 @@ class TableTests(unittest.TestCase):
         self.assertEqual([r["year"] for r in self.rows],list(range(172,222)))
         self.assertIn("Bahá’í World Centre",self.data["credit"]); self.assertIn("Universal House of Justice",self.data["credit"])
         self.assertIn("11 December 2014",self.data["source"]); self.assertIn("10 July 2014",self.data["source"])
+        self.assertIn("bahai-library.com",self.data["source_url"]); self.assertIn("drive.google.com",self.data["checked_against"]["url"])
 
     def test_naw_ruz_is_on_20_or_21_march_of_the_right_year(self):
         for row in self.rows:
