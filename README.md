@@ -96,6 +96,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
 - **Location & reminders** (⋮ menu): type a city (found offline, in a bundled GeoNames list, without regard to accents) or enter latitude, longitude and time zone. The window shows the place, its time zone and today’s sunrise, solar noon and sunset, worked out on this computer with the public-domain NOAA calculation; where the sun does not set or rise that day it says so. The location is never detected and never sent anywhere; only the place’s name, its coordinates rounded to 2 decimals and its time zone are saved, and **Clear location** forgets them.
+- **Narrow windows**: below 700 px the contents list and the right pane take turns. Picking a passage opens it, and ☰ or Escape goes back. The window can shrink to 320 px; Today, Random and Copy move into the **⋮** menu, Save becomes just the star, and side by side stacks. Neither pane can be dragged below its minimum width. Headings say what the passage is (“Arabic no. 1”, “Paragraph 4”), and Previous and Next show the position (“1 of 71”).
 - The header’s **Aa** holds how the text reads (appearance, font, size, spacing, margins, Side by side). The **⋮** menu holds the rest: Location & reminders, Languages & offline libraries, Keyboard shortcuts and About.
 - **Side by side**: Aa → Side by side shows the passage beside the same passage in English or any downloaded language. Passages are paired by their numbering (Hidden Word, Gleanings and Prayers and Meditations number, Tablet and paragraph, Íqán part and paragraph, Aqdas paragraph, note or question, SAQ chapter), as BahaiPrayers.net's Matrix comparison feeds pair them, so it works offline and makes no network request. Prayers, Days of Remembrance and Riḍván messages have no shared numbering across languages and are not paired. A translation that numbers its paragraphs differently is paired the same way the provider pairs it.
 
@@ -132,7 +133,7 @@ Square, undecorated window lets Hyprland supply themed borders. Interface uses t
 | Space or Enter | In the counter: count one |
 | Backspace | In the counter: undo one |
 | Ctrl+0 | In the counter: start over |
-| Escape | Show the contents panel again if it is hidden; closes the small windows; leaves the counter |
+| Escape | Show the contents panel again if it is hidden; in a narrow window, switch back; closes the small windows; leaves the counter |
 | Tab / Shift+Tab | Move between search, the contents list and the reading pane or Today’s cards, top to bottom. The contents list is a single stop; use the arrow keys and Enter inside it |
 | Page Up / Page Down | Scroll the passage |
 

@@ -1,3 +1,9 @@
+## Unreleased
+
+- New: **Narrow windows**: below 700 px the contents list and the right pane take turns, and the window can shrink to 320 px.
+- New: **Passage headings and position**: “Arabic no. 1”, “Paragraph 4”, and “1 of 71” between Previous and Next.
+- Fixed: neither pane can be dragged below its minimum width, so neither can disappear.
+
 Patch release of Bahá’í Reader.
 
 v0.1.8 adds a new **Today** view that brings the day together, and reorganizes the header around it.
