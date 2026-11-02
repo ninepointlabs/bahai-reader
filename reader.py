@@ -109,6 +109,8 @@ def clean_settings(data):
     if "reminders" in prefs:
         reminders=prefs["reminders"] if isinstance(prefs["reminders"],dict) else {}
         prefs["reminders"]={k:v for k,v in reminders.items() if k in REMINDER_SWITCHES and isinstance(v,bool)}
+    if prefs.get("long_period") not in dict(badi.LONG_PERIODS): prefs.pop("long_period",None)
+    if "long_lead_hours" in prefs and badi.long_lead({"long_lead_hours":prefs["long_lead_hours"]})!=prefs["long_lead_hours"]: del prefs["long_lead_hours"]
     if not isinstance(prefs.get("keep_running"),bool): prefs.pop("keep_running",None)
     if "reminders_sent" in prefs:
         sent=prefs["reminders_sent"] if isinstance(prefs["reminders_sent"],list) else []
@@ -121,8 +123,8 @@ def clean_settings(data):
 
 UNSORTED="Unsorted"
 # All reminders are off until turned on in Location & reminders.
-REMINDER_SWITCHES=("prayer","feast","holy","fast","fast_daily")
-SAID_KEY=re.compile(r"\d{4}-\d\d-\d\d:(short|medium|long):(morning|noon|evening)")
+REMINDER_SWITCHES=("prayer","long","feast","holy","fast","fast_daily")
+SAID_KEY=re.compile(r"\d{4}-\d\d-\d\d:((short|medium):(morning|noon|evening)|long:(sunset|noon|midnight|at:\d+))")
 DAY_KEY=re.compile(r"\d{4}-\d\d-\d\d")
 
 def clean_records(records):
@@ -1413,7 +1415,11 @@ class Reader(Gtk.Application):
         if chosen=="long":
             rows.append(("text","Once in twenty-four hours, at whatever time you find yourself in a state of humbleness and longing adoration."))
             rows.append(("button","Read the guidance (Question and Answer 82)",self.guidance_opener("Questions and Answers",82)))
-            rows.append(("dim","Its “Said today” and reminders are not available yet: no text says which twenty-four hours are meant."))
+            window=self.long_window(); marked=window.key in self.said_marks()
+            rows.append(("text",badi.long_line(self.prefs,window,marked,clock)))
+            rows.append(("toggle",badi.said_label(window),marked,lambda active:self.mark_long(active)))
+            rows.append(("dim",badi.LONG_GUIDANCE))
+            rows.append(("dim","So the period is your choice, in Location & reminders. This app makes no ruling."))
         else:
             windows=badi.prayer_windows(chosen,badi.prayer_day(chosen,moment,place),place)
             if not windows:
@@ -1447,6 +1453,11 @@ class Reader(Gtk.Application):
         item=next((i for i in self.items if BOOKS["aqdas"] in i["tags"] and i["subgroup"]==part and i["title"].startswith(f"{number} · ")),None)
         if not item: return None
         return lambda *_:self.open_obligatory(item)
+    def long_window(self):
+        return badi.long_window(self.prefs,self.now(),self.place(),self.said_marks())
+    def mark_long(self,active):
+        """Worked out at the click: with "24 hours since last said", the 24 hours run from this moment, not from when the card was drawn."""
+        self.mark_said(self.long_window().key,active)
     def said_marks(self):
         return self.prefs.get("records",{}).get("said",[])
     def mark_said(self,key,active):
@@ -1463,6 +1474,7 @@ class Reader(Gtk.Application):
         if not item or self.prefs.get("prayer")=="none": return None
         prayer=next((k for k,name in badi.PRAYERS.items() if name in item["tags"]),None)
         if not prayer or not badi.is_tracked(prayer): return None
+        if prayer=="long": return self.long_window()
         return badi.current_window(prayer,self.now(),self.place())
     def show_said(self):
         if not hasattr(self,"said_toggle"): return
@@ -1474,7 +1486,9 @@ class Reader(Gtk.Application):
         self.said_toggle.set_label(("✓ " if said else "")+badi.said_label(window)); self.said_toggle.set_active(said); self.said_toggle.window_key=window.key
         self.said_syncing=False
     def said_toggled(self,toggle):
-        if not getattr(self,"said_syncing",False) and getattr(toggle,"window_key",None): self.mark_said(toggle.window_key,toggle.get_active())
+        if getattr(self,"said_syncing",False) or not getattr(toggle,"window_key",None): return
+        if ":long:" in toggle.window_key: self.mark_long(toggle.get_active())
+        else: self.mark_said(toggle.window_key,toggle.get_active())
     def refresh_today(self):
         """Rebuilds only the cards whose content changed, so the keyboard focus stays where it is."""
         if not getattr(self,"today_box",None) or not self.window: return
@@ -1829,12 +1843,28 @@ textview text selection {{ background: {selection}; }}
         for key,name in (("short","Short"),("medium","Medium"),("long","Long"),("none","Don’t track")): choice.append(key,name)
         choice.set_active_id(self.prefs.get("prayer","none")); box.append(choice)
         def prayer_changed(c):
-            if c.get_active_id(): self.prefs["prayer"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today(); reminder.set_sensitive(badi.is_tracked(c.get_active_id()))
+            if c.get_active_id():
+                self.prefs["prayer"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today()
+                reminder.set_visible(c.get_active_id()!="long"); reminder.set_sensitive(badi.is_tracked(c.get_active_id())); long_box.set_visible(c.get_active_id()=="long")
         choice.connect("changed",prayer_changed)
         reminder=Gtk.CheckButton(label="Remind me when its time opens and before it closes",active=self.prefs.get("reminders",{}).get("prayer",False)); self.reminder_checks={"prayer":reminder}; box.append(reminder)
         def switch(check,key):
             self.prefs.setdefault("reminders",{})[key]=check.get_active(); self.save(); self.tick()
-        reminder.connect("toggled",switch,"prayer"); reminder.set_sensitive(badi.is_tracked(self.prefs.get("prayer","none")))
+        reminder.connect("toggled",switch,"prayer"); reminder.set_sensitive(badi.is_tracked(self.prefs.get("prayer","none"))); reminder.set_visible(self.prefs.get("prayer")!="long")
+        long_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8,visible=self.prefs.get("prayer")=="long"); box.append(long_box); self.long_box=long_box
+        long_box.append(Gtk.Label(label="No text says which twenty-four hours are meant, and the House of Justice has made no ruling, so this is your choice. Sunset to sunset is the Bahá’í day the app’s date already follows.",wrap=True,xalign=0,max_width_chars=56))
+        period=Choice(); self.name_widget(period,"Twenty-four hours for the Long prayer"); self.long_period_choice=period
+        for key,name in badi.LONG_PERIODS: period.append(key,name)
+        period.set_active_id(badi.long_period(self.prefs)); long_box.append(period)
+        def period_changed(c):
+            if c.get_active_id(): self.prefs["long_period"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today()
+        period.connect("changed",period_changed)
+        nudge=Gtk.CheckButton(child=Gtk.Label(label="Remind me once before the period resets, if it isn’t marked",wrap=True,xalign=0,max_width_chars=52),active=self.prefs.get("reminders",{}).get("long",False)); self.reminder_checks["long"]=nudge
+        nudge.connect("toggled",switch,"long"); long_box.append(nudge)
+        lead_row=Gtk.Box(spacing=8); long_box.append(lead_row)
+        lead=Gtk.SpinButton.new_with_range(badi.LONG_LEAD_MIN,badi.LONG_LEAD_MAX,1); lead.set_value(badi.long_lead(self.prefs)); self.name_widget(lead,"Hours before the period resets"); self.long_lead_spin=lead
+        def lead_changed(s): self.prefs["long_lead_hours"]=s.get_value_as_int(); self.save(); self.tick()
+        lead.connect("value-changed",lead_changed); lead_row.append(lead); lead_row.append(Gtk.Label(label="hours before",xalign=0))
         clock_note=Gtk.Label(label="Without a location, reminders use clock times. Add a location and they follow the sun.",wrap=True,xalign=0,max_width_chars=56); clock_note.add_css_class("dim-label"); box.append(clock_note)
         record=Gtk.CheckButton(child=Gtk.Label(label="Keep a private record of “Said today” and “Fasted today” on this computer",wrap=True,xalign=0,max_width_chars=52),active=self.prefs.get("keep_records",True)); self.records_check=record; box.append(record)
         def record_changed(check):

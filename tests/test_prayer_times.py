@@ -31,6 +31,45 @@ class SourceTests(unittest.TestCase):
         self.assertIn("To be recited daily, in the morning, at noon, and in the evening",self.prayers["Medium Obligatory Prayer"])
         self.assertIn("To be recited once in twenty-four hours",self.prayers["Long Obligatory Prayer"])
 
+class LongPeriodTests(unittest.TestCase):
+    """Which twenty-four hours is the user's choice; the default follows the Bahá’í day."""
+    def at(self,*args): return datetime.datetime(*args,tzinfo=ZoneInfo("Asia/Jerusalem"))
+    def window(self,mode,moment,place=HAIFA,said=()): return badi.long_window({"long_period":mode},moment,place,said)
+    def test_guidance_is_not_presented_as_the_app_ruling(self):
+        self.assertIn("has not made any ruling on this point",badi.LONG_GUIDANCE); self.assertIn("17 December 1990",badi.LONG_GUIDANCE)
+    def test_default_is_sunset_and_a_bad_value_falls_back(self):
+        self.assertEqual(badi.long_period({}),"sunset"); self.assertEqual(badi.long_period({"long_period":"often"}),"sunset")
+    def test_sunset_resets_exactly_when_the_badi_date_changes(self):
+        sunset=badi.place_sun(HAIFA,date(2026,6,21)).sunset
+        before=self.window("sunset",sunset-datetime.timedelta(minutes=1)); after=self.window("sunset",sunset)
+        self.assertEqual(before.date,badi.observed_date(sunset-datetime.timedelta(minutes=1),HAIFA)); self.assertEqual(after.date,badi.observed_date(sunset,HAIFA))
+        self.assertNotEqual(before.key,after.key); self.assertEqual(before.closes,sunset); self.assertEqual(after.opens,sunset)
+    def test_sunset_without_a_location_or_a_sunset_follows_the_calendar_day(self):
+        saved=os.environ.get("TZ"); os.environ["TZ"]="Asia/Jerusalem"; time.tzset()
+        try:
+            window=self.window("sunset",self.at(2026,6,21,20),None); self.assertEqual(window.date,date(2026,6,21)); self.assertEqual(window.closes.timestamp(),self.at(2026,6,22,0).timestamp())
+        finally:
+            os.environ.pop("TZ") if saved is None else os.environ.__setitem__("TZ",saved); time.tzset()
+        moment=datetime.datetime(2026,6,21,20,tzinfo=ZoneInfo("Europe/Oslo")); window=self.window("sunset",moment,TROMSO)
+        self.assertEqual(window.date,date(2026,6,21)); self.assertEqual(window.closes,datetime.datetime(2026,6,22,tzinfo=ZoneInfo("Europe/Oslo")))
+    def test_noon_to_noon_belongs_to_the_day_it_began(self):
+        noon=badi.place_sun(HAIFA,date(2026,6,21)).noon
+        self.assertEqual(self.window("noon",noon-datetime.timedelta(minutes=1)).date,date(2026,6,20)); self.assertEqual(self.window("noon",noon).date,date(2026,6,21)); self.assertEqual(self.window("noon",noon).opens,noon)
+    def test_midnight_to_midnight(self):
+        window=self.window("midnight",self.at(2026,6,21,23,59)); self.assertEqual(window.date,date(2026,6,21)); self.assertEqual(window.closes.timestamp(),self.at(2026,6,22,0).timestamp())
+    def test_rolling_starts_when_marked_and_ends_24_hours_later(self):
+        first=self.at(2026,6,21,10); unmarked=self.window("rolling",first)
+        self.assertEqual(badi.said_label(unmarked),"Said")
+        later=self.window("rolling",first+datetime.timedelta(hours=5),said=[unmarked.key])
+        self.assertEqual(later.key,unmarked.key); self.assertEqual(later.opens.timestamp(),first.timestamp()); self.assertEqual(later.closes.timestamp()-first.timestamp(),86400)
+        self.assertNotEqual(self.window("rolling",first+datetime.timedelta(hours=24),said=[unmarked.key]).key,unmarked.key)
+    def test_changing_period_does_not_carry_the_mark_across(self):
+        moment=self.at(2026,6,21,10); self.assertNotEqual(self.window("noon",moment).key,self.window("midnight",moment).key)
+    def test_the_line_never_says_missed(self):
+        for mode,_ in badi.LONG_PERIODS:
+            window=self.window(mode,self.at(2026,6,21,10))
+            for marked in (True,False): self.assertNotIn("miss",badi.long_line({"long_period":mode},window,marked,fmt).lower())
+
 class WindowTests(unittest.TestCase):
     def setUp(self):
         self.sun=badi.place_sun(HAIFA,date(2026,6,21))
@@ -49,9 +88,9 @@ class WindowTests(unittest.TestCase):
         self.assertEqual((evening.part,evening.opens),("evening",self.sun.sunset))
         self.assertEqual(evening.closes.timestamp()-evening.opens.timestamp(),7200)
 
-    def test_long_has_no_window_and_is_not_tracked_until_its_day_is_settled(self):
+    def test_long_has_no_time_of_day_but_is_tracked(self):
         self.assertEqual(badi.prayer_windows("long",date(2026,6,21),HAIFA),[]); self.assertIsNone(badi.current_window("long",self.at(2026,6,21,10),HAIFA))
-        self.assertFalse(badi.is_tracked("long")); self.assertTrue(badi.is_tracked("short") and badi.is_tracked("medium")); self.assertFalse(badi.is_tracked("none"))
+        self.assertTrue(all(badi.is_tracked(p) for p in ("short","medium","long"))); self.assertFalse(badi.is_tracked("none"))
 
     def test_each_window_has_its_own_key_for_its_solar_day(self):
         keys=[w.key for w in badi.prayer_windows("medium",date(2026,6,21),HAIFA)]

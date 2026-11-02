@@ -30,6 +30,11 @@ Copyright © Bahá’í International Community. The dates are credited to the B
 Centre and the Universal House of Justice; they are not covered by this project's MIT
 software license.
 
+The Today card quotes a letter written on behalf of the Universal House of Justice, dated
+17 December 1990, on the Long Obligatory Prayer, as reproduced in a memorandum of 2 January 1998:
+https://bahai-library.com/uhj_contacting_obligatory_exemptions
+Copyright © Bahá’í International Community.
+
 # City list
 
 data/cities.json is a trimmed copy of the GeoNames cities15000 list: name, ASCII name,
