@@ -41,6 +41,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.8" date="2026-11-01">
+      <description><p>A new Today view brings together the Badí‘ date, sun times, obligatory prayer times, the next Feast and Holy Day, the Fast and the passage of the day. Also new: an Alláh-u-Abhá counter, optional reminders, a typed-in location and clock times.</p></description>
+    </release>
     <release version="0.1.7" date="2026-10-31">
       <description><p>The Obligatory prayers section now has every Kitáb-i-Aqdas paragraph on obligatory prayer, with their notes and Questions and Answers.</p></description>
     </release>
