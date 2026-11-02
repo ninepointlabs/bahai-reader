@@ -145,7 +145,9 @@ with tempfile.TemporaryDirectory() as temp:
             app.location_window.close(); assert app.location_window is None
             # The menu holds the app-level entries; Aa keeps only reading settings.
             entries=app.app_menu.get_popover().get_child(); labels=[]; child=entries.get_first_child()
-            while child: labels.append(child.get_label()); child=child.get_next_sibling()
+            while child:
+                if child.get_visible(): labels.append(child.get_label())  # Today, Random and Copy join them only in a narrow window
+                child=child.get_next_sibling()
             assert labels==["Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader (F1)"], labels
             app.shortcuts_dialog(); assert app.shortcuts_window.get_visible(); app.shortcuts_window.close()
             # Ctrl+T: the Today view, with the passage of the day on a card that opens it in its section. Ctrl+R: a different random passage.
