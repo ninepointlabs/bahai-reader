@@ -23,6 +23,12 @@ class SettingsTests(unittest.TestCase):
         self.assertIsNone(notice)
         self.assertEqual(prefs,{"saved":["prayers:1"],"expanded":{}})
 
+    def test_prayer_and_records_are_checked_and_a_bad_value_never_costs_saved_passages(self):
+        prefs=reader.clean_settings({"saved":["hidden:1"],"prayer":"often","keep_records":"yes","records":{"said":["2026-11-01:short:noon","junk",3,"2026-11-01:other:noon"],"fasted":["2027-03-02","x"]}})
+        self.assertEqual(prefs,{"saved":["hidden:1"],"records":{"said":["2026-11-01:short:noon"],"fasted":["2027-03-02"]}})
+        self.assertEqual(reader.clean_settings({"records":"oops"})["records"],{"said":[],"fasted":[]})
+        self.assertEqual(reader.clean_settings({"prayer":"none","keep_records":False}),{"prayer":"none","keep_records":False})
+
     def test_numbers_are_clamped_to_the_sliders(self):
         prefs=reader.clean_settings({"size":900,"spacing":-5,"margin":1e9,"sidebar_width":3,"language":4,"section":"gleanings"})
         self.assertEqual(prefs,{"size":36,"spacing":0,"margin":160,"sidebar_width":220,"language":4,"section":"writings"})

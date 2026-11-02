@@ -65,6 +65,54 @@ with tempfile.TemporaryDirectory() as temp:
             app.search.set_text(""); app.filter()
             birth=next(b for i,b in app.passage_buttons if i["title"]=="Birth of the Báb"); birth.emit("clicked")
             assert reader.badi_days_tag(app.current)=="BIRTHBAB"
+            # The obligatory prayer. Nothing chosen: a quiet prompt, and no reminder of anything.
+            at(2026,11,1,10,0,place=HAIFA)
+            assert texts(app,"prayer")[1].startswith("Choose which obligatory prayer") and ("prayer","Choose a prayer…") in app.today_buttons
+            # Short, noon till sunset in Haifa: open at 10:00 UTC (12:00 local), the toggle is the same state everywhere.
+            app.prefs["prayer"]="short"; app.refresh_today()
+            lines=texts(app,"prayer"); assert any(t.startswith("Open now, until") for t in lines), lines
+            toggle=app.today_buttons["prayer","Said today"]; assert not toggle.get_active()
+            toggle.set_active(True)
+            assert reader.json.loads(reader.STATE.read_text())["records"]["said"]==["2026-11-01:short:noon"]
+            assert app.today_buttons["prayer","Said today"].get_active() and "✓ Said today" in texts(app,"prayer")
+            app.today_buttons["prayer","Open the Short Obligatory Prayer"].emit("clicked")
+            assert app.section=="obligatory" and "Short Obligatory Prayer" in app.current["tags"] and app.active_group==reader.obligatory(app.items)["The three prayers"]
+            assert app.said_toggle.get_visible() and app.said_toggle.get_active() and app.said_toggle.get_label()=="✓ Said today"
+            app.said_toggle.set_active(False); assert app.said_marks()==[]
+            app.step(1); assert app.said_toggle.get_visible() and "Medium Obligatory Prayer" in app.current["tags"] and app.said_toggle.get_label()=="Said at noon"
+            app.step(1); assert "Long Obligatory Prayer" in app.current["tags"] and not app.said_toggle.get_visible(), "the long prayer's day isn't settled"
+            app.navigate("hidden"); assert not app.said_toggle.get_visible()
+            # The day moves on: the toggle is fresh the next day, and yesterday's mark stays in the record.
+            at(2026,11,1,10,0,place=HAIFA); app.prefs["prayer"]="short"; app.refresh_today(); app.today_buttons["prayer","Said today"].set_active(True)
+            at(2026,11,2,10,0,place=HAIFA); assert not app.today_buttons["prayer","Said today"].get_active() and app.said_marks()==["2026-11-01:short:noon"]
+            # After sunset, nothing says anything was missed.
+            at(2026,11,2,16,0,place=HAIFA); lines=texts(app,"prayer"); assert any("Its time has ended" in t for t in lines) and not any("miss" in t.casefold() for t in lines), lines
+            # Medium: three windows, each with its own mark; the morning quotes Note 5.
+            app.prefs["prayer"]="medium"; at(2026,11,2,5,0,place=HAIFA); lines=texts(app,"prayer")
+            assert any(t.startswith("Morning: Open now") for t in lines) and any(t.startswith("Noon: Opens at") for t in lines) and any(t.startswith("Evening: Opens at") for t in lines) and any("as early as dawn (Note 5)" in t for t in lines), lines
+            app.today_buttons["prayer","Said this morning"].set_active(True); assert "2026-11-02:medium:morning" in app.said_marks()
+            assert not app.today_buttons["prayer","Said at noon"].get_active()
+            app.today_buttons["prayer","Read the guidance (Question and Answer 83)"].emit("clicked"); assert app.current["title"].startswith("83 · ") and app.current["subgroup"]=="Questions and Answers" and app.section=="obligatory" and "sunrise, noon and sunset" in app.current["text"]
+            # Long: guidance, and no toggle until its day is settled.
+            app.prefs["prayer"]="long"; at(2026,11,2,5,0,place=HAIFA); lines=texts(app,"prayer"); assert any("Once in twenty-four hours" in t for t in lines) and not any("Said" in t for t in lines), lines
+            app.today_buttons["prayer","Read the guidance (Question and Answer 82)"].emit("clicked"); assert app.current["title"].startswith("82 · ") and "Once in twenty-four hours" in app.current["text"]
+            # Polar night: no window, and the card points to ¶10 rather than inventing hours.
+            app.prefs["prayer"]="short"; at(2026,12,21,10,0,place=TROMSO); lines=texts(app,"prayer"); assert any("gauge the times of prayer by clocks" in t for t in lines) and not any("Said" in t for t in lines), lines
+            # No location: the clock stands in, and the card says so.
+            at(2026,11,2,13,0); lines=texts(app,"prayer"); assert any("use the clock" in t for t in lines) and ("prayer","Add location…") in app.today_buttons, lines
+            # "Don't track": no card, no toggle while reading.
+            app.prefs["prayer"]="none"; at(2026,11,2,10,0,place=HAIFA); assert not app.today_cards["prayer"].get_visible()
+            app.navigate("obligatory"); assert not app.said_toggle.get_visible()
+            # The settings window: choosing, turning the history off, and clearing with a confirmation.
+            app.prefs["prayer"]="short"; at(2026,11,2,10,0,place=HAIFA); app.today_buttons["prayer","Said today"].set_active(True)
+            app.location_dialog(); assert app.prayer_choice.get_active_id()=="short"
+            app.prayer_choice.set_active_id("medium"); assert reader.json.loads(reader.STATE.read_text())["prayer"]=="medium"
+            app.records_clear.emit("clicked"); assert app.said_marks()!=[] and app.records_confirm.get_visible()
+            app.records_confirm.emit("clicked"); assert reader.json.loads(reader.STATE.read_text())["records"]=={"said":[],"fasted":[]} and not app.records_confirm.get_visible()
+            app.mark_said("2020-01-01:short:noon",True); app.records_check.set_active(False)
+            assert app.said_marks()==[] and reader.json.loads(reader.STATE.read_text())["keep_records"] is False
+            app.mark_said("2026-11-02:medium:noon",True); assert app.said_marks()==["2026-11-02:medium:noon"], "today's state still works with the history off"
+            app.records_check.set_active(True); app.location_window.close(); app.prefs["prayer"]="none"
             # Polar day: no sunset, and the date says so.
             at(2026,6,21,22,0,place=TROMSO)
             assert "The sun does not set today." in texts(app,"sun") and any("does not set here today" in t for t in texts(app,"date"))
