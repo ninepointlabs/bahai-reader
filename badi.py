@@ -224,6 +224,7 @@ class SunTimes(NamedTuple):
     noon: datetime.datetime
     sunset: Optional[datetime.datetime]
     polar: Optional[str]  # "day" when the sun does not set, "night" when it does not rise
+    clock: bool=False  # hours the user entered, standing in for the sun
 
 def sun_times(date,latitude,longitude,zone):
     """Sunrise, solar noon and sunset of the solar day whose noon falls on this local date, in that zone.
@@ -272,10 +273,37 @@ def clean_place(value):
     label=" ".join(value["label"].split()) if isinstance(value.get("label"),str) else ""
     return dict(label=label or f"{lat}, {lon}",lat=lat,lon=lon,tz=value["tz"])
 
+def parse_clock(text):
+    """Minutes after midnight from "HH:MM" or "H:MM", or None."""
+    hours,colon,minutes=str(text).strip().partition(":")
+    if not (colon and hours.isdigit() and minutes.isdigit() and len(minutes)==2): return None
+    hours,minutes=int(hours),int(minutes)
+    return hours*60+minutes if hours<24 and minutes<60 else None
+
+def clean_clock_hours(value):
+    """{"sunrise","noon","sunset"} in minutes after midnight, in that order within one day, or None."""
+    if not isinstance(value,dict): return None
+    found=[value.get(k) for k in ("sunrise","noon","sunset")]
+    if not all(isinstance(n,int) and not isinstance(n,bool) and 0<=n<1440 for n in found) or not found[0]<found[1]<found[2]: return None
+    return dict(sunrise=found[0],noon=found[1],sunset=found[2])
+
+def clock_place(location,hours):
+    """The saved place, or just this computer's time zone without one, with entered hours standing in for the sun."""
+    return {**(location or {"label":"Clock times"}),"clock":hours}
+
+def _clock_sun(place,date):
+    def at(minutes):
+        moment=datetime.datetime(date.year,date.month,date.day,minutes//60,minutes%60)
+        return moment.replace(tzinfo=ZoneInfo(place["tz"])) if place.get("tz") else moment.astimezone()
+    hours=place["clock"]
+    return SunTimes(date,at(hours["sunrise"]),at(hours["noon"]),at(hours["sunset"]),None,True)
+
 def place_sun(place,date):
-    """Sun times at a saved place, or None without one, or when this computer lacks its time zone."""
+    """Sun times at a saved place, or the entered hours in their place, or None without either, or when this computer lacks its time zone."""
     if not place: return None
-    try: return sun_times(date,place["lat"],place["lon"],place["tz"])
+    try:
+        if place.get("clock"): return _clock_sun(place,date)
+        return sun_times(date,place["lat"],place["lon"],place["tz"])
     except (ZoneInfoNotFoundError,ValueError,OSError): return None
 
 def sun_summary(sun,clock):
@@ -293,7 +321,7 @@ def local_now(place=None,moment=None):
     """The time now (or at an aware moment) at a saved place, or in this computer's time zone without one.
     time.tzset() in the caller picks up a change of the system time zone."""
     moment=moment or datetime.datetime.now(datetime.timezone.utc)
-    if place:
+    if place and place.get("tz"):
         try: return moment.astimezone(ZoneInfo(place["tz"]))
         except (ZoneInfoNotFoundError,ValueError,OSError): pass
     return moment.astimezone()
@@ -370,7 +398,9 @@ class Counter:
 # - Long: "To be recited once in twenty-four hours" (its heading). Q&A 82: "at whatever time one findeth oneself in a state of humbleness and
 #   longing adoration"; "Once in twenty-four hours is sufficient". It has no window. No text says which twenty-four hours, and the House of
 #   Justice has made no ruling (letter of 17 December 1990, LONG_GUIDANCE), so the period is the user's setting, not the app's ruling.
-# - In regions where days and nights grow long, ¶10 and Q&A 64 say to gauge times by clocks, without giving hours, so no window is shown there.
+# - In regions where days and nights grow long, ¶10 and Q&A 64 say to gauge times by clocks, without giving hours. A National Spiritual Assembly
+#   decides this for its country (letter of 27 July 1976), so the app has no hours of its own: no window is shown there until the user enters the hours
+#   they are given. Entered hours go through place_sun, so prayer windows, the Fast, reminders and the change of the Badí‘ date all follow them.
 PRAYERS={"short":"Short Obligatory Prayer","medium":"Medium Obligatory Prayer","long":"Long Obligatory Prayer"}
 LONG_PERIODS=(("sunset","Sunset to sunset"),("noon","Noon to noon"),("midnight","Midnight to midnight"),("rolling","24 hours since last said"))
 LONG_DEFAULT_PERIOD="sunset"  # the Bahá’í day, so the mark resets when the Badí‘ date changes
@@ -559,7 +589,7 @@ FAST_LEAD_MINUTES=30
 
 def _at_hour(date,hour,place):
     """A clock time on a day at the saved place, or on this computer."""
-    if place:
+    if place and place.get("tz"):
         try: return datetime.datetime(date.year,date.month,date.day,hour,tzinfo=ZoneInfo(place["tz"]))
         except (ZoneInfoNotFoundError,ValueError,OSError): pass
     return _clock_time(date,hour)

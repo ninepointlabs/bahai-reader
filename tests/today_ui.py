@@ -119,6 +119,20 @@ with tempfile.TemporaryDirectory() as temp:
             app.today_buttons["prayer","Read the guidance (Question and Answer 82)"].emit("clicked"); assert app.current["title"].startswith("82 · ") and "Once in twenty-four hours" in app.current["text"]
             # Polar night: no window, and the card points to ¶10 rather than inventing hours.
             app.prefs["prayer"]="short"; at(2026,12,21,10,0,place=TROMSO); lines=texts(app,"prayer"); assert any("gauge the times of prayer by clocks" in t for t in lines) and not any("Said" in t for t in lines), lines
+            lines=texts(app,"prayer"); assert any("National Spiritual Assembly" in t for t in lines) and "Use clock times…" in lines, lines
+            # Clock times: entered hours replace the sun on every card, and a bad entry changes nothing.
+            app.location_dialog(); app.clock_entries["sunrise"].set_text("07:00"); app.clock_entries["noon"].set_text("05:00"); app.clock_entries["sunset"].set_text("19:00"); app.clock_check.set_active(True)
+            assert "clock_hours" not in app.prefs and app.clock_message.get_visible(), "times out of order are refused"
+            app.clock_entries["noon"].set_text("12:30"); app.clock_apply(); assert app.prefs["clock_hours"]=={"sunrise":420,"noon":750,"sunset":1140} and not app.clock_message.get_visible()
+            assert "Tromsø" in app.location_summary.get_text() and "Clock" not in app.location_summary.get_text(), app.location_summary.get_text()
+            at(2026,12,21,12,0,place=TROMSO); lines=texts(app,"prayer"); assert any("clock times you set" in t for t in lines) and "Said today" in lines and not any("gauge" in t for t in lines), lines
+            assert texts(app,"sun")[0]=="Clock times" and any(t.startswith("Sunset hour: ") and ("19:00" in t or "7:00" in t) for t in texts(app,"sun")) and not any("does not rise" in t for t in texts(app,"sun")), texts(app,"sun")
+            assert any("sunset hour you set" in t for t in texts(app,"date")), texts(app,"date")
+            at(2026,12,21,18,30,place=TROMSO); assert "after sunset" in texts(app,"date")[1], "19:30 in Tromsø is past the sunset hour"
+            at(2026,12,21,12,0); assert texts(app,"sun")[0]=="Clock times" and not any("Add location" in t for t in texts(app,"sun")), "works without a location"
+            app.clock_check.set_active(False); assert "clock_hours" not in app.prefs
+            at(2026,12,21,10,0,place=TROMSO); assert any("gauge the times of prayer by clocks" in t for t in texts(app,"prayer")), "off again, the sun returns"
+            app.location_window.close()
             # No location: the clock stands in, and the card says so.
             at(2026,11,2,13,0); lines=texts(app,"prayer"); assert any("use the clock" in t for t in lines) and ("prayer","Add location…") in app.today_buttons, lines
             # "Don't track": no card, no toggle while reading.

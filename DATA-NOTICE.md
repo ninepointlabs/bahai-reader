@@ -35,6 +35,10 @@ The Today card quotes a letter written on behalf of the Universal House of Justi
 https://bahai-library.com/uhj_contacting_obligatory_exemptions
 Copyright © Bahá’í International Community.
 
+The clock times setting rests on ¶10 and Note 17 of the Kitáb-i-Aqdas, and on a letter written on
+behalf of the Universal House of Justice to a National Spiritual Assembly, dated 27 July 1976,
+which leaves the matter to the Assembly. The app paraphrases it and sets no hours of its own.
+
 # City list
 
 data/cities.json is a trimmed copy of the GeoNames cities15000 list: name, ASCII name,
