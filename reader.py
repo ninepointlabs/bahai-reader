@@ -769,7 +769,7 @@ class Reader(Gtk.Application):
         self.panel_save_source=GLib.timeout_add(250,persist)
     def key_pressed(self, controller, key, code, modifiers):
         if modifiers & Gdk.ModifierType.CONTROL_MASK:
-            if key==Gdk.KEY_t: self.navigate("today"); return True
+            if key==Gdk.KEY_t: self.navigate("today"); self.focus_view(); return True
             if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.sidebar.set_visible(True); self.search.grab_focus(); return True
             if key==Gdk.KEY_q: self.quit_app(); return True
@@ -822,6 +822,7 @@ class Reader(Gtk.Application):
     def focus_view(self):
         """Into whichever view is showing: the reading pane, or the first action on it."""
         if self.views.get_visible_child_name()=="reading": self.reader.grab_focus(); return True
+        self.window.set_focus(None)  # from the top of the view, wherever the focus was
         return self.views.get_visible_child().child_focus(Gtk.DirectionType.TAB_FORWARD)
     def option(self, box, title, key, options, default):
         box.append(Gtk.Label(label=title,xalign=0)); combo=Choice()
@@ -1412,6 +1413,7 @@ class Reader(Gtk.Application):
         if chosen=="long":
             rows.append(("text","Once in twenty-four hours, at whatever time you find yourself in a state of humbleness and longing adoration."))
             rows.append(("button","Read the guidance (Question and Answer 82)",self.guidance_opener("Questions and Answers",82)))
+            rows.append(("dim","Its “Said today” and reminders are not available yet: no text says which twenty-four hours are meant."))
         else:
             windows=badi.prayer_windows(chosen,badi.prayer_day(chosen,moment,place),place)
             if not windows:
@@ -1443,7 +1445,7 @@ class Reader(Gtk.Application):
     def guidance_opener(self,part,number):
         """Opens a Kitáb-i-Aqdas passage by its printed number; Ids in the feed are not always the same as numbers."""
         item=next((i for i in self.items if BOOKS["aqdas"] in i["tags"] and i["subgroup"]==part and i["title"].startswith(f"{number} · ")),None)
-        if not item: return lambda *_:None
+        if not item: return None
         return lambda *_:self.open_obligatory(item)
     def said_marks(self):
         return self.prefs.get("records",{}).get("said",[])
@@ -1476,7 +1478,7 @@ class Reader(Gtk.Application):
     def refresh_today(self):
         """Rebuilds only the cards whose content changed, so the keyboard focus stays where it is."""
         if not getattr(self,"today_box",None) or not self.window: return
-        cards=self.today_content(); focus=self.window.get_focus()
+        cards={key:[r for r in rows if r[0] not in ("button","toggle") or r[2] is not None] for key,rows in self.today_content().items()}; focus=self.window.get_focus()
         focused=next((name for name,widget in self.today_buttons.items() if widget is focus),None)
         for key,card in self.today_cards.items():
             rows=cards.get(key)
@@ -1486,11 +1488,20 @@ class Reader(Gtk.Application):
             held=focus is not None and focus.is_ancestor(card)
             while child:=card.get_first_child(): card.remove(child)
             card.set_visible(bool(rows))
-            for row in rows or []: card.append(self.today_row(key,row))
+            actions=None
+            for row in rows or []:
+                # Neighbouring actions share a line that wraps, rather than a tall stack.
+                if row[0] in ("button","toggle"):
+                    if actions is None:
+                        actions=Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE,column_spacing=8,row_spacing=8,max_children_per_line=6,homogeneous=False); card.append(actions)
+                    actions.append(self.today_row(key,row))
+                    actions.get_last_child().set_focusable(False)
+                else:
+                    actions=None; card.append(self.today_row(key,row))
             if held:
                 # Back on the same action if it is still there, else the card's first.
                 again=self.today_buttons.get(focused) if focused and focused[0]==key else None
-                again.grab_focus() if again and again.get_parent() is card else card.child_focus(Gtk.DirectionType.TAB_FORWARD)
+                again.grab_focus() if again and again.is_ancestor(card) else card.child_focus(Gtk.DirectionType.TAB_FORWARD)
     def today_row(self,key,row):
         kind,text=row[:2]
         if kind=="button":
@@ -1545,7 +1556,7 @@ class Reader(Gtk.Application):
         if signature==self.signature:return True
         self.signature=signature; bg,fg,accent,selection=[base[k] for k in ("background","foreground","accent","selection")]
         # Some themes (White) use an accent too close to the selection for text on it.
-        current=readable(selection,accent,fg); focus=readable(bg,accent,fg,minimum=3); current_focus=readable(selection,fg,accent,minimum=3)
+        current=readable(selection,accent,fg); focus=readable(bg,accent,fg,minimum=3); accent_text=readable(bg,accent,fg); current_focus=readable(selection,fg,accent,minimum=3)
         self.colors=dict(background=bg,foreground=fg,accent=accent,selection=selection,current=current)
         font=self.prefs.get("font","DejaVu Serif").replace('"','').replace('\\','')
         size=int(self.prefs.get("size",22))
@@ -1565,18 +1576,19 @@ button.current-passage:focus-visible {{ outline-color: {current_focus}; }}
 paned > separator {{ min-width: 5px; background: {selection}; }}
 paned > separator:hover {{ background: {accent}; }}
 headerbar {{ border-bottom: 1px solid {selection}; }}
-.heading {{ color: {accent}; font-size: 19px; }}
+.heading {{ color: {accent_text}; font-size: 19px; }}
 /* Allow room for hinted glyphs and accents at fractional display scales. */
 label {{ padding-top: 2px; padding-bottom: 2px; }}
 .dim-label {{ opacity: 0.7; font-size: 13px; min-height: 18px; padding-top: 3px; padding-bottom: 3px; }}
 textview {{ font-family: "{font}"; font-size: {size}px; }}
 textview text selection {{ background: {selection}; }}
 .today-card {{ border: 1px solid {selection}; padding: 16px; }}
-.today-large {{ font-family: "{font}"; font-size: {size+4}px; color: {accent}; }}
+.today-large {{ font-family: "{font}"; font-size: {size+4}px; color: {accent_text}; }}
 .today-reading {{ font-family: "{font}"; font-size: {max(15,size-4)}px; }}
 .toc-date {{ padding: 8px; }}
+.today-card flowboxchild {{ padding: 0; }}
 .counter-count {{ font-family: "{font}"; font-size: 96px; }}
-.counter-done {{ color: {accent}; }}
+.counter-done {{ color: {accent_text}; }}
 .counter-button {{ padding: 14px 48px; }}
 .notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''.encode())
         for view in (self.reader,self.second):
@@ -1660,7 +1672,8 @@ textview text selection {{ background: {selection}; }}
                 "language’s texts or the language list. The request carries only the collection, the language number and "
                 f"Python’s standard user agent; like any web request, the site sees your IP address. Downloads are saved in {short(LIBRARY)}. Settings and saved "
                 f"passages stay in {short(STATE)} and are never sent anywhere. A location you enter is typed in, never detected, is only used on this computer "
-                "to work out the sun’s times, and is never sent anywhere.")
+                "to work out the sun’s times, and is never sent anywhere. Reminders are worked out and sent on this computer, and your “Said today” and “Fasted today” records stay here too; "
+                "you can turn them off or clear them in Location & reminders.")
     def about_dialog(self,*_):
         if getattr(self,"about_window",None):
             self.about_window.present(); return
@@ -1816,12 +1829,12 @@ textview text selection {{ background: {selection}; }}
         for key,name in (("short","Short"),("medium","Medium"),("long","Long"),("none","Don’t track")): choice.append(key,name)
         choice.set_active_id(self.prefs.get("prayer","none")); box.append(choice)
         def prayer_changed(c):
-            if c.get_active_id(): self.prefs["prayer"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today()
+            if c.get_active_id(): self.prefs["prayer"]=c.get_active_id(); self.save(); self.show_said(); self.refresh_today(); reminder.set_sensitive(badi.is_tracked(c.get_active_id()))
         choice.connect("changed",prayer_changed)
         reminder=Gtk.CheckButton(label="Remind me when its time opens and before it closes",active=self.prefs.get("reminders",{}).get("prayer",False)); self.reminder_checks={"prayer":reminder}; box.append(reminder)
         def switch(check,key):
             self.prefs.setdefault("reminders",{})[key]=check.get_active(); self.save(); self.tick()
-        reminder.connect("toggled",switch,"prayer")
+        reminder.connect("toggled",switch,"prayer"); reminder.set_sensitive(badi.is_tracked(self.prefs.get("prayer","none")))
         clock_note=Gtk.Label(label="Without a location, reminders use clock times. Add a location and they follow the sun.",wrap=True,xalign=0,max_width_chars=56); clock_note.add_css_class("dim-label"); box.append(clock_note)
         record=Gtk.CheckButton(child=Gtk.Label(label="Keep a private record of “Said today” and “Fasted today” on this computer",wrap=True,xalign=0,max_width_chars=52),active=self.prefs.get("keep_records",True)); self.records_check=record; box.append(record)
         def record_changed(check):

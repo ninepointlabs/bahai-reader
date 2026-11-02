@@ -16,4 +16,10 @@ class AboutTests(unittest.TestCase):
         self.assertEqual(reader.SUPPORT_EMAIL,"help@ninepointlabs.com")
         self.assertEqual(reader.ORGANIZATION,"Nine Point Labs")
 
+class ShortcutsTests(unittest.TestCase):
+    def test_every_shortcut_in_the_app_is_in_the_readme(self):
+        readme=(reader.ROOT/"README.md").read_text()
+        for keys,_ in reader.SHORTCUTS:
+            self.assertIn(f"| {keys} |",readme,keys)
+
 if __name__=="__main__": unittest.main()
