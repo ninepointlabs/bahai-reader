@@ -12,3 +12,20 @@ For content corrections, contact the provider through https://bahaiprayers.net/.
 
 This is an independent community project, not an official publication of a Bahá’í
 institution or of Omarchy. Downloaded translations come from the same provider.
+
+# Badí‘ calendar dates
+
+data/badi-dates.json transcribes table A of "Badí‘ dates 172 to 221 B.E.", prepared by an
+ad hoc committee at the Bahá’í World Centre using data provided by Her Majesty’s Nautical
+Almanac Office, and sent with the letter of the Universal House of Justice of
+11 December 2014. It was transcribed from the copy at
+https://bahai-library.com/pdf/uhj/uhj_bahai_dates_172-221.pdf
+and every row was compared, with no differences, with a second copy of the table,
+50-year-Holy-Day-Calendar.pdf (file created 11 December 2014):
+https://drive.google.com/open?id=1wdXQI4mc23_aMdfDOAFe22q1tQWtZU-2
+The rules for the other dates are in the message of the Universal House of
+Justice of 10 July 2014:
+https://www.bahai.org/library/authoritative-texts/the-universal-house-of-justice/messages/20140710_001/20140710_001.xhtml
+Copyright © Bahá’í International Community. The dates are credited to the Bahá’í World
+Centre and the Universal House of Justice; they are not covered by this project's MIT
+software license.

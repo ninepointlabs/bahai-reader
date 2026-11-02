@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 sys.path.insert(0, "/usr/share/bahai-reader" if "installed" in sys.argv else "/app/share/bahai-reader" if "flatpak" in sys.argv else str(Path(__file__).resolve().parents[1]))
 import reader
+import badi
 import struct
 import zlib
 from collections import Counter
@@ -70,6 +71,8 @@ with tempfile.TemporaryDirectory() as temp:
             waits.append(1); return True  # wait for the first frame after layout
         try:
             assert len(app.items)==2616
+            # The calendar module and its table were installed beside the app.
+            assert str(badi.from_gregorian(reader.datetime.date(2026,11,11)))=="8 Qudrat 183 B.E."
             # The contents list follows the reading palette, not the GTK theme's sidebar color (QA H1).
             if color=="unsupported": print("Note: this PyGObject cannot render widgets offscreen; contents list color not checked")
             else: assert color and close(color,"#fafaf7"), f"contents list background is {color}, not the Light palette's #fafaf7"
