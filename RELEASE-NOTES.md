@@ -1,6 +1,6 @@
-## Unreleased
+Patch release of Bahá’í Reader.
 
-A new **Today** view brings the day together, and the header is reorganized around it.
+v0.1.8 adds a new **Today** view that brings the day together, and reorganizes the header around it.
 
 - New: **Today**, the first sidebar entry: the Badí‘ date, sunrise, noon and sunset, your obligatory prayer’s time, the next Feast and Holy Day, the Fast and the passage of the day. In the sidebar it lists the next 12 months and this year’s months. New installs open here; existing installs keep their place.
 - Changed: **Ctrl+T and the Today button now open the Today view** instead of the passage of the day, which is a card there.
@@ -13,13 +13,7 @@ A new **Today** view brings the day together, and the header is reorganized arou
 - New: **The Fast**: the day, the fasting hours and an optional private Fasted today check.
 - Badí‘ dates come from the Universal House of Justice’s table for 172 to 221 B.E.; after that the app says they have not been published yet.
 
-Patch release of Bahá’í Reader.
-
-v0.1.7 completes the Kitáb-i-Aqdas guidance in the Obligatory prayers section.
-
-- Changed: the **Obligatory prayers** section now has every Kitáb-i-Aqdas paragraph on obligatory prayer: ¶6, ¶8, ¶10, ¶12, ¶13 and ¶14. Each comes with the notes and Questions and Answers linked to it, so the section has 44 Aqdas passages instead of 16.
-
-v0.1.6 showed the directions in the obligatory prayers in italics. v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
+v0.1.7 added every Kitáb-i-Aqdas paragraph on obligatory prayer to the Obligatory prayers section. v0.1.6 showed the directions in the obligatory prayers in italics. v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.
