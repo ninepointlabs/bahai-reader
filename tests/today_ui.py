@@ -84,7 +84,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.said_toggle.get_visible() and app.said_toggle.get_active() and app.said_toggle.get_label()=="✓ Said today"
             app.said_toggle.set_active(False); assert app.said_marks()==[]
             app.step(1); assert app.said_toggle.get_visible() and "Medium Obligatory Prayer" in app.current["tags"] and app.said_toggle.get_label()=="Said at noon"
-            app.step(1); assert "Long Obligatory Prayer" in app.current["tags"] and not app.said_toggle.get_visible(), "the long prayer's day isn't settled"
+            app.step(1); assert "Long Obligatory Prayer" in app.current["tags"] and app.said_toggle.get_visible() and "Said today" in app.said_toggle.get_label(), "the long prayer has its toggle while reading"
             app.navigate("hidden"); assert not app.said_toggle.get_visible()
             # The day moves on: the toggle is fresh the next day, and yesterday's mark stays in the record.
             at(2026,11,1,10,0,place=HAIFA); app.prefs["prayer"]="short"; app.refresh_today(); app.today_buttons["prayer","Said today"].set_active(True)
@@ -97,8 +97,25 @@ with tempfile.TemporaryDirectory() as temp:
             app.today_buttons["prayer","Said this morning"].set_active(True); assert "2026-11-02:medium:morning" in app.said_marks()
             assert not app.today_buttons["prayer","Said at noon"].get_active()
             app.today_buttons["prayer","Read the guidance (Question and Answer 83)"].emit("clicked"); assert app.current["title"].startswith("83 · ") and app.current["subgroup"]=="Questions and Answers" and app.section=="obligatory" and "sunrise, noon and sunset" in app.current["text"]
-            # Long: guidance, and no toggle until its day is settled.
-            app.prefs["prayer"]="long"; at(2026,11,2,5,0,place=HAIFA); lines=texts(app,"prayer"); assert any("Once in twenty-four hours" in t for t in lines) and not any(t.startswith("Said") or t.startswith("✓") for t in lines), lines
+            # Long: the period is the user's choice, sunset to sunset unless changed, and the card says no ruling has been made.
+            app.prefs["prayer"]="long"; at(2026,11,2,5,0,place=HAIFA); lines=texts(app,"prayer")
+            assert any("Once in twenty-four hours" in t for t in lines) and any(t.startswith("Sunset to sunset: this period ends") for t in lines) and any("has not made any ruling" in t for t in lines) and "Said today" in lines, lines
+            assert not any("not available yet" in t for t in lines), lines
+            app.mark_long(True); assert any(k.endswith(":long:sunset") for k in app.said_marks()), app.said_marks()
+            assert any(t.startswith("✓") for t in texts(app,"prayer")), texts(app,"prayer")
+            at(2026,11,2,16,0,place=HAIFA); assert not any(t.startswith("✓") for t in texts(app,"prayer")), "after sunset a new period has begun"
+            # Rolling: 24 hours from the moment it was marked, however long ago the card was drawn.
+            app.prefs["long_period"]="rolling"; at(2026,11,2,16,0,place=HAIFA); assert any("24 hours run from then" in t for t in texts(app,"prayer")), texts(app,"prayer")
+            at(2026,11,2,18,0,place=HAIFA); app.mark_long(True); assert app.long_window().opens.timestamp()==app.fixed_now.timestamp()
+            assert any(t.startswith("Said at") for t in texts(app,"prayer")), texts(app,"prayer")
+            app.mark_long(False); assert not any(":long:at:" in k for k in app.said_marks()), app.said_marks()
+            app.prefs.pop("long_period"); app.prefs["records"]={"said":[],"fasted":[]}
+            # The settings show the Long prayer's period and an opt-in nudge only when it is chosen, and the nudge starts off.
+            at(2026,11,2,5,0,place=HAIFA); app.location_dialog()
+            assert app.long_box.get_visible() and not app.reminder_checks["prayer"].get_visible() and not app.reminder_checks["long"].get_active() and app.long_period_choice.get_active_id()=="sunset" and app.long_lead_spin.get_value_as_int()==2
+            app.long_period_choice.set_active_id("noon"); assert app.prefs["long_period"]=="noon"; app.long_period_choice.set_active_id("sunset")
+            app.prayer_choice.set_active_id("short"); assert not app.long_box.get_visible() and app.reminder_checks["prayer"].get_visible()
+            app.prayer_choice.set_active_id("long"); app.location_window.close(); app.navigate("today")
             app.today_buttons["prayer","Read the guidance (Question and Answer 82)"].emit("clicked"); assert app.current["title"].startswith("82 · ") and "Once in twenty-four hours" in app.current["text"]
             # Polar night: no window, and the card points to ¶10 rather than inventing hours.
             app.prefs["prayer"]="short"; at(2026,12,21,10,0,place=TROMSO); lines=texts(app,"prayer"); assert any("gauge the times of prayer by clocks" in t for t in lines) and not any("Said" in t for t in lines), lines

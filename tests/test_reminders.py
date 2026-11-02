@@ -82,6 +82,28 @@ class ScheduleTests(unittest.TestCase):
         for prayer in ("long","none"):
             self.assertEqual(walk({"prayer":prayer,"reminders":{"prayer":True}},self.at(0),self.at(23,59),step=600)[0],[],prayer)
 
+    def test_the_long_prayer_is_off_by_default_even_with_the_other_prayer_switch_on(self):
+        self.assertEqual(walk({"prayer":"long","reminders":{"prayer":True}},self.at(0),self.at(23,59),step=300)[0],[])
+
+    def test_the_long_prayer_nudges_once_before_sunset_unless_marked(self):
+        settings={"prayer":"long","reminders":{"long":True}}
+        sunset=badi.place_sun(HAIFA,self.at(12).date()).sunset; start=self.at(0); moment=sunset-timedelta(hours=2)
+        sent=[r for _,r in walk(settings,start,sunset,step=60)[0]]
+        self.assertEqual(len(sent),1); self.assertEqual(sent[0].at.timestamp(),moment.timestamp()); self.assertTrue(sent[0].said)
+        self.assertEqual(walk(settings,start,sunset,step=60,said=[sent[0].said])[0],[])
+
+    def test_the_long_prayer_lead_time_can_change(self):
+        settings={"prayer":"long","long_lead_hours":5,"reminders":{"long":True}}
+        sunset=badi.place_sun(HAIFA,self.at(12).date()).sunset
+        self.assertEqual(walk(settings,self.at(0),sunset,step=60)[0][0][1].at.timestamp(),(sunset-timedelta(hours=5)).timestamp())
+
+    def test_rolling_only_nudges_after_it_has_been_said(self):
+        settings={"prayer":"long","long_period":"rolling","reminders":{"long":True}}; start=self.at(8)
+        self.assertEqual(walk(settings,start,start+timedelta(days=2),step=600)[0],[])
+        mark=f"{start.date().isoformat()}:long:at:{int(start.timestamp())}"
+        sent=[r for _,r in walk(settings,start,start+timedelta(days=2),step=600,said=[mark])[0]]
+        self.assertEqual(len(sent),1); self.assertEqual(sent[0].until.timestamp(),start.timestamp()+86400); self.assertIsNone(sent[0].said)
+
     def test_polar_days_send_nothing(self):
         tromso={"label":"Tromsø","lat":69.65,"lon":18.96,"tz":"Europe/Oslo"}; start=datetime.datetime(2026,6,21,0,tzinfo=ZoneInfo("Europe/Oslo"))
         self.assertEqual(walk(SHORT,start,start+timedelta(days=1),place=tromso,step=600)[0],[])

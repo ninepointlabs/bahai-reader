@@ -368,11 +368,14 @@ class Counter:
 #   Note 5 adds that, as ‘Abdu’l-Bahá stated, the morning prayer "may be said as early as dawn". The window here opens at sunrise, and the card
 #   quotes the note. No dawn time is computed: the texts do not define one.
 # - Long: "To be recited once in twenty-four hours" (its heading). Q&A 82: "at whatever time one findeth oneself in a state of humbleness and
-#   longing adoration"; "Once in twenty-four hours is sufficient". It has no window. No text says which twenty-four hours, so it has no
-#   "Said today" state or reminder until that is decided (see LONG_PRAYER_TRACKED).
+#   longing adoration"; "Once in twenty-four hours is sufficient". It has no window. No text says which twenty-four hours, and the House of
+#   Justice has made no ruling (letter of 17 December 1990, LONG_GUIDANCE), so the period is the user's setting, not the app's ruling.
 # - In regions where days and nights grow long, ¶10 and Q&A 64 say to gauge times by clocks, without giving hours, so no window is shown there.
 PRAYERS={"short":"Short Obligatory Prayer","medium":"Medium Obligatory Prayer","long":"Long Obligatory Prayer"}
-LONG_PRAYER_TRACKED=False
+LONG_PERIODS=(("sunset","Sunset to sunset"),("noon","Noon to noon"),("midnight","Midnight to midnight"),("rolling","24 hours since last said"))
+LONG_DEFAULT_PERIOD="sunset"  # the Bahá’í day, so the mark resets when the Badí‘ date changes
+LONG_LEAD_DEFAULT,LONG_LEAD_MIN,LONG_LEAD_MAX=2,1,12  # hours before the period resets
+LONG_GUIDANCE="“The beginning of the 24-hour period for the recitation of the Long Obligatory Prayer has not been specifically stated in the Sacred Texts, and the Universal House of Justice has not made any ruling on this point.” (Letter written on its behalf, 17 December 1990)"
 EVENING_HOURS=2
 # Without a location, the clock stands in for the sun. The card says so.
 CLOCK_SUNRISE,CLOCK_NOON,CLOCK_SUNSET=6,12,18
@@ -421,12 +424,76 @@ def current_window(prayer,moment,place=None):
     return None
 
 def is_tracked(prayer):
-    return prayer in ("short","medium") or (prayer=="long" and LONG_PRAYER_TRACKED)
+    return prayer in ("short","medium","long")
+
+def _period_end(date,place):
+    """When the Bahá’í day falling on this date ends, exactly as observed_date counts it: its sunset, or midnight where there is none."""
+    sun=place_sun(place,date)
+    return sun.sunset if sun and sun.sunset else _at_hour(date+datetime.timedelta(1),0,place)
+
+def _noon_of(date,place):
+    sun=place_sun(place,date)
+    return sun.noon if sun else _at_hour(date,CLOCK_NOON,place)
+
+def long_period(settings):
+    chosen=settings.get("long_period")
+    return chosen if chosen in dict(LONG_PERIODS) else LONG_DEFAULT_PERIOD
+
+def _long_mark(said,moment):
+    """The rolling mark still inside its 24 hours, as (its date, its epoch seconds), or None. The date comes from the mark, so that it can be removed again."""
+    found=None
+    for key in said:
+        parts=key.split(":")
+        if len(parts)==4 and parts[1:3]==["long","at"] and parts[3].isdigit():
+            at=int(parts[3])
+            if moment.timestamp()<at+86400 and (found is None or at>found[1]): found=(datetime.date.fromisoformat(parts[0]),at)
+    return found
+
+def long_window(settings,moment,place=None,said=()):
+    """The long prayer's current twenty-four hours under the chosen period. With "rolling", there is a period only once it has been said:
+    until then, its window starts now, and marking it starts the 24 hours."""
+    mode=long_period(settings); today=moment.date(); one=datetime.timedelta(1)
+    if mode=="rolling":
+        mark=_long_mark(said,moment)
+        date,at=mark if mark else (today,int(moment.timestamp()))
+        opens=datetime.datetime.fromtimestamp(at,moment.tzinfo)
+        return Window("long",f"at:{at}",date,opens,datetime.datetime.fromtimestamp(at+86400,moment.tzinfo))
+    if mode=="sunset":
+        date=observed_date(moment,place)
+        return Window("long",mode,date,_period_end(date-one,place),_period_end(date,place))
+    if mode=="noon":
+        date=today if moment.timestamp()>=_noon_of(today,place).timestamp() else today-one
+        return Window("long",mode,date,_noon_of(date,place),_noon_of(date+one,place))
+    return Window("long",mode,today,_at_hour(today,0,place),_at_hour(today+one,0,place))
+
+def long_line(settings,window,marked,clock):
+    """One line about the current period. It never says anything was missed."""
+    mode=long_period(settings)
+    if mode=="rolling":
+        if marked: return f"Said at {clock(window.opens)}. The 24 hours end at {clock(window.closes)}."
+        return "Mark it when you say it. The 24 hours run from then."
+    return f"{dict(LONG_PERIODS)[mode]}: this period ends at {clock(window.closes)}."
+
+def long_lead(settings):
+    hours=settings.get("long_lead_hours")
+    return hours if isinstance(hours,int) and not isinstance(hours,bool) and LONG_LEAD_MIN<=hours<=LONG_LEAD_MAX else LONG_LEAD_DEFAULT
+
+def long_reminders(settings,moment,place,clock,said):
+    """One nudge, a set time before the period resets, only if it isn't marked. With "rolling" there is nothing to reset until it has been said, so
+    the nudge comes before the 24 hours since it was last said end. The prayer is for when one feels moved to it, so there is no alarm at a fixed time."""
+    window=long_window(settings,moment,place,said); rolling=long_period(settings)=="rolling"
+    if rolling and window.key not in said: return []
+    utc=datetime.timezone.utc
+    at=(window.closes.astimezone(utc)-datetime.timedelta(hours=long_lead(settings))).astimezone(window.closes.tzinfo)
+    if at.timestamp()<=window.opens.timestamp(): return []
+    body=f"The 24 hours since you last said it end at {clock(window.closes)}." if rolling else f"Not marked yet. This period ends at {clock(window.closes)}."
+    return [Reminder(f"{window.key}:closing","prayer:long",PRAYERS["long"],body,at,window.closes,None if rolling else window.key,"prayer:long")]
 
 PART_NAMES={"morning":"Morning","noon":"Noon","evening":"Evening"}
 SAID_LABELS={"morning":"Said this morning","noon":"Said at noon","evening":"Said this evening"}
 
 def said_label(window):
+    if window.prayer=="long": return "Said" if window.part.startswith("at:") else "Said today"
     return "Said today" if window.prayer=="short" else SAID_LABELS[window.part]
 
 def window_line(window,moment,clock):
@@ -469,13 +536,14 @@ def prayer_reminders(prayer,date,place,clock):
             found.append(Reminder(f"{window.key}:closing",f"prayer:{prayer}",title,f"Its time closes at {clock(window.closes)}.",nudge,window.closes,window.key,f"prayer:{prayer}"))
     return found
 
-def candidate_reminders(settings,moment,place,clock):
+def candidate_reminders(settings,moment,place,clock,said=()):
     """Every reminder turned on, around this moment."""
     switches=settings.get("reminders",{}); found=[]
     today=moment.date(); days=[today+datetime.timedelta(n) for n in (-1,0,1)]
     prayer=settings.get("prayer")
     if switches.get("prayer") and prayer:
         for day in days: found+=prayer_reminders(prayer,day,place,clock)
+    if switches.get("long") and prayer=="long": found+=long_reminders(settings,moment,place,clock,said)
     for event in upcoming(today-datetime.timedelta(1),3):
         if switches.get(event.kind if event.kind=="holy" else "feast"): found+=event_reminders(event,place)
     if switches.get("fast"): found+=fast_notice_reminders(today,place)
@@ -543,7 +611,7 @@ def due_reminders(settings,moment,place,clock,sent,said):
     """(reminders to send now, ids to mark as sent). Each is sent at most once and only while still in its time; after a long sleep
     a stale one is simply skipped, and of those still due only the latest of each group goes out."""
     now=moment.timestamp(); sent=set(sent); said=set(said); chosen={}; marked=[]
-    for reminder in candidate_reminders(settings,moment,place,clock):
+    for reminder in candidate_reminders(settings,moment,place,clock,said):
         if reminder.id in sent or not reminder.at.timestamp()<=now<reminder.until.timestamp(): continue
         marked.append(reminder.id)
         if reminder.said and reminder.said in said: continue

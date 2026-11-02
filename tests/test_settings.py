@@ -27,6 +27,11 @@ class SettingsTests(unittest.TestCase):
         prefs=reader.clean_settings({"saved":["hidden:1"],"prayer":"often","keep_records":"yes","records":{"said":["2026-11-01:short:noon","junk",3,"2026-11-01:other:noon"],"fasted":["2027-03-02","x"]}})
         self.assertEqual(prefs,{"saved":["hidden:1"],"records":{"said":["2026-11-01:short:noon"],"fasted":["2027-03-02"]}})
         self.assertEqual(reader.clean_settings({"records":"oops"})["records"],{"said":[],"fasted":[]})
+        marks=["2026-11-01:long:sunset","2026-11-01:long:at:1793520000","2026-11-01:long:morning","2026-11-01:short:sunset"]
+        self.assertEqual(reader.clean_settings({"records":{"said":marks}})["records"]["said"],marks[:2])
+        self.assertEqual(reader.clean_settings({"long_period":"noon","long_lead_hours":3}),{"long_period":"noon","long_lead_hours":3})
+        self.assertEqual(reader.clean_settings({"long_period":"often","long_lead_hours":99}),{})
+        self.assertEqual(reader.clean_settings({"long_lead_hours":True}),{})
         self.assertEqual(reader.clean_settings({"prayer":"none","keep_records":False}),{"prayer":"none","keep_records":False})
 
     def test_numbers_are_clamped_to_the_sliders(self):
