@@ -71,6 +71,10 @@ with tempfile.TemporaryDirectory() as temp:
             waits.append(1); return True  # wait for the first frame after layout
         try:
             assert len(app.items)==2616
+            # A settings file with no saved section (a new install) opens on Today, with its calendar in the contents.
+            assert app.section=="today" and app.views.get_visible_child_name()=="today"
+            assert [p for p in app.branches if p.count("/")==1]==["today/Upcoming","today/This year"] and app.visible and app.count.get_text().endswith("dates")
+            assert app.today_cards["date"].get_visible() and app.today_cards["passage"].get_visible()
             # The calendar module and its table were installed beside the app.
             assert str(badi.from_gregorian(reader.datetime.date(2026,11,11)))=="8 Qudrat 183 B.E."
             # The contents list follows the reading palette, not the GTK theme's sidebar color (QA H1).
@@ -144,10 +148,13 @@ with tempfile.TemporaryDirectory() as temp:
             while child: labels.append(child.get_label()); child=child.get_next_sibling()
             assert labels==["Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader (F1)"], labels
             app.shortcuts_dialog(); assert app.shortcuts_window.get_visible(); app.shortcuts_window.close()
-            # Ctrl+T: passage of the day, opened in its own section; Ctrl+R: a different random passage.
+            # Ctrl+T: the Today view, with the passage of the day on a card that opens it in its section. Ctrl+R: a different random passage.
             assert app.key_pressed(None,reader.Gdk.KEY_t,0,reader.Gdk.ModifierType.CONTROL_MASK)
+            assert app.section=="today" and app.views.get_visible_child_name()=="today" and not app.star.get_sensitive() and not app.copy.get_sensitive()
+            app.today_buttons["passage","Read the passage of the day"].emit("clicked")
             today=reader.passage_of_the_day(app.items,reader.datetime.date.today())
-            assert app.current is today and app.section==today["section"] and app.subtitle.get_text().startswith("Passage of the day · ")
+            assert app.current is today and app.section==today["section"] and app.views.get_visible_child_name()=="reading" and app.star.get_sensitive()
+            assert app.subtitle.get_text().startswith("Passage of the day · ")
             assert app.active_group is app.groups[today["id"]] and app.prefs["last"]==today["id"]
             app.search.set_text("zzzz"); app.filter()
             assert app.key_pressed(None,reader.Gdk.KEY_r,0,reader.Gdk.ModifierType.CONTROL_MASK)

@@ -82,7 +82,9 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or the prayer’s author and category. With words selected in the passage, only the selection is copied, still with the citation.
 - Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
 - **Collections** for saved passages, like a personal prayerbook. Saved passages start under *Unsorted*; the **Collection** list under a saved passage moves it, and **Manage collections…** (shown in Saved passages) creates, renames and deletes them. Deleting a collection keeps its passages saved, under Unsorted. Saved passages are listed by collection.
-- **Today** (Ctrl+T) opens the passage of the day: the same passage all day, a different one each day, until every passage has had its day. **Random** (Ctrl+R) opens a random passage. Both pick from the prayers, the Hidden Words, Gleanings and Prayers and Meditations, up to 500 words, in the current language, and work offline.
+- **Today** (the first entry in the sidebar, the header’s Today button, or Ctrl+T; new installs open here, and an existing reading position is kept) gathers the day in one quiet column: the Badí‘ date with the Gregorian date and the month’s name and meaning, the sun’s times for your location, the next Feast and Holy Day with whether work is suspended and links to their readings in Days of Remembrance and to the prayers for Naw-Rúz, Ayyám-i-Há and the Fast, and the passage of the day. With a location set the date changes at local sunset; without one it follows the calendar day. In the sidebar, Today lists the next 12 months of Holy Days and Feasts and this year’s months with their Gregorian dates, and search narrows them.
+- **Badí‘ dates** come from the Universal House of Justice: the table of dates for 172 to 221 B.E. and the message of 10 July 2014. After 221 B.E. (March 2065), and before 172 B.E., the app does not guess: it says “Dates for this year have not been published yet”.
+- **The passage of the day** is the same passage all day, a different one each day, until every passage has had its day. **Random** (Ctrl+R) opens a random passage. Both pick from the prayers, the Hidden Words, Gleanings and Prayers and Meditations, up to 500 words, in the current language, and work offline.
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
@@ -117,7 +119,7 @@ Square, undecorated window lets Hyprland supply themed borders. Interface uses t
 | Ctrl+Shift+C | Copy the passage (or the selected words) with its citation |
 | F1 | About Bahá’í Reader |
 | Ctrl+Q | Quit (also from the About and Languages windows) |
-| Ctrl+T | Passage of the day |
+| Ctrl+T | Today (previously the passage of the day, which is now a card on Today) |
 | Ctrl+R | Random passage |
 | Escape | Show the contents panel again if it is hidden; closes the About window |
 | Tab / Shift+Tab | Move between search, the contents list and the reading pane. The contents list is a single stop; use the arrow keys and Enter inside it |

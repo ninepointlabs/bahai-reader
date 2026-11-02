@@ -23,6 +23,7 @@ jobs:
       - run: xvfb-run -a /usr/bin/python3 tests/navigation_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/robustness_ui.py
+      - run: xvfb-run -a /usr/bin/python3 tests/today_ui.py
       - run: desktop-file-validate packaging/org.bahai.Reader.desktop
       - run: appstreamcli validate --no-net packaging/org.bahai.Reader.metainfo.xml
       - run: xvfb-run -a /usr/bin/python3 tests/dropdown_ui.py
