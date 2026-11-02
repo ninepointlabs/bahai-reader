@@ -121,7 +121,7 @@ def clean_settings(data):
 
 UNSORTED="Unsorted"
 # All reminders are off until turned on in Location & reminders.
-REMINDER_SWITCHES=("prayer",)
+REMINDER_SWITCHES=("prayer","feast","holy","fast","fast_daily")
 SAID_KEY=re.compile(r"\d{4}-\d\d-\d\d:(short|medium|long):(morning|noon|evening)")
 DAY_KEY=re.compile(r"\d{4}-\d\d-\d\d")
 
@@ -1279,7 +1279,7 @@ class Reader(Gtk.Application):
         # One calm column; it narrows with the window.
         self.today_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,halign=Gtk.Align.CENTER,margin_top=32,margin_bottom=32,margin_start=16,margin_end=16)
         scroll.set_child(self.today_box); self.today_cards={}; self.today_rows={}; self.today_buttons={}
-        for key in ("date","sun","prayer","counter","events","passage"):
+        for key in ("date","sun","prayer","counter","events","fast","passage"):
             card=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8,visible=False); card.add_css_class("today-card")
             self.today_box.append(card); self.today_cards[key]=card
         self.today_box.append(Gtk.Label(label="x"*200,max_width_chars=68,ellipsize=Pango.EllipsizeMode.END,opacity=0,accessible_role=Gtk.AccessibleRole.PRESENTATION))
@@ -1346,7 +1346,11 @@ class Reader(Gtk.Application):
             opener=self.prayer_opener(AYYAM_PRAYERS,f"Prayers for {badi.AYYAM_I_HA}")
             if opener: rows.append(("button",f"Prayers for {badi.AYYAM_I_HA}",opener))
         if not feast and not holy: rows.append(("text",badi.UNPUBLISHED))
+        else: rows.append(("button","Reminders…",self.location_dialog))
         cards["events"]=rows
+        # The Fast
+        rows=self.fast_card(day,moment)
+        if rows: cards["fast"]=rows
         # Passage of the day
         passage=passage_of_the_day(self.items,moment.date())
         if passage:
@@ -1356,6 +1360,46 @@ class Reader(Gtk.Application):
             rows.append(("button","Read the passage of the day",lambda *_:self.daily_passage()))
             cards["passage"]=rows
         return cards
+    def fast_card(self,observed,moment):
+        """During the month of ‘Alá’ its day, the fasting hours and a private check; near it, when it begins; otherwise nothing."""
+        state=badi.fast_state(observed); place=self.place()
+        if not state: return None
+        rows=[("title","The Fast")]
+        if state.day is None:
+            rows.append(("text",f"The Fast begins at sunrise on {badi.gregorian_text(state.date)}."))
+        else:
+            rows.append(("text",f"Day {state.day} of {badi.MONTH_DAYS}"))
+            sun=badi.place_sun(place,state.date)
+            if sun and sun.sunrise and sun.sunset:
+                rows.append(("text",f"Fasting hours: sunrise at {clock(sun.sunrise)} to sunset at {clock(sun.sunset)}"))
+            elif sun:
+                rows.append(("text","The sun does not rise or set here today. In such regions the Kitáb-i-Aqdas says to gauge the times by clocks."))
+                opener=self.aqdas_opener("Notes",17)
+                if opener: rows.append(("button","Read the guidance (Note 17)",opener))
+            else:
+                rows.append(("text","The fasting hours run from sunrise to sunset."))
+                rows.append(("button","Add location…",self.location_dialog))
+            key=state.date.isoformat()
+            rows.append(("toggle","Fasted today",key in self.fasted_marks(),lambda active,k=key:self.mark_fasted(k,active)))
+        opener=self.prayer_opener(FAST_PRAYERS,"Prayers for the Fast")
+        if opener: rows.append(("button","Prayers for the Fast",opener))
+        opener=self.aqdas_opener("Text",16)
+        if opener: rows.append(("button","Read about the Fast (¶16)",opener))
+        rows.append(("button","Reminders…",self.location_dialog))
+        return rows
+    def aqdas_opener(self,part,number):
+        """Opens a Kitáb-i-Aqdas passage among its own, by its printed number."""
+        item=next((i for i in self.items if BOOKS["aqdas"] in i["tags"] and i["subgroup"]==part and i["title"].startswith(f"{number} · ")),None)
+        if not item: return None
+        return lambda *_:self.open_in_section(item,[i for i in self.items if i["tags"]==item["tags"] and i["subgroup"]==part],f"Kitáb-i-Aqdas, {part}")
+    def fasted_marks(self):
+        return self.prefs.get("records",{}).get("fasted",[])
+    def mark_fasted(self,key,active):
+        records=self.prefs.setdefault("records",{"said":[],"fasted":[]})
+        if active and key not in records["fasted"]: records["fasted"].append(key)
+        elif not active and key in records["fasted"]: records["fasted"].remove(key)
+        records["fasted"]=badi.prune_said(records["fasted"],self.now().date(),self.prefs.get("keep_records",True))
+        self.save(); self.refresh_today()
     def prayer_card(self,moment):
         """The chosen prayer's times and "Said" state; a quiet prompt when none is chosen; nothing with "Don't track"."""
         chosen=self.prefs.get("prayer"); place=self.place()
@@ -1384,6 +1428,7 @@ class Reader(Gtk.Application):
             if windows: rows.append(("button","Read the guidance (Question and Answer 83)",self.guidance_opener("Questions and Answers",83)))
         prayer=self.prayer_item(chosen)
         if prayer: rows.append(("button",f"Open the {name}",lambda *_:self.open_obligatory(prayer)))
+        if badi.is_tracked(chosen): rows.append(("button","Reminders…",self.location_dialog))
         return rows
     def prayer_item(self,chosen):
         return next((i for i in self.items if i["section"]=="prayers" and badi.PRAYERS[chosen] in i["tags"]),None)
@@ -1782,7 +1827,8 @@ textview text selection {{ background: {selection}; }}
         def record_changed(check):
             self.prefs["keep_records"]=check.get_active()
             records=self.prefs.get("records")
-            if records and not check.get_active(): records["said"]=badi.prune_said(records["said"],self.now().date(),False)
+            if records and not check.get_active():
+                for kind in ("said","fasted"): records[kind]=badi.prune_said(records[kind],self.now().date(),False)
             self.save()
         record.connect("toggled",record_changed)
         box.append(Gtk.Label(label="These records are never sent anywhere. There are no scores or streaks.",wrap=True,xalign=0,max_width_chars=56))
@@ -1795,6 +1841,9 @@ textview text selection {{ background: {selection}; }}
             confirm.set_visible(showing); cancel.set_visible(showing); forget.set_visible(not showing)
             if showing: cancel.grab_focus()
         heading=Gtk.Label(label="Feasts, Holy Days and the Fast",xalign=0,margin_top=10); heading.add_css_class("heading"); box.append(heading); self.events_heading=heading
+        for key,label in (("feast","Nineteen Day Feasts, on the afternoon of the day each begins"),("holy","Holy Days, the day before and on the day"),("fast","The Fast, 5, 3 and 1 days before it begins"),("fast_daily","During the Fast, before sunrise and at sunset each day")):
+            check=Gtk.CheckButton(child=Gtk.Label(label=label,wrap=True,xalign=0,max_width_chars=52),active=self.prefs.get("reminders",{}).get(key,False)); self.reminder_checks[key]=check
+            check.connect("toggled",switch,key); box.append(check)
         running=Gtk.CheckButton(child=Gtk.Label(label="Keep reminders running when the window is closed",wrap=True,xalign=0,max_width_chars=52),active=bool(self.prefs.get("keep_running"))); self.keep_running_check=running; box.append(running)
         explain=Gtk.Label(label="A quiet background process starts when you log in and has no tray icon. Turn this off to stop it.",wrap=True,xalign=0,max_width_chars=56); explain.add_css_class("dim-label"); box.append(explain)
         running_status=Gtk.Label(wrap=True,xalign=0,max_width_chars=56,visible=False); self.keep_running_status=running_status; box.append(running_status)

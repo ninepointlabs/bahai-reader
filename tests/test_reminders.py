@@ -97,6 +97,61 @@ class ScheduleTests(unittest.TestCase):
     def test_the_sent_list_stays_short(self):
         self.assertEqual(badi.prune_sent(["2026-10-01:a","2026-10-30:b","2026-11-02:c"],self.day),["2026-10-30:b","2026-11-02:c"])
 
+class EventReminderTests(unittest.TestCase):
+    """Feasts, Holy Days and the Fast at the times in the brief, each off until turned on."""
+    def day(self,*date,hour=0): return datetime.datetime(*date,hour,tzinfo=ZONE)
+    def test_off_by_default(self):
+        start=self.day(2026,11,1)
+        self.assertEqual(walk({"reminders":{}},start,start+timedelta(days=12),step=900)[0],[])
+    def test_a_feast_on_the_afternoon_of_the_day_it_begins(self):
+        # Feast of Qudrat: 4 November 2026, begins at sunset on 3 November.
+        log,_=walk({"reminders":{"feast":True}},self.day(2026,11,1),self.day(2026,11,5),step=300)
+        self.assertEqual([r.title for _,r in log],["Feast of Qudrat (Power)"])
+        moment,reminder=log[0]; self.assertEqual((moment.date(),moment.hour),(datetime.date(2026,11,3),15)); self.assertEqual(reminder.body,"Begins at sunset today.")
+        self.assertIsNone(reminder.said); self.assertEqual(reminder.opens,"today")
+    def test_a_holy_day_the_day_before_and_on_the_day(self):
+        log,_=walk({"reminders":{"holy":True}},self.day(2026,11,8),self.day(2026,11,11),step=300)
+        self.assertEqual([(m.date().isoformat(),m.hour,r.body) for m,r in log if r.title=="Birth of the Báb"],[("2026-11-09",15,"Begins at sunset today. Work is suspended."),("2026-11-10",9,"Today. Work is suspended.")])
+    def test_a_holy_day_without_work_suspended_says_nothing_of_it(self):
+        log,_=walk({"reminders":{"holy":True}},self.day(2026,11,24),self.day(2026,11,27),step=300)
+        self.assertEqual([r.body for _,r in log if r.title=="Day of the Covenant"],["Begins at sunset today.","Today."])
+    def test_the_fast_5_3_and_1_days_before(self):
+        log,_=walk({"reminders":{"fast":True}},self.day(2027,2,20),self.day(2027,3,3),step=900)
+        self.assertEqual([(m.date().isoformat(),r.body) for m,r in log],[("2027-02-25","The Fast begins at sunrise on 2 March."),("2027-02-27","The Fast begins at sunrise on 2 March."),("2027-03-01","The Fast begins at sunrise tomorrow.")])
+    def test_the_fast_each_day_only_if_asked(self):
+        self.assertEqual(walk({"reminders":{"fast":True}},self.day(2027,3,8),self.day(2027,3,9),step=300)[0],[])
+        log,_=walk({"reminders":{"fast_daily":True}},self.day(2027,3,8),self.day(2027,3,9),step=60)
+        self.assertEqual([r.id for _,r in log],["2027-03-08:fast:sunrise","2027-03-08:fast:sunset"])
+        sun=badi.place_sun(HAIFA,datetime.date(2027,3,8))
+        self.assertLess(abs((log[0][0]-(sun.sunrise-timedelta(minutes=30))).total_seconds()),61); self.assertLess(abs((log[1][0]-sun.sunset).total_seconds()),61)
+        self.assertTrue(log[0][1].body.startswith("Day 7 of 19. Sunrise is at"))
+        self.assertEqual(walk({"reminders":{"fast_daily":True}},self.day(2027,3,21),self.day(2027,3,22),step=300)[0],[])
+    def test_after_a_long_sleep_stale_ones_are_skipped(self):
+        # Waking on the evening of the Feast's first day: its afternoon reminder has gone stale at sunset.
+        moment=self.day(2026,11,3,20)
+        self.assertEqual(badi.due_reminders({"reminders":{"feast":True}},moment,HAIFA,fmt,[],[])[0],[])
+        # Holy Day: both due at once is never a burst; only the latest goes out.
+        moment=self.day(2026,11,10,15); due,_=badi.due_reminders({"reminders":{"holy":True}},moment,HAIFA,fmt,[],[])
+        self.assertEqual([r.body for r in due if r.title=="Birth of the Báb"],["Today. Work is suspended."])
+    def test_where_the_sun_sets_early_the_afternoon_comes_earlier(self):
+        tromso={"label":"T","lat":69.65,"lon":18.96,"tz":"Europe/Oslo"}
+        # Late November, near the polar night, the sun has set by mid afternoon.
+        feast=next(e for e in badi.feasts(183) if e.name=="Feast of Qawl")
+        reminder=badi.event_reminders(feast,tromso)[0]; self.assertLess(reminder.at.timestamp(),reminder.until.timestamp())
+    def test_unpublished_years_send_nothing(self):
+        start=self.day(2065,3,20)
+        settings={"reminders":{"feast":True,"holy":True,"fast":True,"fast_daily":True}}
+        self.assertEqual(walk(settings,start,start+timedelta(days=30),step=3600)[0],[])
+
+class FastStateTests(unittest.TestCase):
+    def test_states(self):
+        self.assertEqual(badi.fast_state(datetime.date(2027,3,8)),(7,datetime.date(2027,3,8)))
+        self.assertEqual(badi.fast_state(datetime.date(2027,2,10)),(None,datetime.date(2027,3,2)))
+        self.assertIsNone(badi.fast_state(datetime.date(2026,11,1))); self.assertIsNone(badi.fast_state(datetime.date(2027,3,21)))
+        self.assertIsNone(badi.fast_state(datetime.date(2070,1,1)))
+        self.assertEqual(badi.fast_state(datetime.date(2027,1,31)),(None,datetime.date(2027,3,2)))  # 30 days ahead
+        self.assertIsNone(badi.fast_state(datetime.date(2027,1,30)))
+
 class AutostartTests(unittest.TestCase):
     def setUp(self):
         temp=tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
