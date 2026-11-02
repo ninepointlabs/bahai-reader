@@ -86,6 +86,8 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - Installed font selection, text size, line spacing, page margins.
 - Omarchy theme tracking every second; light, dark, and sepia overrides.
 - Manual background library refresh, with offline fallback on failure.
+- **Location & reminders** (⋮ menu): type a city (found offline, in a bundled GeoNames list, without regard to accents) or enter latitude, longitude and time zone. The window shows the place, its time zone and today’s sunrise, solar noon and sunset, worked out on this computer with the public-domain NOAA calculation; where the sun does not set or rise that day it says so. The location is never detected and never sent anywhere; only the place’s name, its coordinates rounded to 2 decimals and its time zone are saved, and **Clear location** forgets them.
+- The header’s **Aa** holds how the text reads (appearance, font, size, spacing, margins, Side by side). The **⋮** menu holds the rest: Location & reminders, Languages & offline libraries, Keyboard shortcuts and About.
 - **Side by side**: Aa → Side by side shows the passage beside the same passage in English or any downloaded language. Passages are paired by their numbering (Hidden Word, Gleanings and Prayers and Meditations number, Tablet and paragraph, Íqán part and paragraph, Aqdas paragraph, note or question, SAQ chapter), as BahaiPrayers.net's Matrix comparison feeds pair them, so it works offline and makes no network request. Prayers, Days of Remembrance and Riḍván messages have no shared numbering across languages and are not paired. A translation that numbers its paragraphs differently is paired the same way the provider pairs it.
 
 Current Omarchy theme location: `$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (defaults to `~/.local/state`). Legacy `~/.config/omarchy/current/theme/colors.toml` is also supported. App settings live in `$XDG_CONFIG_HOME/bahai-reader`; downloaded language libraries in `$XDG_DATA_HOME/bahai-reader/libraries` (default `~/.local/share/bahai-reader/libraries`). No desktop configuration is modified.
@@ -125,11 +127,11 @@ The collapsible table of contents follows API prayer categories, Arabic/Persian 
 
 ## About
 
-Open **Aa → About Bahá’í Reader** or press F1. It shows the version, Nine Point Labs, the creation date, the MIT license (readable in full, with the text attribution from DATA-NOTICE.md), the support address [help@ninepointlabs.com](mailto:help@ninepointlabs.com) with Email and Copy buttons (Email prefills the app, GTK, PyGObject and Python versions), the privacy statement, and the toolkit versions.
+Open **⋮ → About Bahá’í Reader** or press F1. It shows the version, Nine Point Labs, the creation date, the MIT license (readable in full, with the text attribution from DATA-NOTICE.md), the support address [help@ninepointlabs.com](mailto:help@ninepointlabs.com) with Email and Copy buttons (Email prefills the app, GTK, PyGObject and Python versions), the privacy statement, and the toolkit versions.
 
 ## Offline languages
 
-Open **Aa → Languages & offline libraries…**. English is the first-run default and includes all ten supported collections locally. No network request is made at startup or when switching to an already downloaded language.
+Open **⋮ → Languages & offline libraries…**. English is the first-run default and includes all ten supported collections locally. No network request is made at startup or when switching to an already downloaded language.
 
 The bundled API catalog lists 112 prayer languages. Select a language to see its available collections, then choose **Download & use**. The app downloads all supported collections offered in that language and remembers your selection. Unavailable translations are not replaced with English. Use **Check available languages** to update the catalog or **Update downloaded content** to refresh a language explicitly.
 

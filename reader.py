@@ -20,6 +20,7 @@ from html.parser import HTMLParser
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk, GLib, GObject, Pango
+import badi
 
 APP_NAME = "Bahá’í Reader"
 TAGLINE = "A quiet, native Linux reader for Bahá’í prayers and writings."
@@ -94,6 +95,10 @@ def clean_settings(data):
     saved=prefs.get("saved")
     if saved is not None: prefs["saved"]=[i for i in saved if isinstance(i,str)] if isinstance(saved,list) else []
     if "collections" in prefs: prefs["collections"]=clean_collections(prefs["collections"],prefs.setdefault("saved",[]))
+    if "location" in prefs:
+        place=badi.clean_place(prefs["location"])
+        if place: prefs["location"]=place
+        else: del prefs["location"]
     expanded=prefs.get("expanded")
     if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
     return prefs
@@ -398,6 +403,54 @@ def passage_of_the_day(items,day):
     order=list(range(len(pool))); random.Random(1844).shuffle(order)
     return pool[order[day.toordinal()%len(pool)]]
 
+def load_cities(path=None):
+    """The bundled city list, largest first, as (name, ASCII name, label, latitude, longitude, zone); loaded when first searched."""
+    if path is None and CITIES: return CITIES
+    data=json.loads((path or ROOT/"data"/"cities.json").read_text())
+    rows=[]
+    for line in data["cities"].split(";"):
+        name,ascii_name,country,region,lat,lon,zone=line.split("|")
+        region=data["regions"][int(region)]
+        label=", ".join(dict.fromkeys(part for part in (name,region,data["countries"].get(country,country)) if part))
+        rows.append((name,ascii_name or name,label,float(lat),float(lon),data["zones"][int(zone)]))
+    if path is None: CITIES.extend(rows)
+    return rows
+CITIES=[]
+
+def search_cities(query,limit=8,cities=None):
+    """Places matching what was typed, without regard to accents: exact names, then names starting with it, then any word
+    starting with it, then anything containing it; largest first within each. "Paris, Texas" narrows by region or country."""
+    city,_,rest=query.partition(",")
+    city=fold(city.strip()); rest=fold(rest.strip())
+    if not city: return []
+    found=[[],[],[],[]]
+    for row in load_cities() if cities is None else cities:
+        names=(fold(row[0]),fold(row[1]))
+        if not any(city in n for n in names): continue
+        if rest and rest not in fold(row[2]): continue
+        if city in names: rank=0
+        elif any(n.startswith(city) for n in names): rank=1
+        elif any(w.startswith(city) for n in names for w in n.split()): rank=2
+        else: rank=3
+        found[rank].append(row)
+    return [row for rank in found for row in rank][:limit]
+
+def clock_style(locale_time,marker):
+    """12 when the locale's own time format uses AM/PM, otherwise 24."""
+    return 12 if marker and marker in locale_time else 24
+
+def clock(moment):
+    """A time at its place, formatted for the user's locale with GLib, as the date-and-time wall clock shows it there."""
+    wall=GLib.DateTime.new_utc(moment.year,moment.month,moment.day,moment.hour,moment.minute,moment.second)
+    if clock_style(wall.format("%X") or "",wall.format("%p") or "")==12: return " ".join(wall.format("%l:%M %p").split())
+    return wall.format("%H:%M")
+
+# Header menu → Keyboard shortcuts, and the README table.
+SHORTCUTS=(("Ctrl+F","Show the contents panel and search this section"),("Alt+Right or Ctrl+Page Down","Next passage"),("Alt+Left or Ctrl+Page Up","Previous passage"),
+           ("Ctrl+D","Save or unsave the current passage"),("Ctrl+Shift+C","Copy the passage (or the selected words) with its citation"),("Ctrl+T","Passage of the day"),("Ctrl+R","Random passage"),
+           ("F1","About Bahá’í Reader"),("Ctrl+Q","Quit"),("Escape","Show the contents panel again if it is hidden; closes the small windows"),
+           ("Tab / Shift+Tab","Move between search, the contents list and the reading pane"),("Page Up / Page Down","Scroll the passage"))
+
 class Choice(Gtk.DropDown):
     """Gtk.DropDown (ComboBoxText is deprecated since GTK 4.10) with string ids and a "changed" signal."""
     __gsignals__={"changed":(GObject.SignalFlags.RUN_FIRST,None,())}
@@ -428,7 +481,7 @@ class Reader(Gtk.Application):
         self.languages=catalog(); self.language=self.prefs.get("language",1); self.downloading=False
         if self.language!=1 and local_pack(self.language) is None:
             name=self.language_info().get("English",self.language_info()["Name"])
-            if (LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in Aa → Languages & offline libraries.")
+            if (LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in ⋮ → Languages & offline libraries.")
             else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
             self.language=1
         self.items=load_library(self.language); self.section="prayers"; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
@@ -453,6 +506,12 @@ class Reader(Gtk.Application):
         self.notice_box.append(row); self.notice_box.set_visible(True)
     def button(self, text, callback):
         b=Gtk.Button(label=text); b.connect("clicked", callback); return b
+    def name_widget(self,widget,text):
+        """The name a screen reader announces. PyGObject before 3.44 (Debian 12) may not pass it; the visible text still applies."""
+        try: widget.update_property([Gtk.AccessibleProperty.LABEL],[text])
+        except (TypeError,AttributeError): pass
+    def place(self):
+        return self.prefs.get("location")
     def activate(self, app):
         if self.window: self.window.present(); return
         try: self.build()
@@ -467,6 +526,13 @@ class Reader(Gtk.Application):
         header.pack_start(self.button("☰", lambda *_: self.sidebar.set_visible(not self.sidebar.get_visible())))
         today=self.button("Today",lambda *_: self.daily_passage()); today.set_tooltip_text("Passage of the day (Ctrl+T)"); header.pack_start(today)
         chance=self.button("Random",lambda *_: self.random_passage()); chance.set_tooltip_text("A random passage (Ctrl+R)"); header.pack_start(chance)
+        # The menu holds what concerns the whole app; Aa holds only how the text reads.
+        more=Gtk.MenuButton(label="⋮"); more.set_tooltip_text("Menu"); more.add_css_class("app-menu"); self.name_widget(more,"Menu"); self.app_menu=more; header.pack_end(more)
+        entries=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
+        for edge in ("top","bottom","start","end"): getattr(entries,"set_margin_"+edge)(12)
+        more_pop=Gtk.Popover(); more_pop.set_child(entries); more.set_popover(more_pop)
+        for label,action in (("Location & reminders…",self.location_dialog),("Languages & offline libraries…",self.language_dialog),("Keyboard shortcuts",self.shortcuts_dialog),("About Bahá’í Reader (F1)",self.about_dialog)):
+            entry=self.button(label,lambda _,a=action:(more_pop.popdown(),a())); entry.get_child().set_xalign(0); entries.append(entry)
         self.star=self.button("☆ Save", self.bookmark); header.pack_end(self.star)
         self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
         menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
@@ -482,8 +548,6 @@ class Reader(Gtk.Application):
         settings.append(Gtk.Label(label="Side by side",xalign=0)); self.compare=Choice(); settings.append(self.compare)
         self.compare.connect("changed",self.compare_changed); self.compare_cache=(None,{}); self.filling_compare=False
         pop.connect("show",lambda *_: self.fill_compare())
-        settings.append(self.button("Languages & offline libraries…", self.language_dialog))
-        settings.append(self.button("About Bahá’í Reader (F1)", lambda *_: (pop.popdown(), self.about_dialog())))
         self.window.set_child(outer)
         if shutil.which("omarchy"): outer.append(header); self.window.set_decorated(False)
         else: self.window.set_titlebar(header)
@@ -1009,7 +1073,7 @@ textview text selection {{ background: {selection}; }}
             if item["citation"]: buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],cite)
         else:
             self.second.set_direction(Gtk.TextDirection.LTR)
-            if not other: text=f"The {name} library is not downloaded or could not be read. Download it in Aa → Languages & offline libraries."
+            if not other: text=f"The {name} library is not downloaded or could not be read. Download it in ⋮ → Languages & offline libraries."
             elif not match: text="Prayers, Days of Remembrance and Riḍván messages are not numbered the same way in every language, so they cannot be shown side by side."
             else: text=f"This passage is not in the downloaded {name} library."
             buffer.insert_with_tags(buffer.get_end_iter(),text,note)
@@ -1043,7 +1107,8 @@ textview text selection {{ background: {selection}; }}
                 "Update downloaded content or Check available languages: it then asks bahaiprayers.net over HTTPS for that "
                 "language’s texts or the language list. The request carries only the collection, the language number and "
                 f"Python’s standard user agent; like any web request, the site sees your IP address. Downloads are saved in {short(LIBRARY)}. Settings and saved "
-                f"passages stay in {short(STATE)} and are never sent anywhere.")
+                f"passages stay in {short(STATE)} and are never sent anywhere. A location you enter is typed in, never detected, is only used on this computer "
+                "to work out the sun’s times, and is never sent anywhere.")
     def about_dialog(self,*_):
         if getattr(self,"about_window",None):
             self.about_window.present(); return
@@ -1087,6 +1152,8 @@ textview text selection {{ background: {selection}; }}
         row("Created",text(CREATED))
         row("License",actions(f"{LICENSE_NAME}, {COPYRIGHT}",("Read it",toggle_license)))
         row("Texts",text("From BahaiPrayers.net, which permits their use in apps. The texts and translations are not covered by the MIT license, and no ownership is claimed (DATA-NOTICE.md). Not an official publication of a Bahá’í institution."))
+        row("Places",text("City data © GeoNames (geonames.org), trimmed, under the Creative Commons Attribution 4.0 license (creativecommons.org/licenses/by/4.0)."))
+        row("Calendar",text("Badí‘ dates from the Bahá’í World Centre and the Universal House of Justice. Sun times use the public-domain NOAA solar calculation."))
         row("Support",actions(SUPPORT_EMAIL,("Email",email),("Copy",lambda *_: window.get_clipboard().set(SUPPORT_EMAIL))))
         row("Privacy",text(self.privacy()))
         row("Built with",text(f"GTK {Gtk.get_major_version()}.{Gtk.get_minor_version()}.{Gtk.get_micro_version()}, PyGObject {gi.__version__}, Pango {Pango.version_string()}, Python {sys.version.split()[0]}"))
@@ -1101,6 +1168,96 @@ textview text selection {{ background: {selection}; }}
         def closed(*_):
             self.about_window=None; return False
         window.connect("close-request",closed); window.present(); close.grab_focus()
+    def small_window(self,attribute,title,width=520,height=-1):
+        """A small window like Languages & offline libraries: Esc closes it, Ctrl+Q still quits, and it scrolls on a small screen."""
+        window=Gtk.Window(title=title,transient_for=self.window,modal=True,default_width=width,default_height=height)
+        setattr(self,attribute,window)
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",lambda _c,key,*_: key==Gdk.KEY_Escape and (window.close() or True)); window.add_controller(keys)
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12)
+        for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
+        scroller=Gtk.ScrolledWindow(propagate_natural_height=True,max_content_height=640,hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroller.set_child(box); window.set_child(scroller)
+        def closed(*_):
+            setattr(self,attribute,None); return False
+        window.connect("close-request",closed)
+        return window,box
+    def shortcuts_dialog(self,*_):
+        if getattr(self,"shortcuts_window",None):
+            self.shortcuts_window.present(); return
+        window,box=self.small_window("shortcuts_window","Keyboard shortcuts",width=560)
+        grid=Gtk.Grid(column_spacing=18,row_spacing=8); box.append(grid)
+        for index,(keys,action) in enumerate(SHORTCUTS):
+            label=Gtk.Label(label=keys,xalign=0,valign=Gtk.Align.START); label.add_css_class("dim-label"); grid.attach(label,0,index,1,1)
+            grid.attach(Gtk.Label(label=action,xalign=0,wrap=True,max_width_chars=44,hexpand=True),1,index,1,1)
+        close=self.button("Close",lambda *_: window.close()); close.set_halign(Gtk.Align.END); box.append(close)
+        window.present(); close.grab_focus()
+    def set_place(self,place):
+        """Saves a location, or forgets it with None; only the label, rounded coordinates and time zone are stored."""
+        place=badi.clean_place(place) if place else None
+        if place: self.prefs["location"]=place
+        else: self.prefs.pop("location",None)
+        self.save()
+        return place
+    def place_summary(self):
+        """The saved place, its time zone and today's sun times, as a check."""
+        place=self.place()
+        if not place: return "No location set."
+        now=datetime.datetime.now(badi.ZoneInfo(place["tz"]))
+        sun=badi.place_sun(place,now.date())
+        return f"{place['label']}\nTime zone: {place['tz']}\n{badi.sun_summary(sun,clock) if sun else 'Sun times are not available.'}"
+    def location_dialog(self,*_):
+        if getattr(self,"location_window",None):
+            self.location_window.present(); return
+        window,box=self.small_window("location_window","Location & reminders",height=640)
+        title=Gtk.Label(label="Location",xalign=0); title.add_css_class("heading"); box.append(title)
+        box.append(Gtk.Label(label="Used to work out sunrise, noon and sunset. It stays on this computer and is never sent anywhere.",wrap=True,xalign=0,max_width_chars=56))
+        summary=Gtk.Label(wrap=True,xalign=0,max_width_chars=56,selectable=False); box.append(summary); self.location_summary=summary
+        clear=self.button("Clear location",lambda *_: use(None)); clear.set_halign(Gtk.Align.START)
+        search=Gtk.SearchEntry(placeholder_text="Type a city…"); self.name_widget(search,"Type a city"); box.append(search); self.location_search=search
+        results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4); box.append(results); self.location_results=results
+        message=Gtk.Label(wrap=True,xalign=0,max_width_chars=56,visible=False); message.add_css_class("dim-label"); box.append(message)
+        by_hand=Gtk.Expander(label="Or enter latitude, longitude and time zone"); box.append(by_hand)
+        form=Gtk.Grid(column_spacing=10,row_spacing=8,margin_top=8); by_hand.set_child(form)
+        latitude=Gtk.Entry(placeholder_text="32.82",hexpand=True); longitude=Gtk.Entry(placeholder_text="34.99",hexpand=True)
+        self.name_widget(latitude,"Latitude"); self.name_widget(longitude,"Longitude")
+        zones=Choice(search=True); self.name_widget(zones,"Time zone")
+        for zone in sorted(badi.available_timezones()): zones.append_text(zone)
+        current=self.place()["tz"] if self.place() else os.environ.get("TZ","")
+        zones.set_active_id(current)
+        form.attach(Gtk.Label(label="Latitude (north is positive)",xalign=0),0,0,1,1); form.attach(latitude,1,0,1,1)
+        form.attach(Gtk.Label(label="Longitude (east is positive)",xalign=0),0,1,1,1); form.attach(longitude,1,1,1,1)
+        form.attach(Gtk.Label(label="Time zone",xalign=0),0,2,1,1); form.attach(zones,1,2,1,1)
+        def refresh():
+            summary.set_text(self.place_summary()); clear.set_sensitive(bool(self.place()))
+        def use(place):
+            self.set_place(place); refresh(); message.set_visible(False)
+            search.set_text(""); fill()
+        def fill(*_):
+            while child:=results.get_first_child(): results.remove(child)
+            query=search.get_text().strip()
+            if not query: return
+            rows=search_cities(query)
+            if not rows: results.append(Gtk.Label(label=f"No city matches “{query}”. You can enter its coordinates below.",wrap=True,xalign=0,max_width_chars=56))
+            for row in rows:
+                place=dict(label=row[2],lat=row[3],lon=row[4],tz=row[5])
+                entry=self.button(f"{row[2]} · {row[5]}",lambda _,p=place: use(p)); entry.get_child().set_xalign(0); entry.get_child().set_wrap(True); results.append(entry)
+        search.connect("search-changed",fill)
+        def apply_coordinates(*_):
+            try: lat,lon=float(latitude.get_text().strip()),float(longitude.get_text().strip())
+            except ValueError: lat=lon=None
+            if lat is None or not (-90<=lat<=90 and -180<=lon<=180):
+                message.set_text("Enter a latitude from -90 to 90 and a longitude from -180 to 180."); message.set_visible(True); return
+            if not zones.get_active_id():
+                message.set_text("Choose a time zone."); message.set_visible(True); return
+            use(dict(label=f"{round(lat,2)}, {round(lon,2)}",lat=lat,lon=lon,tz=zones.get_active_id()))
+            latitude.set_text(""); longitude.set_text("")
+        self.location_apply=apply_coordinates; self.location_latitude=latitude; self.location_longitude=longitude; self.location_zones=zones; self.location_message=message
+        latitude.connect("activate",apply_coordinates); longitude.connect("activate",apply_coordinates)
+        form.attach(self.button("Use these coordinates",apply_coordinates),0,3,2,1)
+        box.append(clear)
+        close=self.button("Close",lambda *_: window.close()); close.set_halign(Gtk.Align.END); box.append(close)
+        refresh(); window.present(); search.grab_focus()
     def language_dialog(self,*_):
         if hasattr(self,"language_window") and self.language_window:
             self.language_window.present(); return

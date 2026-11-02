@@ -124,6 +124,26 @@ with tempfile.TemporaryDirectory() as temp:
             app.language_dialog()
             assert app.language_window.get_visible()
             app.language_window.close()
+            # Location & reminders: type a city; only the label, rounded coordinates and time zone are saved.
+            app.location_dialog(); assert app.location_window.get_visible() and "No location set" in app.location_summary.get_text()
+            app.location_search.set_text("Haifa"); app.location_search.emit("search-changed")
+            chosen=app.location_results.get_first_child(); assert "Haifa" in chosen.get_child().get_text() and "Asia/Jerusalem" in chosen.get_child().get_text()
+            chosen.emit("clicked")
+            stored=reader.json.loads(reader.STATE.read_text())["location"]
+            assert set(stored)=={"label","lat","lon","tz"} and stored["tz"]=="Asia/Jerusalem" and stored["label"].startswith("Haifa") and stored["lat"]==round(stored["lat"],2)
+            summary=app.location_summary.get_text(); assert "Asia/Jerusalem" in summary and "unrise" in summary and "noon" in summary and "sunset" in summary
+            # Or by hand; a bad number is refused and keeps the saved place.
+            app.location_latitude.set_text("95"); app.location_longitude.set_text("10"); app.location_apply()
+            assert app.location_message.get_visible() and app.place()["label"].startswith("Haifa")
+            app.location_latitude.set_text("69.6492"); app.location_longitude.set_text("18.9553"); app.location_zones.set_active_id("Europe/Oslo"); app.location_apply()
+            assert app.place()=={"label":"69.65, 18.96","lat":69.65,"lon":18.96,"tz":"Europe/Oslo"}, app.place()
+            app.set_place(None); assert "location" not in reader.json.loads(reader.STATE.read_text())
+            app.location_window.close(); assert app.location_window is None
+            # The menu holds the app-level entries; Aa keeps only reading settings.
+            entries=app.app_menu.get_popover().get_child(); labels=[]; child=entries.get_first_child()
+            while child: labels.append(child.get_label()); child=child.get_next_sibling()
+            assert labels==["Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader (F1)"], labels
+            app.shortcuts_dialog(); assert app.shortcuts_window.get_visible(); app.shortcuts_window.close()
             # Ctrl+T: passage of the day, opened in its own section; Ctrl+R: a different random passage.
             assert app.key_pressed(None,reader.Gdk.KEY_t,0,reader.Gdk.ModifierType.CONTROL_MASK)
             today=reader.passage_of_the_day(app.items,reader.datetime.date.today())
@@ -137,7 +157,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.key_pressed(None,reader.Gdk.KEY_F1,0,0)
             about=app.about_window
             assert about.get_visible() and about.get_transient_for() is app.window
-            assert list(app.about_rows)==["Made by","Created","License","Texts","Support","Privacy","Built with"]
+            assert list(app.about_rows)==["Made by","Created","License","Texts","Places","Calendar","Support","Privacy","Built with"]
             assert "bahaiprayers.net" in app.privacy() and "No accounts, no telemetry" in app.privacy()
             assert not app.about_license.get_visible()
             app.about_rows["License"].get_last_child().emit("clicked")

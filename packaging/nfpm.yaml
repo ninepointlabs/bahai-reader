@@ -44,6 +44,8 @@ overrides:
       - python3 (>= 3.11)
       - python3-gi
       - gir1.2-gtk-4.0 (>= 4.8)
+      # Time zone data for sun times at a saved location.
+      - tzdata
     recommends:
       - fonts-dejavu-core
       - fonts-noto-core
@@ -54,6 +56,8 @@ overrides:
       # Fedora 43's python3-gobject no longer pulls in the cairo typelib.
       - gobject-introspection
       - gtk4 >= 4.8
+      # Time zone data for sun times at a saved location.
+      - tzdata
     recommends:
       - dejavu-serif-fonts
   archlinux:
@@ -61,5 +65,7 @@ overrides:
       - python>=3.11
       - python-gobject
       - gtk4>=4.8
+      # Time zone data for sun times at a saved location.
+      - tzdata
     recommends:
       - noto-fonts
