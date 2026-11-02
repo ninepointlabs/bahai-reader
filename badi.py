@@ -441,3 +441,56 @@ def prune_said(said,today,keep_history=True):
     if keep_history: return said
     oldest=(today-datetime.timedelta(1)).isoformat()
     return [key for key in said if key[:10]>=oldest]
+
+# Reminders. A pure function of the wall clock and what has been sent, so that nothing relies on a long timer, and restarts,
+# suspend and changes of the clock or time zone cost nothing: the caller asks every 30 seconds what is due now.
+NUDGE_MINUTES=30
+SENT_DAYS=3
+
+class Reminder(NamedTuple):
+    id: str  # starts with the date it belongs to
+    group: str  # at most one reminder per group is sent at a time
+    title: str
+    body: str
+    at: datetime.datetime  # due from this moment
+    until: datetime.datetime  # stale from this moment, and never sent after it
+    said: Optional[str] = None  # the mark a "Said today" action sets, and which stops the reminder when already set
+    opens: str = "today"  # what "Open" opens: "today" or "prayer:short"
+
+def prayer_reminders(prayer,date,place,clock):
+    """When a prayer's window opens, and about 30 minutes before it closes if it has not been said yet."""
+    found=[]
+    if not is_tracked(prayer): return found
+    for window in prayer_windows(prayer,date,place):
+        title=PRAYERS[prayer] if prayer=="short" else f"{PRAYERS[prayer]}: {PART_NAMES[window.part].lower()}"
+        found.append(Reminder(f"{window.key}:opens",f"prayer:{prayer}",title,f"Its time is open, until {clock(window.closes)}.",window.opens,window.closes,window.key,f"prayer:{prayer}"))
+        nudge=(window.closes.astimezone(datetime.timezone.utc)-datetime.timedelta(minutes=NUDGE_MINUTES)).astimezone(window.closes.tzinfo)
+        if nudge.timestamp()>window.opens.timestamp():
+            found.append(Reminder(f"{window.key}:closing",f"prayer:{prayer}",title,f"Its time closes at {clock(window.closes)}.",nudge,window.closes,window.key,f"prayer:{prayer}"))
+    return found
+
+def candidate_reminders(settings,moment,place,clock):
+    """Every reminder turned on, around this moment."""
+    switches=settings.get("reminders",{}); found=[]
+    today=moment.date(); days=[today+datetime.timedelta(n) for n in (-1,0,1)]
+    prayer=settings.get("prayer")
+    if switches.get("prayer") and prayer:
+        for day in days: found+=prayer_reminders(prayer,day,place,clock)
+    return found
+
+def due_reminders(settings,moment,place,clock,sent,said):
+    """(reminders to send now, ids to mark as sent). Each is sent at most once and only while still in its time; after a long sleep
+    a stale one is simply skipped, and of those still due only the latest of each group goes out."""
+    now=moment.timestamp(); sent=set(sent); said=set(said); chosen={}; marked=[]
+    for reminder in candidate_reminders(settings,moment,place,clock):
+        if reminder.id in sent or not reminder.at.timestamp()<=now<reminder.until.timestamp(): continue
+        marked.append(reminder.id)
+        if reminder.said and reminder.said in said: continue
+        best=chosen.get(reminder.group)
+        if best is None or reminder.at.timestamp()>best.at.timestamp(): chosen[reminder.group]=reminder
+    return list(chosen.values()),marked
+
+def prune_sent(sent,today):
+    """Forget what was sent more than a few days ago; the date starts each id."""
+    oldest=(today-datetime.timedelta(SENT_DAYS)).isoformat()
+    return [key for key in sent if key[:10]>=oldest]

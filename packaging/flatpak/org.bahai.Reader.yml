@@ -15,6 +15,9 @@ finish-args:
   # Read-only access to the current Omarchy theme palette.
   - --filesystem=xdg-config/omarchy/current:ro
   - --filesystem=~/.local/state/omarchy/current:ro
+  # Reminders need no extra permission: inside the sandbox GLib sends notifications through the
+  # notification portal, and the app asks the Background portal to start it at login. Portals are
+  # reachable by default, and ~/.config/autostart stays out of reach.
 modules:
   - name: bahai-reader
     buildsystem: simple
