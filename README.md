@@ -83,6 +83,7 @@ Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobj
 - Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
 - **Collections** for saved passages, like a personal prayerbook. Saved passages start under *Unsorted*; the **Collection** list under a saved passage moves it, and **Manage collections…** (shown in Saved passages) creates, renames and deletes them. Deleting a collection keeps its passages saved, under Unsorted. Saved passages are listed by collection.
 - **Today** (the first entry in the sidebar, the header’s Today button, or Ctrl+T; new installs open here, and an existing reading position is kept) gathers the day in one quiet column: the Badí‘ date with the Gregorian date and the month’s name and meaning, the sun’s times for your location, the next Feast and Holy Day with whether work is suspended and links to their readings in Days of Remembrance and to the prayers for Naw-Rúz, Ayyám-i-Há and the Fast, and the passage of the day. With a location set the date changes at local sunset; without one it follows the calendar day. In the sidebar, Today lists the next 12 months of Holy Days and Feasts and this year’s months with their Gregorian dates, and search narrows them.
+- **Alláh-u-Abhá counter** (from Today, the top of the Obligatory prayers section, or Ctrl+Shift+A): a large count, a target of 95, 19, 9 or a number you choose, and Kitáb-i-Aqdas ¶18 beneath it. Space, Enter or a click counts one; Backspace undoes one; Ctrl+0 or Reset starts over; Esc goes back to where you were. Reaching the target shows “95 of 95”, with no sound or animation. The count is not saved. Screen readers hear it at every nineteenth and at the target.
 - **Badí‘ dates** come from the Universal House of Justice: the table of dates for 172 to 221 B.E. and the message of 10 July 2014. After 221 B.E. (March 2065), and before 172 B.E., the app does not guess: it says “Dates for this year have not been published yet”.
 - **The passage of the day** is the same passage all day, a different one each day, until every passage has had its day. **Random** (Ctrl+R) opens a random passage. Both pick from the prayers, the Hidden Words, Gleanings and Prayers and Meditations, up to 500 words, in the current language, and work offline.
 - Installed font selection, text size, line spacing, page margins.
@@ -121,7 +122,11 @@ Square, undecorated window lets Hyprland supply themed borders. Interface uses t
 | Ctrl+Q | Quit (also from the About and Languages windows) |
 | Ctrl+T | Today (previously the passage of the day, which is now a card on Today) |
 | Ctrl+R | Random passage |
-| Escape | Show the contents panel again if it is hidden; closes the About window |
+| Ctrl+Shift+A | Alláh-u-Abhá counter |
+| Space or Enter | In the counter: count one |
+| Backspace | In the counter: undo one |
+| Ctrl+0 | In the counter: start over |
+| Escape | Show the contents panel again if it is hidden; closes the small windows; leaves the counter |
 | Tab / Shift+Tab | Move between search, the contents list and the reading pane. The contents list is a single stop; use the arrow keys and Enter inside it |
 | Page Up / Page Down | Scroll the passage |
 
