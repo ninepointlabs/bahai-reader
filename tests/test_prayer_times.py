@@ -70,6 +70,41 @@ class LongPeriodTests(unittest.TestCase):
             window=self.window(mode,self.at(2026,6,21,10))
             for marked in (True,False): self.assertNotIn("miss",badi.long_line({"long_period":mode},window,marked,fmt).lower())
 
+class ClockHoursTests(unittest.TestCase):
+    """Hours the user enters replace the sun everywhere, and the app has none of its own."""
+    HOURS={"sunrise":420,"noon":750,"sunset":1140}
+    def place(self,base=TROMSO): return badi.clock_place(base,self.HOURS)
+    def oslo(self,*args): return datetime.datetime(*args,tzinfo=ZoneInfo("Europe/Oslo"))
+    def test_parsing_and_cleaning(self):
+        self.assertEqual([badi.parse_clock(t) for t in ("07:00","7:30","23:59"," 12:00 ")],[420,450,1439,720])
+        for bad in ("24:00","7","7:5","7:60","x:yz","",None,"-1:00"): self.assertIsNone(badi.parse_clock(bad),bad)
+        self.assertEqual(badi.clean_clock_hours(self.HOURS),self.HOURS)
+        for bad in ({"sunrise":750,"noon":420,"sunset":1140},{"sunrise":420,"noon":420,"sunset":1140},{"sunrise":420,"noon":750},{"sunrise":True,"noon":750,"sunset":1140},{"sunrise":420,"noon":750,"sunset":1440},"x",None):
+            self.assertIsNone(badi.clean_clock_hours(bad),bad)
+    def test_windows_appear_in_a_polar_night_only_with_hours_entered(self):
+        day=date(2026,12,21); self.assertEqual(badi.prayer_windows("medium",day,TROMSO),[])
+        morning,noon,evening=badi.prayer_windows("medium",day,self.place())
+        self.assertEqual((morning.opens,morning.closes,noon.closes),(self.oslo(2026,12,21,7),self.oslo(2026,12,21,12,30),self.oslo(2026,12,21,19)))
+        self.assertEqual(evening.closes,self.oslo(2026,12,21,21))
+    def test_they_replace_the_real_sun_where_there_is_one_too(self):
+        day=date(2026,6,21); self.assertEqual(badi.place_sun(badi.clock_place(HAIFA,self.HOURS),day).sunset,datetime.datetime(2026,6,21,19,tzinfo=ZoneInfo("Asia/Jerusalem")))
+    def test_the_badi_date_changes_at_the_sunset_hour(self):
+        place=self.place(); self.assertEqual(badi.observed_date(self.oslo(2026,12,21,18,59),place),date(2026,12,21)); self.assertEqual(badi.observed_date(self.oslo(2026,12,21,19),place),date(2026,12,22))
+    def test_the_fast_follows_them(self):
+        lead,after=badi.fast_daily_reminders(date(2027,3,10),self.place(),fmt)
+        self.assertEqual((lead.until,after.at),(self.oslo(2027,3,10,7),self.oslo(2027,3,10,19))); self.assertIn("07:00",lead.body)
+    def test_the_long_period_follows_them(self):
+        window=badi.long_window({},self.oslo(2026,12,21,12),self.place()); self.assertEqual(window.closes,self.oslo(2026,12,21,19))
+        window=badi.long_window({"long_period":"noon"},self.oslo(2026,12,21,12),self.place()); self.assertEqual(window.date,date(2026,12,20)); self.assertEqual(window.closes,self.oslo(2026,12,21,12,30))
+    def test_without_a_location_they_use_this_computers_time_zone(self):
+        saved=os.environ.get("TZ"); os.environ["TZ"]="Asia/Tokyo"; time.tzset()
+        try:
+            place=badi.clock_place(None,self.HOURS); tokyo=ZoneInfo("Asia/Tokyo")
+            self.assertEqual(badi.place_sun(place,date(2026,6,21)).sunset.timestamp(),datetime.datetime(2026,6,21,19,tzinfo=tokyo).timestamp())
+            self.assertEqual(badi.observed_date(badi.local_now(place,datetime.datetime(2026,6,21,10,30,tzinfo=datetime.timezone.utc)),place),date(2026,6,22))
+        finally:
+            os.environ.pop("TZ") if saved is None else os.environ.__setitem__("TZ",saved); time.tzset()
+
 class WindowTests(unittest.TestCase):
     def setUp(self):
         self.sun=badi.place_sun(HAIFA,date(2026,6,21))

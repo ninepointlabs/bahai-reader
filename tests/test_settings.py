@@ -32,6 +32,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(reader.clean_settings({"long_period":"noon","long_lead_hours":3}),{"long_period":"noon","long_lead_hours":3})
         self.assertEqual(reader.clean_settings({"long_period":"often","long_lead_hours":99}),{})
         self.assertEqual(reader.clean_settings({"long_lead_hours":True}),{})
+        hours={"sunrise":420,"noon":750,"sunset":1140}
+        self.assertEqual(reader.clean_settings({"clock_hours":hours}),{"clock_hours":hours})
+        self.assertEqual(reader.clean_settings({"clock_hours":{"sunrise":800,"noon":750,"sunset":1140}}),{})
+        self.assertEqual(reader.clean_settings({"clock_hours":"06:00"}),{})
         self.assertEqual(reader.clean_settings({"prayer":"none","keep_records":False}),{"prayer":"none","keep_records":False})
 
     def test_numbers_are_clamped_to_the_sliders(self):

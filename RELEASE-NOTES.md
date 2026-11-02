@@ -7,6 +7,7 @@ A new **Today** view brings the day together, and the header is reorganized arou
 - Changed: **Languages & offline libraries and About moved from Aa to a new ⋮ menu**, with Location & reminders and Keyboard shortcuts. Aa keeps the reading settings. F1 still opens About.
 - New: **Location**: type a city, found offline in a bundled GeoNames list, or enter coordinates. It is never detected and never sent anywhere.
 - New: **Obligatory prayer times and Said today**, taken from the bundled texts. For the Long prayer you choose which twenty-four hours count, because no text says and no ruling has been made; sunset to sunset is the default, and its one reminder is opt-in.
+- New: **Clock times**, for regions where days and nights vary greatly: enter the hours your National Spiritual Assembly uses, and they replace the sun. The app has none of its own.
 - New: **Alláh-u-Abhá counter** (Ctrl+Shift+A), with Kitáb-i-Aqdas ¶18.
 - New: **Reminders**, all off by default, for the prayer, Feasts, Holy Days and the Fast, with an opt-in to keep them running when the window is closed.
 - New: **The Fast**: the day, the fasting hours and an optional private Fasted today check.

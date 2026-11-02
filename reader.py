@@ -109,6 +109,10 @@ def clean_settings(data):
     if "reminders" in prefs:
         reminders=prefs["reminders"] if isinstance(prefs["reminders"],dict) else {}
         prefs["reminders"]={k:v for k,v in reminders.items() if k in REMINDER_SWITCHES and isinstance(v,bool)}
+    if "clock_hours" in prefs:
+        hours=badi.clean_clock_hours(prefs["clock_hours"])
+        if hours: prefs["clock_hours"]=hours
+        else: del prefs["clock_hours"]
     if prefs.get("long_period") not in dict(badi.LONG_PERIODS): prefs.pop("long_period",None)
     if "long_lead_hours" in prefs and badi.long_lead({"long_lead_hours":prefs["long_lead_hours"]})!=prefs["long_lead_hours"]: del prefs["long_lead_hours"]
     if not isinstance(prefs.get("keep_running"),bool): prefs.pop("keep_running",None)
@@ -122,6 +126,7 @@ def clean_settings(data):
     return prefs
 
 UNSORTED="Unsorted"
+CLOCK_ASSEMBLY="Where days and nights vary greatly, prayer and fasting may follow the clock. Your National Spiritual Assembly can tell you the hours used in your country."
 # All reminders are off until turned on in Location & reminders.
 REMINDER_SWITCHES=("prayer","long","feast","holy","fast","fast_daily")
 SAID_KEY=re.compile(r"\d{4}-\d\d-\d\d:((short|medium):(morning|noon|evening)|long:(sunset|noon|midnight|at:\d+))")
@@ -586,7 +591,9 @@ class Reader(Gtk.Application):
         try: widget.update_property([Gtk.AccessibleProperty.LABEL],[text])
         except (TypeError,AttributeError): pass
     def place(self):
-        return self.prefs.get("location")
+        """Where the day's times come from: the saved location, with the clock hours the user entered, if any, in place of the sun."""
+        location=self.prefs.get("location"); hours=self.prefs.get("clock_hours")
+        return badi.clock_place(location,hours) if hours else location
     def activate(self, app):
         self.start_ticking()
         if self.background_launch:
@@ -1300,6 +1307,7 @@ class Reader(Gtk.Application):
             if today.month==badi.INTERCALARY: rows.append(("text",f"{badi.AYYAM_I_HA}: the days before the month of ‘Alá’."))
             else: rows.append(("text",f"The month of {today.month_name}: {today.meaning}."))
             if not place: rows.append(("dim","The Bahá’í day begins at sunset. Without a location, this date follows the calendar day."))
+            elif sun and sun.clock: rows.append(("dim","The Bahá’í day begins at sunset. Here this date changes at the sunset hour you set."))
             elif sun and sun.polar=="day": rows.append(("dim","The Bahá’í day begins at sunset. The sun does not set here today, so this date follows the calendar day."))
             elif sun and sun.polar=="night": rows.append(("dim","The Bahá’í day begins at sunset. The sun does not rise here today, so this date follows the calendar day."))
             else: rows.append(("dim","The Bahá’í day begins at sunset."))
@@ -1309,8 +1317,12 @@ class Reader(Gtk.Application):
             rows.append(("dim","Badí‘ dates here come from the Universal House of Justice’s table for 172 to 221 B.E."))
         cards["date"]=rows
         # Sun
-        rows=[("title","Sun")]
-        if sun:
+        rows=[("title","Clock times" if sun and sun.clock else "Sun")]
+        if sun and sun.clock:
+            rows+=[("text",f"Sunrise hour: {clock(sun.sunrise)}"),("text",f"Noon hour: {clock(sun.noon)}"),("text",f"Sunset hour: {clock(sun.sunset)}")]
+            rows.append(("dim","Hours you set, used instead of the sun."))
+            rows.append(("button","Change clock times…",self.location_dialog))
+        elif sun:
             if sun.sunrise: rows.append(("text",f"Sunrise: {clock(sun.sunrise)}"))
             rows.append(("text",f"Solar noon: {clock(sun.noon)}"))
             if sun.sunset: rows.append(("text",f"Sunset: {clock(sun.sunset)}"))
@@ -1374,11 +1386,13 @@ class Reader(Gtk.Application):
             rows.append(("text",f"Day {state.day} of {badi.MONTH_DAYS}"))
             sun=badi.place_sun(place,state.date)
             if sun and sun.sunrise and sun.sunset:
-                rows.append(("text",f"Fasting hours: sunrise at {clock(sun.sunrise)} to sunset at {clock(sun.sunset)}"))
+                if sun.clock: rows.append(("text",f"Fasting hours, by the clock times you set: {clock(sun.sunrise)} to {clock(sun.sunset)}"))
+                else: rows.append(("text",f"Fasting hours: sunrise at {clock(sun.sunrise)} to sunset at {clock(sun.sunset)}"))
             elif sun:
                 rows.append(("text","The sun does not rise or set here today. In such regions the Kitáb-i-Aqdas says to gauge the times by clocks."))
                 opener=self.aqdas_opener("Notes",17)
                 if opener: rows.append(("button","Read the guidance (Note 17)",opener))
+                rows.append(("dim",CLOCK_ASSEMBLY)); rows.append(("button","Use clock times…",self.location_dialog))
             else:
                 rows.append(("text","The fasting hours run from sunrise to sunset."))
                 rows.append(("button","Add location…",self.location_dialog))
@@ -1425,11 +1439,13 @@ class Reader(Gtk.Application):
             if not windows:
                 rows.append(("text","The sun does not rise or set here today, so its times cannot be taken from the sun. In such regions the Kitáb-i-Aqdas says to gauge the times of prayer by clocks."))
                 rows.append(("button","Read the guidance (¶10)",self.guidance_opener("Text",10)))
+                rows.append(("dim",CLOCK_ASSEMBLY)); rows.append(("button","Use clock times…",self.location_dialog))
             for window in windows:
                 label=badi.window_line(window,moment,clock)
                 rows.append(("text",label if chosen=="short" else f"{badi.PART_NAMES[window.part]}: {label}"))
                 if window.part=="morning" and moment.timestamp()<window.closes.timestamp(): rows.append(("dim","The morning prayer may be said as early as dawn (Note 5)."))
                 rows.append(("toggle",badi.said_label(window),window.key in self.said_marks(),lambda active,key=window.key:self.mark_said(key,active)))
+            if windows and place and place.get("clock"): rows.append(("dim","These use the clock times you set."))
             if windows and not place:
                 rows.append(("dim","Without a location these use the clock instead of the sun. Add a location to follow the sun."))
                 rows.append(("button","Add location…",self.location_dialog))
@@ -1782,7 +1798,7 @@ textview text selection {{ background: {selection}; }}
         return place
     def place_summary(self):
         """The saved place, its time zone and today's sun times, as a check."""
-        place=self.place()
+        place=self.prefs.get("location")
         if not place: return "No location set."
         now=datetime.datetime.now(badi.ZoneInfo(place["tz"]))
         sun=badi.place_sun(place,now.date())
@@ -1804,13 +1820,13 @@ textview text selection {{ background: {selection}; }}
         self.name_widget(latitude,"Latitude"); self.name_widget(longitude,"Longitude")
         zones=Choice(search=True); self.name_widget(zones,"Time zone")
         for zone in sorted(badi.available_timezones()): zones.append_text(zone)
-        current=self.place()["tz"] if self.place() else os.environ.get("TZ","")
+        current=self.prefs["location"]["tz"] if self.prefs.get("location") else os.environ.get("TZ","")
         zones.set_active_id(current)
         form.attach(Gtk.Label(label="Latitude (north is positive)",xalign=0),0,0,1,1); form.attach(latitude,1,0,1,1)
         form.attach(Gtk.Label(label="Longitude (east is positive)",xalign=0),0,1,1,1); form.attach(longitude,1,1,1,1)
         form.attach(Gtk.Label(label="Time zone",xalign=0),0,2,1,1); form.attach(zones,1,2,1,1)
         def refresh():
-            summary.set_text(self.place_summary()); clear.set_sensitive(bool(self.place()))
+            summary.set_text(self.place_summary()); clear.set_sensitive(bool(self.prefs.get("location")))
         def use(place):
             self.set_place(place); refresh(); message.set_visible(False)
             search.set_text(""); fill()
@@ -1837,6 +1853,28 @@ textview text selection {{ background: {selection}; }}
         latitude.connect("activate",apply_coordinates); longitude.connect("activate",apply_coordinates)
         form.attach(self.button("Use these coordinates",apply_coordinates),0,3,2,1)
         box.append(clear)
+        heading=Gtk.Label(label="Clock times",xalign=0,margin_top=10); heading.add_css_class("heading"); box.append(heading)
+        box.append(Gtk.Label(label=CLOCK_ASSEMBLY+" This app sets no hours of its own. Once set, they replace the sun for prayer times, the Fast, reminders and when the Badí‘ date changes.",wrap=True,xalign=0,max_width_chars=56))
+        saved_hours=self.prefs.get("clock_hours") or {}
+        use_clock=Gtk.CheckButton(label="Use clock times instead of the sun",active=bool(saved_hours)); self.clock_check=use_clock; box.append(use_clock)
+        clock_form=Gtk.Grid(column_spacing=10,row_spacing=8); box.append(clock_form); self.clock_entries={}
+        for row,(key,label) in enumerate((("sunrise","Sunrise hour"),("noon","Noon hour"),("sunset","Sunset hour"))):
+            entry=Gtk.Entry(placeholder_text="HH:MM",hexpand=True); self.name_widget(entry,label); self.clock_entries[key]=entry
+            if key in saved_hours: entry.set_text(f"{saved_hours[key]//60:02d}:{saved_hours[key]%60:02d}")
+            clock_form.attach(Gtk.Label(label=label,xalign=0),0,row,1,1); clock_form.attach(entry,1,row,1,1)
+        clock_message=Gtk.Label(wrap=True,xalign=0,max_width_chars=56,visible=False); clock_message.add_css_class("dim-label"); box.append(clock_message); self.clock_message=clock_message
+        def apply_clock(*_):
+            clock_message.set_visible(False)
+            if not use_clock.get_active(): self.prefs.pop("clock_hours",None)
+            else:
+                hours=badi.clean_clock_hours({k:badi.parse_clock(e.get_text()) for k,e in self.clock_entries.items()})
+                if not hours:
+                    self.prefs.pop("clock_hours",None); clock_message.set_text("Enter all three as HH:MM, in order within one day: sunrise, noon, sunset. Until then the app follows the sun."); clock_message.set_visible(True)
+                else: self.prefs["clock_hours"]=hours
+            self.save(); self.show_said(); self.refresh_today(); self.tick()
+        self.clock_apply=apply_clock; use_clock.connect("toggled",apply_clock)
+        for entry in self.clock_entries.values(): entry.connect("activate",apply_clock)
+        apply_button=self.button("Use these times",apply_clock); apply_button.set_halign(Gtk.Align.START); box.append(apply_button)
         heading=Gtk.Label(label="Obligatory prayer",xalign=0,margin_top=10); heading.add_css_class("heading"); box.append(heading)
         box.append(Gtk.Label(label="Which prayer you say. Its times then appear on Today.",wrap=True,xalign=0,max_width_chars=56))
         choice=Choice(); self.name_widget(choice,"Which prayer you say"); self.prayer_choice=choice
