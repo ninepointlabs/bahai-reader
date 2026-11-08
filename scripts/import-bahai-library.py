@@ -592,6 +592,7 @@ def build_shoghi(folder,log):
 
 MATCH_BLOCK=0.6    # share of an official paragraph's word sequences found in an app passage, to place it there
 SMALL=1.7  # rem; body text is 1.7, credits and notes smaller
+MATCH_REPEATED=0.85  # coverage counting text the app already shows from another bahai.org book
 REVISED_WORDS=0.25  # least word-by-word similarity for a passage placed by position alone
 ATTACH_BLOCKS=3; ATTACH_CHARS=600  # what counts as a short official line the app lacks
 MATCH_WORDS=0.9    # or: word-by-word similarity of the two texts (difflib ratio)
@@ -614,7 +615,7 @@ def match_text(block):
     """A paragraph's words for matching: without bahai.org's margin numbers, which the app's copy does not have."""
     return "".join(r[0] for r in clean_runs([r for r in block.runs if "num" not in r[1]]))
 
-def match_rows(rows,blocks,size=5,notes=None):
+def match_rows(rows,blocks,size=5,notes=None,ordered=True):
     """Places the official paragraphs in the app's passages. Returns ({row id: [block index]}, report)."""
     grams=[shingles(text,size) for _,text in rows]
     row_words=[words(text) for _,text in rows]
@@ -630,7 +631,12 @@ def match_rows(rows,blocks,size=5,notes=None):
         best=max(score for score,_ in good)
         # Near-equal candidates (a repeated invocation, a quoted verse) are all kept for the ordering pass to choose from.
         candidates+=[(b,r) for r in sorted({r for score,r in good if score>=best-0.05},reverse=True)]
-    owner=dict(in_order(candidates))
+    if ordered: owner=dict(in_order(candidates))
+    else:
+        # The app's own order (prayers by its categories) is not the book's: each paragraph goes to its best passage.
+        best={}
+        for b,r in candidates: best.setdefault(b,r)  # candidates come best-first per paragraph, highest passage first
+        owner=best
     # A line too short to place by itself ("O SON OF SPIRIT!") goes with the rest of its paragraph, when that passage has its words.
     changed=True
     while changed:
@@ -696,7 +702,7 @@ def match_rows(rows,blocks,size=5,notes=None):
     report["revised"]=[]
     taken={b for chosen in result.values() for b in chosen}
     for r,(ident,text) in enumerate(rows):
-        if ident in result or r==0 or r==len(rows)-1: continue
+        if not ordered or ident in result or r==0 or r==len(rows)-1: continue
         before,after=rows[r-1][0],rows[r+1][0]
         if before not in result or after not in result: continue
         gap=list(range(max(result[before])+1,min(result[after])))
@@ -725,6 +731,100 @@ def match_rows(rows,blocks,size=5,notes=None):
             previous=next(i for i,chosen in result.items() if before in chosen)
             result[previous]=result[previous]+lead; used.update(lead); report["added"].append((previous,[block_text(blocks[x])[:60] for x in lead])); continue
         result[ident]=lead+result[ident]; used.update(lead); report["added"].append((ident,[block_text(blocks[x])[:60] for x in lead]))
+    used={b for chosen in result.values() for b in chosen}
+    report["unused"]=[(b,match_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
+    return result,report
+
+def match_unordered(rows,blocks,size=5,notes=None,elsewhere=frozenset()):
+    """Matching for a collection the app orders its own way (prayers by category), where one app passage may gather pieces
+    the book prints apart (an obligatory prayer with the guidance quoted at the head of its section), and one piece may
+    belong to several passages. Each paragraph goes to every passage that holds it; a passage takes its paragraphs, in the
+    book's order, with the lines between two of them that no other passage holds, and short lines next to them that it has."""
+    grams=[shingles(text,size) for _,text in rows]; row_words=[words(text) for _,text in rows]
+    owners={}
+    for b,block in enumerate(blocks):
+        text=match_text(block)
+        if len(words(text))<size: continue
+        mine=shingles(text,size)
+        scores=[(len(mine&g)/len(mine),r) for r,g in enumerate(grams) if mine&g]
+        good=[(score,r) for score,r in scores if score>=MATCH_BLOCK]
+        if good: owners[b]={r for score,r in good}
+    claimed=set(owners)
+    result={}; report=dict(unmatched=[],split=[],partial=[],extra=[],added=[],revised=[])
+    for r,(ident,text) in enumerate(rows):
+        mine=sorted(b for b,o in owners.items() if r in o)
+        if not mine:
+            # A passage too short to place by word sequences takes a line with exactly its words that no other passage holds.
+            same=[b for b in range(len(blocks)) if b not in claimed and words(match_text(blocks[b]))==row_words[r]]
+            if len(same)==1: mine=same
+            else: report["unmatched"].append(ident); continue
+        chosen=set(mine)
+        for a,b in zip(mine,mine[1:]):
+            between=range(a+1,b)
+            if all(x not in claimed and contains(row_words[r],words(match_text(blocks[x]))) for x in between): chosen.update(between)
+        folded=fold(text)
+        def beside(x):
+            if x in claimed or x in chosen or not words(match_text(blocks[x])) or title_page(blocks,x): return False
+            if blocks[x].size>=HEADING: return folded.startswith(fold(match_text(blocks[x])))  # a title the passage opens with
+            return contains(row_words[r],words(match_text(blocks[x]))) and len(words(match_text(blocks[x])))<size
+        for b in list(chosen):  # short lines beside each piece (a title, "He is God!") that the passage has
+            for step in (-1,1):
+                x=b+step
+                while 0<=x<len(blocks) and beside(x): chosen.add(x); x+=step
+        chosen=sorted(chosen)
+        # Pieces the book prints apart are put in the order the app's passage has them (guidance after a prayer, say).
+        runs=[[chosen[0]]]
+        for b in chosen[1:]:
+            if b==runs[-1][-1]+1: runs[-1].append(b)
+            else: runs.append([b])
+        if len(runs)>1:
+            # The largest piece first; another only if it brings words the passage has and the pieces so far lack
+            # (a line the medium and long prayers share is not taken twice from the other prayer).
+            seen=set(); kept=[]
+            for run in sorted(runs,key=lambda run:-sum(len(words(match_text(blocks[b]))) for b in run)):
+                mine_=shingles("\n\n".join(match_text(blocks[b]) for b in run),size)&grams[r]
+                if not kept or len(mine_-seen)>=max(1,len(mine_)//2): kept.append(run); seen|=mine_
+            runs=kept
+        if len(runs)>1:
+            def place(run):
+                lead=next((fold(match_text(blocks[b]))[:40] for b in run if blocks[b].size<HEADING),"")  # its first paragraph
+                at=folded.find(lead) if lead else 0
+                return at if at>=0 else len(folded)
+            runs.sort(key=place); report.setdefault("composite",[]).append((ident,len(runs)))
+        chosen=[b for run in runs for b in run]
+        # Where the app's copy has the book's paragraphs in another order (guidance after the prayer rather than before it),
+        # the pieces follow the app: split wherever the app's order goes back, then sorted by where each piece is in the app.
+        pieces=[[]]; last=-1
+        for b in chosen:
+            at=folded.find(fold(match_text(blocks[b]))[:30]) if blocks[b].size<HEADING and len(words(match_text(blocks[b])))>=size else -1
+            if at>=0 and at<last and pieces[-1]: pieces.append([])
+            pieces[-1].append(b); last=max(last,at)
+        for i in range(len(pieces)-1):  # a heading belongs with what follows it
+            while pieces[i] and blocks[pieces[i][-1]].size>=HEADING: pieces[i+1].insert(0,pieces[i].pop())
+        pieces=[piece for piece in pieces if piece]
+        if len(pieces)>1:
+            def where(piece):
+                spots=[folded.find(fold(match_text(blocks[b]))[:30]) for b in piece if blocks[b].size<HEADING and len(words(match_text(blocks[b])))>=size]
+                spots=[x for x in spots if x>=0]
+                return min(spots) if spots else 0
+            pieces.sort(key=where); chosen=[b for piece in pieces for b in piece]
+            if ident not in dict(report.get("composite",[])): report.setdefault("composite",[]).append((ident,len(pieces)))
+        cited=dict.fromkeys(run[2] for b in chosen for run in blocks[b].runs if run[2] and notes and run[2] in notes)
+        body=[match_text(blocks[b]) for b in chosen]; extra=[match_text(x) for anchor in cited for x in notes[anchor]["blocks"]]
+        best=None
+        for joined in dict.fromkeys(["\n\n".join(body),"\n\n".join(body+extra)]):
+            official=shingles(joined,size); score=(overlap_of(grams[r],official),overlap_of(official,grams[r]),joined)
+            if best is None or min(score[:2])>min(best[:2]): best=score
+        covered,within,joined=best
+        if min(covered,within)<MATCH_PASSAGE:
+            similar=difflib.SequenceMatcher(None,row_words[r],words(joined),autojunk=False).ratio()
+            # What the app's copy adds may be a passage of another book it already shows in bahai.org's text (the Aqdas
+            # paragraph on exemption the app's obligatory prayers repeat): that passage is not lost, so this one can be replaced.
+            repeated=overlap_of(grams[r],shingles(joined,size)|elsewhere)
+            if similar<MATCH_WORDS and not (covered>=0.5 and within>=MATCH_REPEATED and repeated>=MATCH_REPEATED):
+                report["partial" if covered<within else "extra"].append((ident,round(min(covered,within),3),round(similar,3))); continue
+            if similar<MATCH_WORDS: report.setdefault("repeats",[]).append((ident,round(covered,3),round(repeated,3)))
+        result[ident]=chosen
     used={b for chosen in result.values() for b in chosen}
     report["unused"]=[(b,match_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
     return result,report
@@ -765,7 +865,18 @@ def build_books(folder,log):
         raw=(folder/f"books/{slug}.xhtml").read_bytes()
         if sha256(raw)!=log[url]["sha256"]: raise ValueError(f"{slug}.xhtml does not match fetch-log.json")
         reader=Reader(raw.decode("utf-8")); blocks=lines([b for b in reader.blocks if clean_runs(b.runs)])
-        rows=app_rows(key); matched,report=match_rows(rows,blocks,notes=reader.notes)
+        rows=app_rows(key)
+        if key in UNORDERED:
+            elsewhere=set().union(*(shingles(row["text"],5) for row in replacements.values())) if replacements else set()
+            matched,report=match_unordered(rows,blocks,notes=reader.notes,elsewhere=elsewhere)
+        else: matched,report=match_rows(rows,blocks,notes=reader.notes)
+        if key in UNORDERED:
+            # A prayer the app lists twice (under two categories) gets the official text in both places.
+            texts=dict(rows)
+            for ident in list(report["unmatched"]):
+                twin=next((m for m in matched if difflib.SequenceMatcher(None,words(texts[ident]),words(texts[m]),autojunk=False).ratio()>=0.98),None)
+                if twin:
+                    matched[ident]=matched[twin]; report["unmatched"].remove(ident); report.setdefault("twins",[]).append((ident,twin))
         lead={ident:len(lines) for ident,lines in report["added"]}
         for ident,chosen in matched.items():
             passage=Passage()
@@ -804,11 +915,14 @@ def build_books(folder,log):
                           **provenance(log,url,dict(page_url=f"{SITE}/library/authoritative-texts/{category}/{slug}/"))))
     return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
 
+# Collections whose passages the app orders its own way (prayers by category), so matching does not follow the book's order.
+UNORDERED={"prayers"}
+
 # Collections whose footnotes the app keeps as one passage of their own.
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days","prayers")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 

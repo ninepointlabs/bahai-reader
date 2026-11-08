@@ -334,6 +334,22 @@ class OfficialBooksTests(unittest.TestCase):
         # Still where Today looks for each Holy Day's readings.
         self.assertEqual(self.items["days:198"]["subgroup"],self.before["days:198"]["subgroup"])
 
+    def test_bahai_prayers(self):
+        book=self.books["prayers"]
+        self.assertEqual(book["replaced"],230)
+        # The obligatory prayers: bahai.org's text, in the app's arrangement (the prayer, then Shoghi Effendi's guidance,
+        # which the book prints once before them), listed for review as composite.
+        short=self.items["prayers:391"]["text"]
+        self.assertTrue(short.startswith("Short Obligatory Prayer\n\nTO BE RECITED ONCE IN TWENTY-FOUR HOURS, AT NOON\n\nI bear witness, O my God"))
+        self.assertLess(short.index("I bear witness"),short.index("“The daily obligatory prayers are three in number"))
+        self.assertIn("prayers:391",[r[0] for r in book["kept"]["repeats"]])  # its exemption paragraph is Aqdas ¶13, shown there
+        self.assertIn("prayers:393",[r[0] for r in book["kept"]["composite"]])
+        self.assertTrue(self.items["prayers:386"]["text"].startswith("Tablet of Aḥmad\n\n“These daily obligatory prayers"))
+        # A prayer whose copy carries the House of Justice's note on its authenticity keeps that copy.
+        self.assertNotIn("prayers:354",self.data["replacements"]); self.assertIn("Research Department",self.items["prayers:354"]["text"])
+        # Prayers keep their categories and word counts follow the new text.
+        self.assertEqual(self.items["prayers:391"]["tags"],["Short Obligatory Prayer"])
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

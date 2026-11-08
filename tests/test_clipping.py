@@ -23,7 +23,8 @@ class ClippingTests(unittest.TestCase):
 
     def test_prayer_names_author_and_category(self):
         item=self.items["prayers:391"]  # the short obligatory prayer
-        self.assertTrue(reader.clipping(item).endswith("— Bahá’u’lláh, Prayers, Short Obligatory Prayer"))
+        # The category comes before bahai.org's notice.
+        self.assertTrue(reader.clipping(item).endswith("— Bahá’u’lláh, Prayers, Short Obligatory Prayer. Copyright © Bahá’í International Community, bahai.org"))
 
     def test_selection_keeps_the_citation_once(self):
         item=self.items["hidden:1"]

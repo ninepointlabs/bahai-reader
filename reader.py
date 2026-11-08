@@ -308,7 +308,9 @@ def clipping(item,excerpt=None):
     # A selection that runs into (or is only) the citation line under the passage.
     if cite: text=text.split("— "+cite)[0].strip() or item["text"]
     # Prayers carry only an author; the category is the nearest thing to a reference.
-    if item["section"]=="prayers" and item["tags"]: cite=", ".join(filter(None,(cite,"Prayers",item["tags"][0])))
+    if item["section"]=="prayers" and item["tags"]:
+        notice=". "+BAHAI_ORG_NOTICE; official=cite.endswith(notice)
+        cite=", ".join(filter(None,(cite.removesuffix(notice),"Prayers",item["tags"][0])))+(notice if official else "")
     return f"{text}\n\n— {cite}" if cite else text
 
 def luminance(color):
@@ -515,6 +517,10 @@ def apply_spans(buffer,item,offset=0):
 def directions(item):
     """Character spans of an obligatory prayer's directions, shown in italics so the prayer itself stands out."""
     if not set(OBLIGATORY_PRAYERS).intersection(item["tags"]): return []
+    if item.get("official_id"):
+        # bahai.org sets the directions in italics itself: whole paragraphs in italics.
+        text=item["text"]; starts={0}|{m.end() for m in re.finditer(r"\n\n",text)}
+        return [(a,b) for a,b,k in item.get("spans",()) if k=="i" and a in starts and (b==len(text) or text.startswith("\n\n",b))]
     spans=[]; start=0
     for paragraph in item["text"].split("\n\n"):
         text=paragraph.strip()
