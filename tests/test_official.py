@@ -136,7 +136,7 @@ class BundledDataTests(unittest.TestCase):
             self.assertEqual(text,text.strip()); self.assertNotIn("\n\n\n",text); self.assertNotIn("  ",text)
             self.assertEqual(row["words"],reader.word_count(text),row["id"])
             for start,end,kind in row["spans"]:
-                self.assertIn(kind,("i","b","u","quote","heading")); self.assertTrue(0<=start<end<=len(text),row["id"])
+                self.assertIn(kind,("i","b","u","num","quote","heading")); self.assertTrue(0<=start<end<=len(text),row["id"])
 
     def test_footnotes_are_complete(self):
         works={w["work"]:w for w in self.shoghi["works"]}
@@ -204,6 +204,46 @@ class DuplicateTests(unittest.TestCase):
         for row in new:
             grams=importer.shingles(row["text"])
             self.assertFalse(any(importer.overlap(grams,other)>=importer.DUPLICATE for other in bp),row["id"])
+
+class OfficialBooksTests(unittest.TestCase):
+    """The app's BahaiPrayers.net books, now in bahai.org's text where bahai.org has the same passage."""
+    @classmethod
+    def setUpClass(cls):
+        cls.data=data("bahai-org-books.json"); cls.books={b["key"]:b for b in cls.data["books"]}
+        cls.items={i["id"]:i for i in reader.load_library()}
+        cls.before={i["id"]:i for i in reader.load_bahaiprayers(1)}
+
+    def test_every_passage_is_replaced_or_reported(self):
+        for book in self.data["books"]:
+            kept=sum(len(book["kept"][k]) for k in ("unmatched","split","partial","extra"))
+            self.assertEqual(book["replaced"]+kept,book["rows"],book["key"])
+            self.assertTrue(book["source_url"].startswith("https://www.bahai.org/library/authoritative-texts/"))
+            self.assertRegex(book["sha256"],r"^[0-9a-f]{64}$")
+        for ident,row in self.data["replacements"].items():
+            self.assertIn(ident,self.before); self.assertIn(row["book"],self.books)
+
+    def test_replaced_passages_keep_their_place_and_show_the_official_text(self):
+        for ident,row in self.data["replacements"].items():
+            item,old=self.items[ident],self.before[ident]
+            self.assertEqual(item["text"],row["text"])
+            self.assertEqual((item["section"],item["tags"],item["subgroup"],item["match"],item["references"]),(old["section"],old["tags"],old["subgroup"],old["match"],old["references"]))
+            self.assertEqual(item["citation"],old["citation"]+". Copyright © Bahá’í International Community, bahai.org")
+            self.assertEqual(item["word_count"],reader.word_count(item["text"]))
+            self.assertNotRegex(item["title"],r"^(\d+) · \1 ")  # no doubled number from bahai.org's margin numbers
+            for start,end,kind in row["spans"]: self.assertTrue(0<=start<end<=len(row["text"]))
+
+    def test_hidden_words(self):
+        book=self.books["hidden"]
+        self.assertEqual((book["rows"],book["replaced"]),(153,153))
+        first=self.items["hidden:1"]["text"]
+        # The opening invocation and prologue of Part One, which the earlier copy lacked, open Arabic no. 1.
+        self.assertTrue(first.startswith("HE IS THE GLORY OF GLORIES\n\nTHIS is that which hath descended from the realm of glory"))
+        self.assertIn("\n\n1 O SON OF SPIRIT!\nMy first counsel is this: Possess a pure, kindly and radiant heart",first)
+        start=first.index("\n\n1 ")+2; self.assertIn([start,start+1,"num"],self.data["replacements"]["hidden:1"]["spans"])
+        self.assertTrue(self.items["hidden:72"]["text"].startswith("In the Name of the Lord of Utterance, the Mighty.\n\n1 O YE PEOPLE THAT HAVE MINDS"))
+        self.assertIn("Sadratu’l-Muntahá",self.items["hidden:148"]["text"])  # the diacritic the earlier copy dropped
+        self.assertEqual(self.items["hidden:148"]["title"][:22],"77 · O SON OF JUSTICE!")
+        self.assertEqual(reader.heading(self.items["hidden:148"]),"Persian no. 77")
 
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""

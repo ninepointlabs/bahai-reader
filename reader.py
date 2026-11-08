@@ -383,10 +383,31 @@ def official_items(name):
                            word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),references=[],match=None,citation=citation,spans=spans,source=row.get("page_url")))
     return result
 
+def official_replacements():
+    """{app id: official passage} from data/bahai-org-books.json: bahai.org's text for passages the app has from BahaiPrayers.net."""
+    try: data=json.loads((ROOT/"data"/"bahai-org-books.json").read_text())
+    except (OSError,ValueError): return {}
+    rows=data.get("replacements")
+    return {k:v for k,v in rows.items() if isinstance(v,dict) and isinstance(v.get("text"),str) and v["text"]} if isinstance(rows,dict) else {}
+
+def use_official(item,row):
+    """Puts bahai.org's text in a BahaiPrayers.net passage, keeping its id, place, numbering and links."""
+    old=" ".join(item["text"].split()); new=row.get("opening") if isinstance(row.get("opening"),str) and row["opening"] else " ".join(row["text"].split())
+    title=item["title"]
+    if item["section"]=="prayers": title=new[:90]
+    elif title.endswith(old[:72]): title=title[:len(title)-len(old[:72])]+new[:72]
+    spans=[tuple(s) for s in row.get("spans",[]) if isinstance(s,list) and len(s)==3]
+    item.update(text=row["text"],title=title,spans=spans,word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),
+                citation=(item["citation"]+". " if item["citation"] else "")+BAHAI_ORG_NOTICE,official_id=f"{row.get('book')}:{row.get('anchor')}")
+    item.pop("search",None)
+
 def load_library(language=1):
     """The library for a language. In English, bahai.org's official text is used wherever it has the same text as BahaiPrayers.net."""
     result=load_bahaiprayers(language)
     if language==1:
+        books=official_replacements()
+        for item in result:
+            if item["id"] in books: use_official(item,books[item["id"]])
         official=[i for name in OFFICIAL for i in official_items(name)]
         replaced={i["id"] for i in official}
         result=[i for i in result if i["id"] not in replaced]+official
@@ -473,7 +494,7 @@ DIRECTION=re.compile(r'To be recited|God hath exempted|"The daily obligatory|\(|
 # How the styled spans of a bahai.org text are drawn: italics, bold, underlining (transliteration such as Ma<u>sh</u>riq),
 # quotations set in from the margin, and the headings of letters and chapters.
 SPAN_STYLES={"i":dict(style=Pango.Style.ITALIC),"b":dict(weight=Pango.Weight.BOLD),"u":dict(underline=Pango.Underline.SINGLE),
-             "quote":dict(left_margin=36,right_margin=24),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
+             "quote":dict(left_margin=36,right_margin=24),"num":dict(scale=0.75,weight=Pango.Weight.LIGHT),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
 
 def apply_spans(buffer,item,offset=0):
     table=buffer.get_tag_table(); length=len(item["text"])

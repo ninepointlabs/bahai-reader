@@ -11,7 +11,8 @@ class ClippingTests(unittest.TestCase):
         item=self.items["hidden:1"]
         text=reader.clipping(item)
         self.assertTrue(text.startswith(item["text"]))
-        self.assertTrue(text.endswith("\n\n— Bahá’u’lláh, The Hidden Words, Arabic no. 1"),text[-80:])
+        # bahai.org's text, so the notice its terms ask for follows the reference.
+        self.assertTrue(text.endswith("\n\n— Bahá’u’lláh, The Hidden Words, Arabic no. 1. Copyright © Bahá’í International Community, bahai.org"),text[-80:])
 
     def test_aqdas_paragraph_and_gleanings_section(self):
         self.assertTrue(reader.clipping(self.items["aqdas:Paragraphs:6"]).endswith("— Bahá’u’lláh, The Kitáb-i-Aqdas, ¶6"))

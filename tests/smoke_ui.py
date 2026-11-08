@@ -243,7 +243,9 @@ with tempfile.TemporaryDirectory() as temp:
             app.navigate("hidden"); first=next(i for i in app.section_items if i["id"]=="hidden:1"); app.show_passage(first,app.groups[first["id"]])
             second=app.second.get_buffer(); text=lambda: second.get_text(second.get_start_iter(),second.get_end_iter(),False)
             assert app.secondscroll.get_visible() and app.current["match"]=="hidden:True:1", app.current["match"]
-            assert text().split("\n")[1].startswith("[4] ") and app.current["text"][:40] in text(), text()[:120]
+            # The stand-in second language is made from the BahaiPrayers.net text; English now shows bahai.org's.
+            source=next(i for i in reader.load_bahaiprayers(1) if i["id"]=="hidden:1")
+            assert text().split("\n")[1].startswith("[4] ") and source["text"][:40] in text(), text()[:120]
             app.navigate("prayers")
             assert app.secondscroll.get_visible() and "cannot be shown side by side" in text()
             app.navigate("writings"); gleaning=next(i for i in app.section_items if i["id"]=="gleanings:1"); app.show_passage(gleaning,app.groups[gleaning["id"]])

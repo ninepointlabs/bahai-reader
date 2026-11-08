@@ -18,11 +18,13 @@ draws as such. Footnotes follow the passage that cites them. See DATA-NOTICE.md 
 """
 import argparse
 import datetime
+import difflib
 import hashlib
 import html
 import json
 import re
 import sys
+import tempfile
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -40,6 +42,20 @@ UHJ = "The Universal House of Justice"
 SHOGHI = "Shoghi Effendi"
 UHJ_GROUP = "Messages of the Universal House of Justice"
 X = "{http://www.w3.org/1999/xhtml}"
+
+# The app's BahaiPrayers.net collections and their official bahai.org editions: collection key -> (category, slug).
+BOOK_SOURCES={
+    "hidden":("bahaullah","hidden-words"),
+    "gleanings":("bahaullah","gleanings-writings-bahaullah"),
+    "meditations":("bahaullah","prayers-meditations"),
+    "tablets":("bahaullah","tablets-bahaullah"),
+    "iqan":("bahaullah","kitab-i-iqan"),
+    "aqdas":("bahaullah","kitab-i-aqdas"),
+    "epistle":("bahaullah","epistle-son-wolf"),
+    "saq":("abdul-baha","some-answered-questions"),
+    "days":("bahaullah","days-remembrance"),
+    "prayers":("prayers","bahai-prayers"),
+}
 
 # ---------------------------------------------------------------- fetching
 
@@ -86,9 +102,9 @@ def message_rows(index_html):
 def work_slugs(index_html):
     return sorted(set(re.findall(r'href="/library/authoritative-texts/shoghi-effendi/([a-z0-9-]+)/"',index_html)))
 
-def xhtml_link(page,slug):
+def xhtml_link(page,slug,category="shoghi-effendi"):
     """The XHTML download on a work's page, with the edition marker bahai.org appends (?68416325)."""
-    match=re.search(rf'(/library/authoritative-texts/shoghi-effendi/{slug}/{slug}\.xhtml)(?:\?([0-9a-f]+))?',page)
+    match=re.search(rf'(/library/authoritative-texts/{category}/{slug}/{slug}\.xhtml)(?:\?([0-9a-f]+))?',page)
     if not match: raise ValueError(f"No XHTML download on the page for {slug}")
     return SITE+match.group(1),match.group(2)
 
@@ -109,6 +125,12 @@ def fetch(folder,refresh=False,delay=1.0,only=None):
             url,_=xhtml_link(page,slug)
             try: fetcher.get(url,f"se/{slug}.xhtml")
             except Exception as error: failures.append((url,str(error)))  # noqa: BLE001
+    if only in (None,"books"):
+        for key,(category,slug) in BOOK_SOURCES.items():
+            page=fetcher.get(f"{SITE}/library/authoritative-texts/{category}/{slug}/",f"books/{slug}.html").decode()
+            url,_=xhtml_link(page,slug,category)
+            try: fetcher.get(url,f"books/{slug}.xhtml")
+            except Exception as error: failures.append((url,str(error)))  # noqa: BLE001
     for url,error in failures: print("FAILED",url,error,file=sys.stderr)
     return not failures
 
@@ -123,11 +145,24 @@ def css_styles(document):
         kinds=set()
         if re.search(r"font-style:\s*italic",body): kinds.add("i")
         if re.search(r"font-weight:\s*bold",body): kinds.add("b")
+        if re.search(r"text-transform:\s*uppercase",body): kinds.add("upper")
         if not kinds: continue
         for selector in selectors.split(","):
             last=selector.strip().split()[-1] if selector.strip() else ""
             for name in re.findall(r"\.([A-Za-z0-9_-]+)",last): styles.setdefault(name,set()).update(kinds)
     return styles
+
+def css_hidden(document):
+    """Classes the page never shows (display: none on .X, .b .X or .ef .b .X; bahai.org's body has class ef), such as the
+    duplicate "1." line beside each numbered Hidden Word."""
+    hidden=set()
+    sheet=re.sub(r"/\*.*?\*/|@charset[^;]*;","","".join(re.findall(r"<style[^>]*>(.*?)</style>",document,re.S)),flags=re.S)
+    for selectors,body in re.findall(r"([^{}]*)\{([^{}]*)\}",sheet):
+        if not re.search(r"display:\s*none",body): continue
+        for selector in selectors.split(","):
+            match=re.fullmatch(r"(?:\.ef\s+)?(?:\.b\s+)?\.([A-Za-z0-9_-]+)"," ".join(selector.split()))
+            if match: hidden.add(match.group(1))
+    return hidden
 
 def css_sizes(document):
     """Class name -> font size in rem, from the stylesheet inside the file: how bahai.org marks titles and headings."""
@@ -168,7 +203,7 @@ class Block:
 
 class Reader:
     def __init__(self,document):
-        self.styles=css_styles(document); self.sizes=css_sizes(document); self.root=parse(document)
+        self.styles=css_styles(document); self.sizes=css_sizes(document); self.hidden=css_hidden(document); self.root=parse(document)
         self.body=next(e for e in self.root.iter() if local(e.tag)=="body")
         self.meta={m.get("name"):m.get("content") for m in self.root.iter() if local(m.tag)=="meta" and m.get("name")}
         self.title=next(("".join(e.itertext()).strip() for e in self.root.iter() if local(e.tag)=="title"),"")
@@ -198,7 +233,7 @@ class Reader:
     def walk(self,element,block,inherited,quoted=False):
         tag=local(element.tag); quoted=quoted or tag=="blockquote"
         if tag=="nav": self.read_toc(element); return
-        if tag in ("script","style"): return
+        if tag in ("script","style") or self.hidden&classes(element): return
         if block is None and self.is_notes(element): self.read_notes(element); return
         if block is None and tag in BLOCKS and not any(local(d.tag) in CONTAINERS for d in element.iter() if d is not element):
             anchor=next((a.get("id") for a in element.iter() if local(a.tag)=="a" and "sf" in classes(a) and a.get("id")),None)
@@ -218,6 +253,10 @@ class Reader:
     def inline(self,element,block,styles,note=None):
         tag=local(element.tag)
         if tag=="a" and "jc" in classes(element): return  # the ↩ link back from a note
+        if self.hidden&classes(element): return
+        if tag=="a" and "td" in classes(element) and (element.text or "").strip().isdigit():
+            # bahai.org's paragraph or item number, shown in the margin: kept, and marked as a number.
+            block.runs.append((element.text.strip(),frozenset(styles|{"num"}),None)); return
         if tag=="br": block.runs.append(("\n",frozenset(styles),note))
         elif tag=="wbr": pass
         else:
@@ -292,9 +331,10 @@ class Passage:
             if note:
                 if note not in notes: raise ValueError(f"Footnote marker {text!r} points at missing note {note}")
                 text=text.translate(SUPERSCRIPT); self.cited.append(note); styles=styles-{"sup"}
+            if "upper" in styles: text=text.upper()  # text-transform: uppercase, as the page shows it
             start=len(self.text); self.text+=text
             for kind in sorted(styles):
-                if kind in ("i","b","u"): self.add_span(start,len(self.text),kind)
+                if kind in ("i","b","u","num"): self.add_span(start,len(self.text),kind)
         if block.quote: self.spans.append([begin,len(self.text),"quote"])
         if block.size>=HEADING: self.spans.append([begin,len(self.text),"heading"])
     def add_span(self,start,end,kind):
@@ -312,6 +352,7 @@ class Passage:
             for n,block in enumerate(note["blocks"]):
                 if n: self.text+="\n\n"
                 for text,styles,_ in clean_runs(block.runs):
+                    if "upper" in styles: text=text.upper()
                     start=len(self.text); self.text+=text
                     for kind in sorted(styles):
                         if kind in ("i","b","u"): self.add_span(start,len(self.text),kind)
@@ -484,7 +525,115 @@ def build_shoghi(folder,log):
                 source=dict(name="Bahá’í Reference Library",url=index_url,**provenance(log,index_url)),
                 parser_version=PARSER_VERSION,works=works,items=items)
 
-OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi}
+# ---------------------------------------------------------------- the app's other collections
+
+MATCH_BLOCK=0.6    # share of an official paragraph's word sequences found in an app passage, to place it there
+ATTACH_BLOCKS=3; ATTACH_CHARS=600  # what counts as a short official line the app lacks
+MATCH_WORDS=0.9    # or: word-by-word similarity of the two texts (difflib ratio)
+MATCH_PASSAGE=0.9  # share of an app passage's word sequences covered by the official paragraphs placed in it
+
+def app_rows(key):
+    """The app's own passages for a collection, from the bundled BahaiPrayers.net data only: [(id, text)] in order."""
+    if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
+    import reader  # noqa: E402 - the app's parser, so ids and texts are exactly what the app shows
+    with tempfile.TemporaryDirectory() as empty:
+        reader.CACHE=Path(empty)/"cache"; reader.LIBRARY=Path(empty)/"libraries"
+        items=reader.load_bahaiprayers(1)
+    if key=="epistle": return [(i["id"],i["text"]) for i in items if i["id"]=="prayers:13691"]
+    if key=="prayers": return [(i["id"],i["text"]) for i in items if i["id"].startswith("prayers:") and i["id"]!="prayers:13691"]
+    return [(i["id"],i["text"]) for i in items if i["id"].startswith(key+":")]
+
+def block_text(block): return "".join(r[0] for r in clean_runs(block.runs))
+
+def match_rows(rows,blocks,size=5):
+    """Places the official paragraphs in the app's passages. Returns ({row id: [block index]}, report)."""
+    grams=[shingles(text,size) for _,text in rows]
+    folded=[fold(text) for _,text in rows]
+    owner={}; last=0
+    for b,block in enumerate(blocks):
+        text=block_text(block)
+        if len(words(text))<size: continue
+        mine=shingles(text,size)
+        scores=[(len(mine&g)/len(mine),r) for r,g in enumerate(grams) if mine&g]
+        good=[(score,r) for score,r in scores if score>=MATCH_BLOCK]
+        if not good: continue
+        best=max(score for score,_ in good)
+        # A paragraph found in several passages (a repeated invocation) goes to the nearest one ahead.
+        near=[r for score,r in good if score>=best-0.05]
+        ahead=[r for r in near if r>=last]
+        r=min(ahead) if ahead else max(near)
+        owner[b]=r; last=r
+    spans={}
+    for b,r in owner.items(): spans.setdefault(r,[]).append(b)
+    taken=set(owner); result={}; report=dict(unmatched=[],split=[],partial=[],extra=[])
+    for r,(ident,text) in enumerate(rows):
+        if r not in spans: report["unmatched"].append(ident); continue
+        first,last_=min(spans[r]),max(spans[r])
+        inside=range(first,last_+1)
+        if any(b in owner and owner[b]!=r for b in inside): report["split"].append(ident); continue
+        # Short lines next to the passage (a heading, "He is God!", "O Son of Spirit!") belong to it when its text has them.
+        fits=lambda b: b not in taken and fold(block_text(blocks[b])) and fold(block_text(blocks[b])) in folded[r]
+        while first>0 and fits(first-1): first-=1
+        while last_+1<len(blocks) and fits(last_+1): last_+=1
+        chosen=list(range(first,last_+1)); taken.update(chosen)
+        joined="\n\n".join(block_text(blocks[b]) for b in chosen); official=shingles(joined,size)
+        covered=overlap_of(grams[r],official)
+        # And the other way: the official paragraphs hold nothing much the app's passage lacks.
+        within=overlap_of(official,grams[r])
+        if min(covered,within)<MATCH_PASSAGE:
+            # Short passages lose many word sequences to one changed word ("lingers", "lingereth"); compare word by word too.
+            similar=difflib.SequenceMatcher(None,words(rows[r][1]),words(joined),autojunk=False).ratio()
+            if similar<MATCH_WORDS:
+                report["partial" if covered<within else "extra"].append((ident,round(min(covered,within),3),round(similar,3))); continue
+        result[ident]=chosen
+    # Short official lines the app's copy lacks (a part's opening invocation, a line introducing the next passage) open the
+    # passage that follows them. Headings are structure the contents list already shows; long stretches are left out and reported.
+    starts=sorted((chosen[0],ident) for ident,chosen in result.items())
+    used={b for chosen in result.values() for b in chosen}; report["added"]=[]
+    for first,ident in starts:
+        b=first-1; lead=[]
+        while b>=0 and b not in used and blocks[b].size<HEADING and block_text(blocks[b]) and not FRONT.intersection(blocks[b].cls):
+            lead.insert(0,b); b-=1
+        while lead and blocks[lead[0]].tag=="hr": lead.pop(0)  # a separator does not open a passage
+        if lead and len(lead)<=ATTACH_BLOCKS and all(len(block_text(blocks[x]))<=ATTACH_CHARS for x in lead) and (b<0 or b in used or blocks[b].size>=HEADING or blocks[b].tag=="hr" or not block_text(blocks[b])):
+            result[ident]=lead+result[ident]; used.update(lead); report["added"].append((ident,[block_text(blocks[x])[:60] for x in lead]))
+    used={b for chosen in result.values() for b in chosen}
+    report["unused"]=[(b,block_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
+    return result,report
+
+def overlap_of(target,found):
+    """Share of target's word sequences present in found."""
+    return len(target&found)/len(target) if target else 0.0
+
+def build_books(folder,log):
+    books=[]; replacements={}
+    for key,(category,slug) in BOOK_SOURCES.items():
+        if key not in BOOKS_DONE: continue
+        page=(folder/f"books/{slug}.html").read_text(); url,edition=xhtml_link(page,slug,category)
+        raw=(folder/f"books/{slug}.xhtml").read_bytes()
+        if sha256(raw)!=log[url]["sha256"]: raise ValueError(f"{slug}.xhtml does not match fetch-log.json")
+        reader=Reader(raw.decode("utf-8")); blocks=[b for b in reader.blocks if clean_runs(b.runs)]
+        rows=app_rows(key); matched,report=match_rows(rows,blocks)
+        lead={ident:len(lines) for ident,lines in report["added"]}
+        for ident,chosen in matched.items():
+            passage=Passage()
+            for b in chosen: passage.add_block(blocks[b],reader.notes)
+            passage.add_notes(reader.notes)
+            # The opening the contents list shows: from the app's own first paragraph, without bahai.org's margin numbers.
+            first=Passage(); first.add_block(blocks[chosen[lead.get(ident,0)]],{**reader.notes})
+            numbers=[(a,b) for a,b,k in first.spans if k=="num"]
+            opening="".join(c for i,c in enumerate(first.text) if not any(a<=i<b for a,b in numbers))
+            replacements[ident]=dict(book=key,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),
+                                     opening=" ".join(opening.split())[:120],anchor=next((blocks[b].anchor for b in chosen if blocks[b].anchor),None))
+        books.append(dict(key=key,slug=slug,title=reader.title.strip(),author=reader.meta.get("author"),document_id=reader.meta.get("document-id"),edition=edition,
+                          rows=len(rows),replaced=len(matched),kept={k:v for k,v in report.items()},
+                          **provenance(log,url,dict(page_url=f"{SITE}/library/authoritative-texts/{category}/{slug}/"))))
+    return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
+
+# Collections switched to the official text so far, one at a time.
+BOOKS_DONE=("hidden",)
+
+OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
 def render(data): return json.dumps(data,ensure_ascii=False,indent=0,separators=(",",":"))+"\n"
 
@@ -503,7 +652,7 @@ def main(argv=None):
     parser.add_argument("sources",help="folder for the raw downloads")
     parser.add_argument("--refresh",action="store_true",help="download again even when a copy exists")
     parser.add_argument("--delay",type=float,default=1.0,help="seconds between requests (default 1)")
-    parser.add_argument("--only",choices=("uhj","se"))
+    parser.add_argument("--only",choices=("uhj","se","books"))
     args=parser.parse_args(argv)
     if args.command=="fetch": return 0 if fetch(args.sources,args.refresh,args.delay,args.only) else 1
     changed=build(args.sources,write=args.command=="build")
