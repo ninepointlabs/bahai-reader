@@ -7332,6 +7332,418 @@
 "sha256":"0eb137d89408a7e946776c2204e5541a292df2ef77b9e5ff71043335280edf54",
 "retrieved":"2026-11-08",
 "page_url":"https://www.bahai.org/library/authoritative-texts/abdul-baha/additional-prayers-revealed-abdul-baha/"
+},
+{
+"key":"prayers+additional-bahaullah",
+"slug":"additional-prayers-revealed-bahaullah",
+"title":"Additional Prayers Revealed by Bahá’u’lláh",
+"author":"",
+"document_id":"",
+"edition":"9d641f77",
+"rows":156,
+"replaced":18,
+"kept":{
+"unmatched":[
+"prayers:13881",
+"prayers:13882",
+"prayers:13886",
+"prayers:13887",
+"prayers:13888",
+"prayers:13889",
+"prayers:13890",
+"prayers:13891",
+"prayers:13893",
+"prayers:13892",
+"prayers:13885",
+"prayers:13884",
+"prayers:13883",
+"prayers:6347",
+"prayers:6342",
+"prayers:13083",
+"prayers:6346",
+"prayers:246",
+"prayers:247",
+"prayers:8258",
+"prayers:8259",
+"prayers:8260",
+"prayers:6309",
+"prayers:8271",
+"prayers:8270",
+"prayers:8269",
+"prayers:6307",
+"prayers:8268",
+"prayers:6799",
+"prayers:10143",
+"prayers:10144",
+"prayers:10145",
+"prayers:10146",
+"prayers:10147",
+"prayers:10148",
+"prayers:10149",
+"prayers:10150",
+"prayers:10151",
+"prayers:10152",
+"prayers:13684",
+"prayers:8255",
+"prayers:8256",
+"prayers:6343",
+"prayers:6663",
+"prayers:6344",
+"prayers:6667",
+"prayers:6800",
+"prayers:6809",
+"prayers:6802",
+"prayers:6803",
+"prayers:11017",
+"prayers:6788",
+"prayers:6789",
+"prayers:6801",
+"prayers:6361",
+"prayers:6345",
+"prayers:14184",
+"prayers:14187",
+"prayers:14188",
+"prayers:14189",
+"prayers:14190",
+"prayers:14191",
+"prayers:14192",
+"prayers:14193",
+"prayers:14194",
+"prayers:14195",
+"prayers:14196",
+"prayers:8261",
+"prayers:8264",
+"prayers:8262",
+"prayers:8263",
+"prayers:8266",
+"prayers:8232",
+"prayers:8233",
+"prayers:8234",
+"prayers:8235",
+"prayers:6794",
+"prayers:6795",
+"prayers:6796",
+"prayers:6793",
+"prayers:12569",
+"prayers:6804",
+"prayers:8236",
+"prayers:8237",
+"prayers:8238",
+"prayers:8241",
+"prayers:8244",
+"prayers:8248",
+"prayers:8250",
+"prayers:8252",
+"prayers:8239",
+"prayers:8240",
+"prayers:8245",
+"prayers:8253",
+"prayers:8249",
+"prayers:8242",
+"prayers:12874",
+"prayers:6836",
+"prayers:6835",
+"prayers:6839",
+"prayers:6837",
+"prayers:6838",
+"prayers:6305",
+"prayers:6664",
+"prayers:6665",
+"prayers:6666",
+"prayers:6797",
+"prayers:6815",
+"prayers:6670",
+"prayers:6787",
+"prayers:6806",
+"prayers:9524",
+"prayers:6798",
+"prayers:6668",
+"prayers:6814",
+"prayers:12223",
+"prayers:6833",
+"prayers:6834",
+"prayers:6442",
+"prayers:6808",
+"prayers:439",
+"prayers:2455",
+"prayers:6792",
+"prayers:6791",
+"prayers:354",
+"prayers:6669",
+"prayers:6811",
+"prayers:6813",
+"prayers:6812"
+],
+"split":[],
+"partial":[
+[
+"prayers:13880",
+0.001,
+0.003
+],
+[
+"prayers:8257",
+0.001,
+0.008
+],
+[
+"prayers:10155",
+0.095,
+0.215
+],
+[
+"prayers:8254",
+0.002,
+0.007
+],
+[
+"prayers:8265",
+0.001,
+0.004
+],
+[
+"prayers:8243",
+0.003,
+0.019
+],
+[
+"prayers:8247",
+0.01,
+0.055
+],
+[
+"prayers:8246",
+0.002,
+0.012
+],
+[
+"prayers:8251",
+0.001,
+0.004
+]
+],
+"extra":[],
+"added":[],
+"revised":[],
+"unused":[
+[
+0,
+"Additional Prayers Revealed by Bahá’u’lláh"
+],
+[
+1,
+"O Thou by Whose name the sea of joy moveth and the fragrance of happiness is wafted! I ask Thee to s"
+],
+[
+2,
+"—Bahá’u’lláh"
+],
+[
+3,
+"* * *"
+],
+[
+4,
+"I swear by Thy glory, O my God! I am astonished at them and at that which they have manifested in th"
+],
+[
+5,
+"—Bahá’u’lláh"
+],
+[
+6,
+"* * *"
+],
+[
+7,
+"Glorified art Thou, O Lord my God! Behold how one slave hath stood at the door of another, seeking f"
+],
+[
+8,
+"All kings are as vassals before the gate of Thy grace, the rich are but destitute at the shore of Th"
+],
+[
+9,
+"O my God! Since he hath asked this servant for his freedom, I call Thee to witness at this moment th"
+],
+[
+10,
+"—Bahá’u’lláh"
+],
+[
+11,
+"* * *"
+],
+[
+12,
+"O Thou Who art the Lord of all names and Fashioner of the heavens! Deliver Thy loved ones from the p"
+],
+[
+13,
+"O Thou Who art the Essence of immortality! Dash not their hopes, I adjure Thee by the life of Bahá, "
+],
+[
+14,
+"Thine enemies have sharpened their teeth for the flesh of Thy loved ones. Protect, then, Thy compani"
+],
+[
+15,
+"Many a day hath passed in delay. Let them, then, in a state of detachment from all things, repeat ni"
+],
+[
+16,
+"—Bahá’u’lláh"
+],
+[
+17,
+"* * *"
+],
+[
+21,
+"—Bahá’u’lláh"
+],
+[
+22,
+"* * *"
+],
+[
+28,
+"—Bahá’u’lláh"
+],
+[
+29,
+"* * *"
+],
+[
+31,
+"—Bahá’u’lláh"
+],
+[
+32,
+"* * *"
+],
+[
+35,
+"—Bahá’u’lláh"
+],
+[
+36,
+"* * *"
+],
+[
+38,
+"—Bahá’u’lláh"
+],
+[
+39,
+"* * *"
+],
+[
+42,
+"—Bahá’u’lláh"
+],
+[
+43,
+"* * *"
+],
+[
+46,
+"—Bahá’u’lláh"
+],
+[
+47,
+"* * *"
+],
+[
+49,
+"—Bahá’u’lláh"
+],
+[
+50,
+"* * *"
+],
+[
+52,
+"—Bahá’u’lláh"
+],
+[
+53,
+"* * *"
+],
+[
+56,
+"—Bahá’u’lláh"
+],
+[
+57,
+"* * *"
+],
+[
+60,
+"—Bahá’u’lláh"
+],
+[
+61,
+"* * *"
+],
+[
+63,
+"—Bahá’u’lláh"
+],
+[
+64,
+"* * *"
+],
+[
+67,
+"—Bahá’u’lláh"
+],
+[
+68,
+"* * *"
+],
+[
+71,
+"—Bahá’u’lláh"
+],
+[
+72,
+"* * *"
+],
+[
+75,
+"—Bahá’u’lláh"
+],
+[
+76,
+"* * *"
+],
+[
+78,
+"—Bahá’u’lláh"
+],
+[
+79,
+"* * *"
+],
+[
+93,
+"—Bahá’u’lláh"
+],
+[
+94,
+"* * *"
+],
+[
+96,
+"—Bahá’u’lláh"
+]
+]
+},
+"source_url":"https://www.bahai.org/library/authoritative-texts/bahaullah/additional-prayers-revealed-bahaullah/additional-prayers-revealed-bahaullah.xhtml",
+"sha256":"02236a2b49952ff563368cec3272d8c081c5615d7828bfcebd0169a70420497a",
+"retrieved":"2026-11-08",
+"page_url":"https://www.bahai.org/library/authoritative-texts/bahaullah/additional-prayers-revealed-bahaullah/"
 }
 ],
 "replacements":{
@@ -50198,6 +50610,186 @@
 "notes":0,
 "opening":"O Thou forgiving God! Forgive the sins of my loving mother, pardon her shortcomings, cast upon her the glance of Thy gra",
 "anchor":"885686074"
+},
+"prayers:13866":{
+"book":"prayers+additional-bahaullah",
+"text":"He is God, exalted is He, the Lord of wisdom and utterance.\n\nSay: I yield Thee thanks, O my God, and my Master, and my Mainstay, for having aided me to recognize the Dawning-Place of Thy signs, the Dayspring of Thy testimonies, and the Fountainhead of Thy laws and commandments, Him unto Whom Thou didst reveal the Qur’án, and through Whom Thou didst distinguish truth from falsehood and light from darkness. I beseech Thee, O Thou Who art the Lord of all created things and the Educator of all beings, by the billows of the Ocean of Thy favour and the effulgent splendours of the Day-Star of Thy bounty that have been shed upon Thy people, to ordain for this servant of Thine that which will exalt him by Thy name amidst Thy creatures. Write down, then, for me what Thou hast written down for Thy chosen ones and Thy loved ones. Potent art Thou to do what pleaseth Thee, and in Thy grasp are the reins of all who are in heaven and on earth.\n\nI praise Thee and thank Thee, moreover, for the blessing Thou hast sent down from the heaven of Thy will and the firmament of Thy purpose. I beseech Thee, by Thy most mighty signs and by Thy most great, most holy, and most exalted Cause, to bless his arrival unto us. Do Thou ordain for him what will cause every heart to be gladdened and every eye to be solaced. Verily Thou art God. There is none other God but Thee, the omnipotent Protector, the Self-Subsisting.¹\n\nNotes\n\n¹ Revealed for the recipient on the occasion of the birth of his son.",
+"words":278,
+"spans":[
+[
+1411,
+1416,
+"b"
+]
+],
+"notes":1,
+"opening":"He is God, exalted is He, the Lord of wisdom and utterance. Say: I yield Thee thanks, O my God, and my Master, and my Ma",
+"anchor":"623165308"
+},
+"prayers:13870":{
+"book":"prayers+additional-bahaullah",
+"text":"O God, my God! I yield Thee thanks for having guided me unto Thy straight Path and enabled me to recognize Thee and turn unto Thee, and for having made known unto me the oneness of Thine Essence and the sanctity of Thy Being. I implore Thee, by them Who are the Daysprings of Thy Cause, the Dawning-Places of Thy grace, and the Repositories of Thy knowledge and wisdom, to bless the gift which Thou hast bestowed upon me through Thy bounty and favour. Do Thou ordain for me and for her mother, as well as for her, the good of this world and of the next. Thou art, verily, the Lord of all being, Who hearest and art ready to answer.¹\n\nNotes\n\n¹ Revealed for the recipient on the occasion of the birth of his daughter.",
+"words":138,
+"spans":[
+[
+634,
+639,
+"b"
+]
+],
+"notes":1,
+"opening":"O God, my God! I yield Thee thanks for having guided me unto Thy straight Path and enabled me to recognize Thee and turn",
+"anchor":"542155991"
+},
+"prayers:13869":{
+"book":"prayers+additional-bahaullah",
+"text":"In the name of God, the Forgiver!\n\nAlthough this wretched state in which I am, O my God, maketh me deserving of Thy wrath and punishment, yet it beseemeth Thy good-pleasure and Thy bounties to confer Thy forgiveness on Thy servants and to bestow Thy good favour upon them. I ask Thee by Thy Name, which Thou hast made the King of all names, to protect me by Thy power and Thine omnipotence from all calamity and all that is repugnant to Thee, and from all that is contrary to Thy will. Thou art supreme over all things.",
+"words":98,
+"spans":[],
+"notes":0,
+"opening":"In the name of God, the Forgiver! Although this wretched state in which I am, O my God, maketh me deserving of Thy wrath",
+"anchor":"110218643"
+},
+"prayers:13878":{
+"book":"prayers+additional-bahaullah",
+"text":"He is God, exalted is He, the Lord of might and grandeur!\n\nO God, my God! I yield Thee thanks at all times and render Thee praise under all conditions.\n\nIn prosperity, all praise is Thine, O Lord of the Worlds, and in its absence, all gratitude is Thine, O Desire of them that have recognized Thee!\n\nIn adversity, all honour is Thine, O Adored One of all who are in heaven and on earth, and in affliction, all glory is Thine, O Enchanter of the hearts of those who yearn after Thee!\n\nIn hardship, all praise is Thine, O Thou the Goal of them that seek after Thee, and in comfort, all thanksgiving is Thine, O Thou whose remembrance is treasured in the hearts of those who are nigh unto Thee!\n\nIn wealth, all splendour is Thine, O Lord of them that are devoted to Thee, and in poverty, all command is Thine, O Thou the Hope of them that acknowledge Thy unity!\n\nIn joy, all glory is Thine, O Thou besides Whom there is none other God, and in sorrow, all beauty is Thine, O Thou besides Whom there is none other God!\n\nIn hunger, all justice is Thine, O Thou besides Whom there is none other God, and in satiety, all grace is Thine, O Thou besides Whom there is none other God!\n\nIn my homeland, all bounty is Thine, O Thou besides Whom there is none other God, and in exile, all decree is Thine, O Thou besides Whom there is none other God!\n\nUnder the sword, all munificence is Thine, O Thou besides Whom there is none other God, and in the safety of home, all perfection is Thine, O Thou besides Whom there is none other God!\n\nIn the lofty mansion, all generosity is Thine, O Thou besides Whom there is none other God, and upon the lowly dust, all favour is Thine, O Thou besides Whom there is none other God!\n\nIn prison, all fidelity is Thine, O Thou the Bestower of gifts, and in confinement, all eternity is Thine, O Thou Who art the ever-abiding King!\n\nAll bounty is Thine, O Thou Who art the Lord of bounty, and the Sovereign of bounty, and the King of bounty! I bear witness that Thou art to be praised in Thy doings, O Thou Source of bounty, and to be obeyed in Thy behests, O Thou Ocean of bounty, He from Whom all bounty doth proceed, He to Whom all bounty doth return!",
+"words":419,
+"spans":[],
+"notes":0,
+"opening":"He is God, exalted is He, the Lord of might and grandeur! O God, my God! I yield Thee thanks at all times and render The",
+"anchor":"715760313"
+},
+"prayers:13871":{
+"book":"prayers+additional-bahaullah",
+"text":"Praise be to Thee, O my God, that Thou didst graciously remember me through Thy Most Exalted Pen, at a time when Thou wert held in the Most Great Prison by reason of that which the hands of such enemies as had turned away from Thee and from Thy most resplendent signs had wrought. O my Lord! I have turned unto Thee and have set my face towards Thy Horizon. I beseech Thee, by the wrongs which He Who is the Dayspring of Thy signs and the Dawning-Place of Thy clear tokens hath suffered, to ordain for me what will profit me in every world of Thy worlds. Thou, verily, knowest me better than I know myself. Thou art the All-Knowing, the All-Informed.\n\nI entreat Thee, moreover, O Lord of all being and Possessor of all things visible and invisible, to bestow upon me a righteous child who may make mention of Thee on Thine earth and sing Thy praise throughout Thy realms; this, notwithstanding that Thou hast, with this Tablet, made me rich enough to dispense with every fruit, trace, or mention. I close my supplication, at this moment, with that which one of Thy chosen ones hath aforetime spoken: “O my Lord, leave me not childless, even though there is no better heir than Thyself.”¹\n\nNotes\n\n¹ Qur’án 21:89.",
+"words":223,
+"spans":[
+[
+1189,
+1194,
+"b"
+]
+],
+"notes":1,
+"opening":"Praise be to Thee, O my God, that Thou didst graciously remember me through Thy Most Exalted Pen, at a time when Thou we",
+"anchor":"798565991"
+},
+"prayers:13876":{
+"book":"prayers+additional-bahaullah",
+"text":"He is the All-Glorious!\n\nPraise be to Thee, O my God! Thou didst call me, and I answered Thee. Thou didst summon me, and I hastened unto Thee, entering beneath the shade of Thy mercy and seeking shelter at the threshold of the door of Thy grace. Thou hast nurtured me, O Lord, through Thy providence, chosen me for Thee alone, created me for Thy service, and appointed me to stand before Thee. I beseech Thee, by Thine all-glorious Name and by Thy beauty that hath dawned above the horizon of Thy most exalted Essence, to cause me to be related to Thee even as Thou hadst done so aforetime, and not to separate me from Thyself. Cause then to appear from me, O my God, that which is worthy of Thee. Thou art, in truth, powerful over all things.",
+"words":140,
+"spans":[],
+"notes":0,
+"opening":"He is the All-Glorious! Praise be to Thee, O my God! Thou didst call me, and I answered Thee. Thou didst summon me, and ",
+"anchor":"016961632"
+},
+"prayers:13873":{
+"book":"prayers+additional-bahaullah",
+"text":"In the Name of our Lord, the Most Holy, the Most Great, the Exalted, the Most Glorious!\n\nO God, my God! Thou seest how Thy servant hath set his face towards Thee and desired to be honoured by performing that whereunto he hath been bidden in Thy Book. Do Thou ordain for him through Thy Most Exalted Pen that which shall draw him nigh unto the Most Sublime Summit. Thou, verily, art the Educator of the world and the Lord of the nations, and Thou, verily, art the Potent, the All-Subduing, the Almighty.",
+"words":93,
+"spans":[],
+"notes":0,
+"opening":"In the Name of our Lord, the Most Holy, the Most Great, the Exalted, the Most Glorious! O God, my God! Thou seest how Th",
+"anchor":"853045685"
+},
+"prayers:13872":{
+"book":"prayers+additional-bahaullah",
+"text":"He is the Ever-Abiding, the Almighty, the Most High.\n\nGlory be to Thee, O Lord my God! I implore Thee by this Name that hath been hemmed in by tribulations on every side and assailed by afflictions from every direction, in such wise that He findeth none to help Him on Thine earth or to succour Him in Thy dominion, to ease the pangs of labour for this handmaiden and guard her therefrom, and to free her from this pain and change it into comfort and relief. Potent art Thou to do what Thou willest, and able to ordain what Thou pleasest. Thou art, verily, the Almighty, the Incomparable, the Ever-Forgiving, the Most Compassionate.",
+"words":114,
+"spans":[],
+"notes":0,
+"opening":"He is the Ever-Abiding, the Almighty, the Most High. Glory be to Thee, O Lord my God! I implore Thee by this Name that h",
+"anchor":"248565991"
+},
+"prayers:13875":{
+"book":"prayers+additional-bahaullah",
+"text":"He is the Peerless!\n\nPraise be unto Thee, O Lord my God! I beseech Thee by Thy Most Exalted Name in the Tabernacle of effulgent splendour, and by Thy Most Sublime Word in the Dominion of transcendent glory, to protect this servant, who hath enjoyed companionship with Thee, hearkened unto the accents of Thy voice and recognized Thy proof. Vouchsafe, then, unto him the good of both this world and the next, and grant unto him the station of righteousness in Thy presence, that his feet may not slip from Thine all-glorious and most exalted path.",
+"words":96,
+"spans":[],
+"notes":0,
+"opening":"He is the Peerless! Praise be unto Thee, O Lord my God! I beseech Thee by Thy Most Exalted Name in the Tabernacle of eff",
+"anchor":"192482602"
+},
+"prayers:13868":{
+"book":"prayers+additional-bahaullah",
+"text":"O my Lord, my Master, and the Goal of my Desire! I have heard that Thou hast declared this to be a Day whereon if anyone, with complete sincerity, were to ask but once, “Show Thyself to me”, then from the heaven of Divine Utterance he would hear: “Look, and thou shalt behold Me!” From this blessed and exalted utterance the station of this Day is made clear and evident.",
+"words":70,
+"spans":[],
+"notes":0,
+"opening":"O my Lord, my Master, and the Goal of my Desire! I have heard that Thou hast declared this to be a Day whereon if anyone",
+"anchor":"742371889"
+},
+"prayers:13874":{
+"book":"prayers+additional-bahaullah",
+"text":"O God, my God! Glory be to Thee for having guided me unto the horizon of Thy Revelation, illumined me with the splendours of the light of Thy grace and mercy, caused me to speak forth Thy praise, and given me to behold that which hath been revealed by Thy Pen.\n\nI beseech Thee, O Thou the Lord of the kingdom of names and Fashioner of earth and heaven, by the rustling of the Divine Lote-Tree and by Thy most sweet utterance which hath enraptured the realities of all created things, to raise me up in Thy Name amidst Thy servants. I am he who hath sought in the daytime and in the night season to stand before the door of Thy bounty and to present himself before the throne of Thy justice. O Lord! Cast not away him who hath clung to the cord of Thy nearness, and deprive not him who hath directed his steps towards Thy most sublime station, the summit of glory, and the supreme objective—that station wherein every atom crieth out in the most eloquent tongue, saying: “Earth and heaven, glory and dominion are God’s, the Almighty, the All-Glorious, the Most Bountiful!”",
+"words":198,
+"spans":[],
+"notes":0,
+"opening":"O God, my God! Glory be to Thee for having guided me unto the horizon of Thy Revelation, illumined me with the splendour",
+"anchor":"301701477"
+},
+"prayers:13867":{
+"book":"prayers+additional-bahaullah",
+"text":"He is the Almighty, the Self-Subsisting.\n\nGlorified art Thou, O Lord my God! I call upon Thee at this time when the accents of the dove of separation are raised from the land of Iraq, and the warbling of the Nightingale of fervent longing is heard from the horizon of the world—at such a time do I call upon Thee, proclaiming: “Thou in truth art God, the King, the Mighty, the Beauteous. From everlasting, O my God, Thou hast been exalted in the supremacy of Thy might, Thy power, and Thy glory, and unto all eternity Thou wilt remain transcendent in the sublimity of Thy grandeur, Thy majesty, and Thy splendour. Every Prophet is filled with consternation when confronted by the manifold evidences of Thy wrath, and every Chosen One standeth dismayed before the revelations of Thy might. No God is there but Thee, the Almighty, the All-Powerful, the All-Compelling.”\n\nI yield Thee thanks, O my God, in these days when the oppressors amongst Thy people and the rebellious amongst Thy creatures have arrayed themselves against us, and are rejoicing at the adversities which, through the mysterious workings of Thy decree, Thou hast caused to descend upon us as gems from the treasury of Thy providence. Such hath ever been Thy custom with Thy loved ones and Thy practice with Thy chosen servants. I swear by Thy might, O my Beloved, that though others may flee from tribulations suffered in Thy path, I am he who, in his love for Thee, yearneth after every woe and trial. I ask Thee, then, by Thy Name through which the seas of names have surged before the evidences of Thy transcendent oneness, and through which Thou hast been exalted above all creation in the hallowed sovereignty of thy Lordship, to send down whatever afflictions Thou hast destined for Thy loved ones upon this Thy servant, lest there should befall them that which would still the quickness of their love for Thee, or dampen the fervency of their devotion. I am he, O my God, who would ransom with his life and soul whatsoever proceedeth from Thee or befalleth at Thy bidding. To all this shall I be true, through Thy power and Thy might. No God is there but Thee, the Generous, the Subtile, the All-Knowing, the All-Wise.\n\nI ask Thee then, O my God, by the lights of Thy divine unity, and the hidden mysteries of Thine ancient and everlasting Being, to preserve Thy loved ones after I am gone, lest their feet should slip upon Thy path. Gather them then together upon the shore of Thy munificence and bounty, and sever them from all but Thee so that they may stand in fear of no one, nor be overawed by any soul. Open then their eyes, O my God, through the wondrous evidences of Thy might and the sovereign potency of Thy dominion, in order that they may see all things held within Thy grasp, and all matters contained within the palm of Thine omnipotence. I swear by Thy beauty, O Thou my hope, that shouldst Thou cause them to ascend to this most sublime and all-highest station, they would tell of Thee continually, and would so completely return unto Thee that naught could cause them any perturbation, though all who are in heaven and on earth should rise up unitedly against them.\n\nI ask Thee then, O my God, by Thy light which hath illuminated all beings, and by Thy glory which hath irradiated the whole of creation, to remember Thy servant who hath been designated “Jím” in the realms of Thine eternity and the canopy of Thy grandeur. Cause him then, O my God, to hearken unto the holy melodies of Thy tender mercy, that they may draw him away from himself and from whatsoever is not of Thee, and attract him unto the dawning splendours of Thy love and adoration. Potent art Thou to accomplish this through Thy transcendent might.",
+"words":663,
+"spans":[],
+"notes":0,
+"opening":"He is the Almighty, the Self-Subsisting. Glorified art Thou, O Lord my God! I call upon Thee at this time when the accen",
+"anchor":"282063749"
+},
+"prayers:13877":{
+"book":"prayers+additional-bahaullah",
+"text":"O my God! O my God! I testify that this is Thy Day which hath been mentioned in Thy Books, Thy Epistles, Thy Psalms and Thy Tablets. In it Thou hast manifested that which was hidden in Thy Knowledge and stored up in the repositories of Thine unfailing protection. I beseech Thee, O Lord of the world, by Thy Most Great Name whereby the limbs of the people were shaken, to assist Thy servants and Thy handmaidens to become steadfast in Thy Cause and to arise in Thy service.\n\nVerily, Thou art potent to do whatsoever Thou willest, and in Thy grasp are the reins of all things. Thou protectest whomsoever Thou willest through Thy Power and Dominion. And verily, Thou art the Almighty, the All-Subduing, the Most Powerful.",
+"words":129,
+"spans":[],
+"notes":0,
+"opening":"O my God! O my God! I testify that this is Thy Day which hath been mentioned in Thy Books, Thy Epistles, Thy Psalms and ",
+"anchor":"511039431"
+},
+"prayers:13879":{
+"book":"prayers+additional-bahaullah",
+"text":"Praised be Thou, O Lord my God! Sanctify mine eye, and mine ear, and my tongue, and my spirit, and my heart, and my soul, and my body, and mine entire being from turning unto anyone but Thee. Give me then to drink from the cup that brimmeth with the sealed wine of Thy glory.",
+"words":55,
+"spans":[],
+"notes":0,
+"opening":"Praised be Thou, O Lord my God! Sanctify mine eye, and mine ear, and my tongue, and my spirit, and my heart, and my soul",
+"anchor":"533738942"
+},
+"prayers:10153":{
+"book":"prayers+additional-bahaullah",
+"text":"Pure and sanctified art Thou, O my God! How can the pen move and the ink flow after the breezes of loving-kindness have ceased, and the signs of bounty have vanished, when the sun of abasement hath risen, and the swords of calamity are drawn, when the heavens of sorrow have been upraised, and the darts of affliction and the lances of vengeance have rained from the clouds of power — in such wise that the signs of joy have departed from all hearts, and the tokens of gladness have been erased from every horizon, the gates of hope have been shut, the mercy of the supernal breeze hath ceased to waft over the rose-garden of faithfulness, and the whirlwind of extinction hath struck the tree of existence. The pen is groaning, and the ink bewaileth its plight, and the tablet is awestruck at this cry. The mind is in turmoil from the taste of this pain and sorrow, and the divine Nightingale calleth: “Alas! Alas! for all that hath been made to appear.” And this, O my God, is from naught but Thy hidden bounties.",
+"words":185,
+"spans":[],
+"notes":0,
+"opening":"Pure and sanctified art Thou, O my God! How can the pen move and the ink flow after the breezes of loving-kindness have ",
+"anchor":"961798779"
+},
+"prayers:10154":{
+"book":"prayers+additional-bahaullah",
+"text":"O Thou Who holdest within Thy grasp the Kingdom of names and the Empire of all things, Thou seest how I have become a stranger from my land on account of my love for Thee. I beg of Thee, by the beauty of Thy countenance, to make my remoteness from home a means whereby Thy servants may be drawn nigh unto the Fountain-head of Thy Cause and the Dayspring of Thy Revelation. O God, I call on Thee with a tongue that hath spoken no word of disobedience against Thee, imploring Thee, by Thy sovereignty and might, to keep me safe in the shelter of Thy mercy and to grant me strength to serve Thee and to serve my father and mother. Thou, verily, art the Almighty, the Help in Peril, the Self-Subsisting.",
+"words":133,
+"spans":[],
+"notes":0,
+"opening":"O Thou Who holdest within Thy grasp the Kingdom of names and the Empire of all things, Thou seest how I have become a st",
+"anchor":"781665991"
+},
+"prayers:10158":{
+"book":"prayers+additional-bahaullah",
+"text":"Praise be to Thee, O Lord my God, for guiding me unto the horizon of Thy Revelation and for causing me to be mentioned by Thy Name. I beseech Thee, by the spreading rays of the Daystar of Thy providence and by the billowing waves of the Ocean of Thy mercy, to grant that my speech may bear a trace of the influence of Thine own exalted Word, attracting thereby the realities of all created things. Powerful art Thou to do what Thou willest through Thy wondrous and incomparable Utterance.",
+"words":90,
+"spans":[],
+"notes":0,
+"opening":"Praise be to Thee, O Lord my God, for guiding me unto the horizon of Thy Revelation and for causing me to be mentioned b",
+"anchor":"908556715"
+},
+"prayers:10162":{
+"book":"prayers+additional-bahaullah",
+"text":"In regard to his affairs, let him repeat nineteen times: “Thou seest me, O my God, detached from all save Thee and cleaving unto Thee. Guide me, then, in all mine affairs unto that which profiteth me for the glory of Thy Cause and the loftiness of the station of Thy loved ones.” Let him then reflect upon the matter and undertake whatever cometh to mind. This vehement opposition of the enemies will indeed give way to supreme prosperity.",
+"words":79,
+"spans":[],
+"notes":0,
+"opening":"In regard to his affairs, let him repeat nineteen times: “Thou seest me, O my God, detached from all save Thee and cleav",
+"anchor":"884624320"
 }
 }
 }
