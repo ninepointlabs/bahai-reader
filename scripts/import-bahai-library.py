@@ -659,12 +659,14 @@ def match_rows(rows,blocks,size=5):
         # Short lines next to the passage (a heading, "He is God!", "O Son of Spirit!") belong to it when its text has them.
         def fits(b):
             if b in taken or not words(match_text(blocks[b])): return False
+            if title_page(blocks,b): return False
             # A heading joins only a passage that opens with it; other lines when the passage has their words in sequence.
             if blocks[b].size>=HEADING: return folded[r].startswith(fold(match_text(blocks[b])))
             return contains(row_words[r],words(match_text(blocks[b])))
         while first>0 and fits(first-1): first-=1
         while last_+1<len(blocks) and fits(last_+1): last_+=1
-        chosen=list(range(first,last_+1)); taken.update(chosen)
+        # The title page (title, byline, the translator's credit under them) is never passage text.
+        chosen=[b for b in range(first,last_+1) if not title_page(blocks,b)]; taken.update(chosen)
         joined="\n\n".join(match_text(blocks[b]) for b in chosen); official=shingles(joined,size)
         covered=overlap_of(grams[r],official)
         # And the other way: the official paragraphs hold nothing much the app's passage lacks.
@@ -727,6 +729,11 @@ def in_order(candidates):
     while n is not None: chain.append(candidates[n]); n=back[n]
     return chain[::-1]
 
+def title_page(blocks,b):
+    """The book's title, its byline, and the small print under them (a translator's credit): never passage text."""
+    byline=lambda x: blocks[x].tag=="h1" or "re" in blocks[x].cls
+    return byline(b) or (0<blocks[b].size<SMALL and b>0 and byline(b-1))
+
 def contains(haystack,needle):
     """True when the word list needle appears as a run in haystack."""
     n=len(needle)
@@ -786,7 +793,7 @@ def build_books(folder,log):
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 

@@ -305,6 +305,14 @@ class OfficialBooksTests(unittest.TestCase):
         groups=reader.obligatory(list(self.items.values()))
         self.assertEqual([i["id"] for i in groups["Kitáb-i-Aqdas"][:2]],["aqdas:Paragraphs:6","aqdas:Paragraphs:8"])
 
+    def test_epistle_to_the_son_of_the_wolf(self):
+        book=self.books["epistle"]; epistle=self.items["prayers:13691"]
+        self.assertEqual((book["rows"],book["replaced"]),(1,1))
+        self.assertTrue(epistle["text"].startswith("IN THE NAME OF GOD, THE ONE, THE INCOMPARABLE, THE ALL-POWERFUL"))
+        self.assertIn("the greatest means for ensuring the tranquillity of",epistle["text"])
+        self.assertNotIn("Translated by Shoghi Effendi",epistle["text"][:300])  # the title page stays out
+        self.assertEqual((epistle["section"],epistle["tags"],epistle["title"]),("writings",["Epistle to the Son of the Wolf"],"Epistle to the Son of the Wolf"))
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):
