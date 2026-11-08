@@ -15,8 +15,11 @@ class ClippingTests(unittest.TestCase):
         self.assertTrue(text.endswith("\n\n— Bahá’u’lláh, The Hidden Words, Arabic no. 1. Copyright © Bahá’í International Community, bahai.org"),text[-80:])
 
     def test_aqdas_paragraph_and_gleanings_section(self):
-        self.assertTrue(reader.clipping(self.items["aqdas:Paragraphs:6"]).endswith("— Bahá’u’lláh, The Kitáb-i-Aqdas, ¶6"))
-        self.assertTrue(reader.clipping(self.items["gleanings:1"]).endswith("— Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh, I"))
+        # bahai.org's text carries its notice after the reference.
+        notice=lambda item:". Copyright © Bahá’í International Community, bahai.org" if item.get("official_id") else ""
+        aqdas,gleaning=self.items["aqdas:Paragraphs:6"],self.items["gleanings:1"]
+        self.assertTrue(reader.clipping(aqdas).endswith("— Bahá’u’lláh, The Kitáb-i-Aqdas, ¶6"+notice(aqdas)))
+        self.assertTrue(reader.clipping(gleaning).endswith("— Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh, I"+notice(gleaning)))
 
     def test_prayer_names_author_and_category(self):
         item=self.items["prayers:391"]  # the short obligatory prayer

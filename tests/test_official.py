@@ -245,6 +245,17 @@ class OfficialBooksTests(unittest.TestCase):
         self.assertEqual(self.items["hidden:148"]["title"][:22],"77 · O SON OF JUSTICE!")
         self.assertEqual(reader.heading(self.items["hidden:148"]),"Persian no. 77")
 
+    def test_gleanings(self):
+        book=self.books["gleanings"]
+        self.assertEqual((book["rows"],book["replaced"]),(166,166))
+        # bahai.org's edition capitalises the pronouns of the Manifestation in section XXXIX, where the earlier copy did not.
+        self.assertIn("My persecutors decapitated Me, and, carrying aloft My head",self.items["gleanings:39"]["text"])
+        self.assertTrue(self.items["gleanings:1"]["text"].startswith("LAUDED and glorified art Thou"))
+        self.assertEqual(self.items["gleanings:1"]["title"][:20],"I · LAUDED and glori")
+        self.assertEqual(reader.heading(self.items["gleanings:1"]),"I")
+        # The section numbers are the passage headings, not repeated in the text.
+        self.assertFalse(any("– I –" in i["text"] for k,i in self.items.items() if k.startswith("gleanings:")))
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

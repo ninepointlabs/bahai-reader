@@ -528,6 +528,7 @@ def build_shoghi(folder,log):
 # ---------------------------------------------------------------- the app's other collections
 
 MATCH_BLOCK=0.6    # share of an official paragraph's word sequences found in an app passage, to place it there
+SMALL=1.7  # rem; body text is 1.7, credits and notes smaller
 ATTACH_BLOCKS=3; ATTACH_CHARS=600  # what counts as a short official line the app lacks
 MATCH_WORDS=0.9    # or: word-by-word similarity of the two texts (difflib ratio)
 MATCH_PASSAGE=0.9  # share of an app passage's word sequences covered by the official paragraphs placed in it
@@ -548,6 +549,7 @@ def block_text(block): return "".join(r[0] for r in clean_runs(block.runs))
 def match_rows(rows,blocks,size=5):
     """Places the official paragraphs in the app's passages. Returns ({row id: [block index]}, report)."""
     grams=[shingles(text,size) for _,text in rows]
+    row_words=[words(text) for _,text in rows]
     folded=[fold(text) for _,text in rows]
     owner={}; last=0
     for b,block in enumerate(blocks):
@@ -572,7 +574,11 @@ def match_rows(rows,blocks,size=5):
         inside=range(first,last_+1)
         if any(b in owner and owner[b]!=r for b in inside): report["split"].append(ident); continue
         # Short lines next to the passage (a heading, "He is God!", "O Son of Spirit!") belong to it when its text has them.
-        fits=lambda b: b not in taken and fold(block_text(blocks[b])) and fold(block_text(blocks[b])) in folded[r]
+        def fits(b):
+            if b in taken or not words(block_text(blocks[b])): return False
+            # A heading joins only a passage that opens with it; other lines when the passage has their words in sequence.
+            if blocks[b].size>=HEADING: return folded[r].startswith(fold(block_text(blocks[b])))
+            return contains(row_words[r],words(block_text(blocks[b])))
         while first>0 and fits(first-1): first-=1
         while last_+1<len(blocks) and fits(last_+1): last_+=1
         chosen=list(range(first,last_+1)); taken.update(chosen)
@@ -592,7 +598,8 @@ def match_rows(rows,blocks,size=5):
     used={b for chosen in result.values() for b in chosen}; report["added"]=[]
     for first,ident in starts:
         b=first-1; lead=[]
-        while b>=0 and b not in used and blocks[b].size<HEADING and block_text(blocks[b]) and not FRONT.intersection(blocks[b].cls):
+        # Small print (a translator's credit) does not open a passage.
+        while b>=0 and b not in used and blocks[b].size<HEADING and block_text(blocks[b]) and not FRONT.intersection(blocks[b].cls) and not 0<blocks[b].size<SMALL:
             lead.insert(0,b); b-=1
         while lead and blocks[lead[0]].tag=="hr": lead.pop(0)  # a separator does not open a passage
         if lead and len(lead)<=ATTACH_BLOCKS and all(len(block_text(blocks[x]))<=ATTACH_CHARS for x in lead) and (b<0 or b in used or blocks[b].size>=HEADING or blocks[b].tag=="hr" or not block_text(blocks[b])):
@@ -600,6 +607,11 @@ def match_rows(rows,blocks,size=5):
     used={b for chosen in result.values() for b in chosen}
     report["unused"]=[(b,block_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
     return result,report
+
+def contains(haystack,needle):
+    """True when the word list needle appears as a run in haystack."""
+    n=len(needle)
+    return any(haystack[i:i+n]==needle for i in range(len(haystack)-n+1)) if n else False
 
 def overlap_of(target,found):
     """Share of target's word sequences present in found."""
@@ -631,7 +643,7 @@ def build_books(folder,log):
     return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden",)
+BOOKS_DONE=("hidden","gleanings")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
