@@ -369,7 +369,7 @@ def official_items(name):
             citation=f"{data['author']}, {row['book']}, {row['title']}. {BAHAI_ORG_NOTICE}"
         spans=[tuple(s) for s in row.get("spans",[]) if isinstance(s,list) and len(s)==3]
         result.append(dict(id=row["id"],section="writings",tags=[group],title=title,heading=head,text=row["text"],subgroup=subgroup,
-                           word_count=word_count(row["text"]),references=[],match=None,citation=citation,spans=spans,source=row.get("page_url")))
+                           word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),references=[],match=None,citation=citation,spans=spans,source=row.get("page_url")))
     return result
 
 def load_library(language=1):

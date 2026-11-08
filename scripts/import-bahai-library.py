@@ -317,6 +317,10 @@ class Passage:
                         if kind in ("i","b","u"): self.add_span(start,len(self.text),kind)
         return seen
 
+def word_count(text):
+    """The reader's word count (reader.word_count), stored so the app need not count 900 passages at startup."""
+    return len(re.findall(r"[^\W_]+(?:[’‘ʼ'\-‑][^\W_]+)*", text, re.UNICODE))
+
 def sha256(data): return hashlib.sha256(data).hexdigest()
 
 def provenance(log,url,extra=None):
@@ -384,7 +388,7 @@ def build_messages(folder,log):
         if folded in seen_text:
             aliases.append(dict(record,duplicate_of=seen_text[folded],reason="Same text as another bahai.org message")); continue
         seen_text[folded]=record["id"]
-        items.append(dict(record,text=passage.text,spans=passage.spans,notes=len(set(passage.cited)),paragraphs=sum(1 for b in reader.blocks if clean_runs(b.runs))))
+        items.append(dict(record,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),paragraphs=sum(1 for b in reader.blocks if clean_runs(b.runs))))
     twice={k:v for k,v in matched.items() if len(v)>1}
     if twice: raise ValueError(f"One Riḍván message matched by several bahai.org messages: {twice}")
     unmatched=[dict(id=k,year=row["Year"],title=row.get("Title")) for k,(row,_) in ridvan.items() if k not in matched]
@@ -459,7 +463,7 @@ def build_shoghi(folder,log):
             cited_all+=passage.add_notes(reader.notes)
             anchor=next(b.anchor for b in piece["blocks"] if b.anchor)
             work_items.append(dict(id=f"se:{slug}:{anchor}",work=slug,anchor=anchor,title=piece["title"],part=piece["part"],
-                                   position=len(work_items)+1,text=passage.text,spans=passage.spans,notes=len(set(passage.cited)),
+                                   position=len(work_items)+1,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),
                                    paragraphs=len(piece["blocks"]),
                                    page_url=f"{SITE}/library/authoritative-texts/shoghi-effendi/{slug}/1#{anchor}"))
         if len({i["id"] for i in work_items})!=len(work_items): raise ValueError(f"{slug}: passage ids repeat")

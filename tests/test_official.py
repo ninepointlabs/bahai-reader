@@ -134,6 +134,7 @@ class BundledDataTests(unittest.TestCase):
             text=row["text"]
             self.assertNotRegex(text,r"<[a-zA-Z/][^>]*>|&[a-z]+;|&#\d+;",row["id"])
             self.assertEqual(text,text.strip()); self.assertNotIn("\n\n\n",text); self.assertNotIn("  ",text)
+            self.assertEqual(row["words"],reader.word_count(text),row["id"])
             for start,end,kind in row["spans"]:
                 self.assertIn(kind,("i","b","u","quote","heading")); self.assertTrue(0<=start<end<=len(text),row["id"])
 
