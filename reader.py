@@ -341,13 +341,44 @@ def align(key,row):
 def heading(item):
     """The reading pane's title: what the passage is, not just its number."""
     if item["section"]=="prayers": return "Prayer"
+    if item.get("heading"): return item["heading"]
     number=item["title"].split(" · ")[0]; parts=item["id"].split(":"); kind=parts[-2] if len(parts)>=2 else parts[0]
     if kind=="hidden":
         origin="Arabic" if "From the Arabic" in item["tags"] else "Persian" if "From the Persian" in item["tags"] else None
         return f"{origin} no. {number}" if origin else number
     return {"Paragraphs":f"Paragraph {number}","QAs":f"Question and Answer {number}","Notes":f"Note {number}"}.get(kind,number)
 
+# Official texts from the Bahá’í Reference Library (bahai.org), imported by scripts/import-bahai-library.py.
+# English only; they are bundled in data/ and never downloaded by the app.
+OFFICIAL=("uhj-messages","shoghi-effendi")
+BAHAI_ORG_NOTICE="Copyright © Bahá’í International Community, bahai.org"
+
+def official_items(name):
+    """The passages of one bahai.org collection, as reader items. Each keeps its source URL and its styled spans."""
+    try: data=json.loads((ROOT/"data"/f"{name}.json").read_text())
+    except (OSError,ValueError): return []
+    result=[]
+    for row in data.get("items",[]):
+        if not isinstance(row,dict) or not isinstance(row.get("text"),str) or not row["text"]: continue
+        if name=="uhj-messages":
+            year=row["iso_date"][:4]; group=data["group"]; subgroup=f"{int(year)//10*10}s"
+            title=f"{row['date']} · {row['summary'] or row['to']}"; head=row["date"]
+            citation=f"{row['author']}, message dated {row['date']}, {row['to'][:1].lower()+row['to'][1:] if row['to'].startswith('To ') else row['to']}. {BAHAI_ORG_NOTICE}"
+        else:
+            group=row["book"]; subgroup=row.get("part"); title=row["title"]; head=row["title"]
+            citation=f"{data['author']}, {row['book']}, {row['title']}. {BAHAI_ORG_NOTICE}"
+        spans=[tuple(s) for s in row.get("spans",[]) if isinstance(s,list) and len(s)==3]
+        result.append(dict(id=row["id"],section="writings",tags=[group],title=title,heading=head,text=row["text"],subgroup=subgroup,
+                           word_count=word_count(row["text"]),references=[],match=None,citation=citation,spans=spans,source=row.get("page_url")))
+    return result
+
 def load_library(language=1):
+    result=load_bahaiprayers(language)
+    if language==1:
+        for name in OFFICIAL: result+=official_items(name)
+    return result
+
+def load_bahaiprayers(language=1):
     result=[]; pack=local_pack(language)
     for key in FEEDS:
         if pack is not None and key in pack:
@@ -423,6 +454,18 @@ def obligatory(items):
 
 # Paragraphs of an obligatory prayer that tell when and how to say it, or comment on it, rather than words to be said.
 DIRECTION=re.compile(r'To be recited|God hath exempted|"The daily obligatory|\(|\d+\. ')
+
+# How the styled spans of a bahai.org text are drawn: italics, bold, underlining (transliteration such as Ma<u>sh</u>riq),
+# quotations set in from the margin, and the headings of letters and chapters.
+SPAN_STYLES={"i":dict(style=Pango.Style.ITALIC),"b":dict(weight=Pango.Weight.BOLD),"u":dict(underline=Pango.Underline.SINGLE),
+             "quote":dict(left_margin=36,right_margin=24),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
+
+def apply_spans(buffer,item,offset=0):
+    table=buffer.get_tag_table(); length=len(item["text"])
+    for start,end,kind in item.get("spans",()):
+        if kind not in SPAN_STYLES or not (isinstance(start,int) and isinstance(end,int) and 0<=start<end<=length): continue
+        tag=table.lookup("span-"+kind) or buffer.create_tag("span-"+kind,**SPAN_STYLES[kind])
+        buffer.apply_tag(tag,buffer.get_iter_at_offset(offset+start),buffer.get_iter_at_offset(offset+end))
 
 def directions(item):
     """Character spans of an obligatory prayer's directions, shown in italics so the prayer itself stands out."""
@@ -719,7 +762,7 @@ class Reader(Gtk.Application):
         self.position=Gtk.Label(); self.position.add_css_class("dim-label"); nav.append(self.position)
         self.next=self.button("Next →", lambda *_: self.step(1)); nav.append(self.next); right.append(nav)
         self.name_widget(self.previous,"Previous passage"); self.name_widget(self.next,"Next passage")
-        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); right.append(self.status)
+        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         # New installs open on Today; everyone else keeps the section they were in.
         self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.theme_tick)
@@ -1102,6 +1145,7 @@ class Reader(Gtk.Application):
         for start,end in directions(item):
             tag=buffer.get_tag_table().lookup("direction") or buffer.create_tag("direction",style=Pango.Style.ITALIC)
             buffer.apply_tag(tag,buffer.get_iter_at_offset(start),buffer.get_iter_at_offset(end))
+        apply_spans(buffer,item)
         if item["citation"]:
             tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
             buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],tag)
@@ -1737,7 +1781,7 @@ textview text selection {{ background: {selection}; }}
         buffer.insert_with_tags(buffer.get_end_iter(),info["Name"].upper()+"\n",label)
         if item:
             self.second.set_direction(Gtk.TextDirection.LTR if info.get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
-            buffer.insert(buffer.get_end_iter(),item["text"])
+            start=buffer.get_char_count(); buffer.insert(buffer.get_end_iter(),item["text"]); apply_spans(buffer,item,start)
             if item["citation"]: buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],cite)
         else:
             self.second.set_direction(Gtk.TextDirection.LTR)
@@ -1755,7 +1799,7 @@ textview text selection {{ background: {selection}; }}
         language=self.language if language is None else language
         return next((r for r in self.languages["prayers"] if r["Id"]==language), {"Name":str(language)})
     def update_status(self):
-        self.status.set_text(f"{self.language_info()['Name']} · Available offline · Texts: BahaiPrayers.net")
+        self.status.set_text(f"{self.language_info()['Name']} · Available offline · Texts: BahaiPrayers.net"+(", bahai.org" if self.language==1 else ""))
     def use_language(self,language):
         items=load_library(language)
         if not items: raise ValueError("Download this language before switching")
@@ -1821,6 +1865,7 @@ textview text selection {{ background: {selection}; }}
         row("Created",text(CREATED))
         row("License",actions(f"{LICENSE_NAME}, {COPYRIGHT}",("Read it",toggle_license)))
         row("Texts",text("From BahaiPrayers.net, which permits their use in apps. The texts and translations are not covered by the MIT license, and no ownership is claimed (DATA-NOTICE.md). Not an official publication of a Bahá’í institution."))
+        row("bahai.org",text("Messages of the Universal House of Justice and works of Shoghi Effendi from the Bahá’í Reference Library, bahai.org. Copyright © Bahá’í International Community. Used under the terms at bahai.org/legal; not covered by the MIT license (DATA-NOTICE.md)."))
         row("Places",text("City data © GeoNames (geonames.org), trimmed, under the Creative Commons Attribution 4.0 license (creativecommons.org/licenses/by/4.0)."))
         row("Calendar",text("Badí‘ dates from the Bahá’í World Centre and the Universal House of Justice. Sun times use the public-domain NOAA solar calculation."))
         row("Support",actions(SUPPORT_EMAIL,("Email",email),("Copy",lambda *_: window.get_clipboard().set(SUPPORT_EMAIL))))

@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory() as temp:
         if color is None and len(waits)<100:
             waits.append(1); return True  # wait for the first frame after layout
         try:
-            assert len(app.items)==2616
+            assert len(app.items)==2616+442+468  # BahaiPrayers.net, then bahai.org
             # A settings file with no saved section (a new install) opens on Today, with its calendar in the contents.
             assert app.section=="today" and app.views.get_visible_child_name()=="today"
             assert [p for p in app.branches if p.count("/")==1]==["today/Upcoming","today/This year"] and app.visible and app.count.get_text().endswith("dates")
@@ -81,7 +81,18 @@ with tempfile.TemporaryDirectory() as temp:
             if color=="unsupported": print("Note: this PyGObject cannot render widgets offscreen; contents list color not checked")
             else: assert color and close(color,"#fafaf7"), f"contents list background is {color}, not the Light palette's #fafaf7"
             app.navigate("writings")
-            assert len([p for p in app.branches if p.count("/")==1])==9
+            # Nine BahaiPrayers.net groups, the bahai.org messages, and seven works of Shoghi Effendi.
+            groups=[p for p in app.branches if p.count("/")==1]
+            assert len(groups)==17 and "writings/Messages of the Universal House of Justice" in groups and "writings/God Passes By" in groups
+            # A bahai.org passage: its own heading, underlined transliteration, and the required notice under it.
+            chapter=next(i for i in app.items if i["id"].startswith("se:god-passes-by:") and i["title"].startswith("II. "))
+            app.show_passage(chapter,app.groups[chapter["id"]])
+            assert app.heading.get_text()=="II. The Báb’s Captivity in Ádhirbáyján" and app.subtitle.get_text().startswith("God Passes By · First Period")
+            buffer=app.reader.get_buffer(); start=chapter["text"].index("Ádhirbáyján")
+            underline=buffer.get_tag_table().lookup("span-u")
+            assert underline and buffer.get_iter_at_offset(start+1).has_tag(underline) and not buffer.get_iter_at_offset(start).has_tag(underline)
+            shown=buffer.get_text(buffer.get_start_iter(),buffer.get_end_iter(),False)
+            assert shown.endswith("— Shoghi Effendi, God Passes By, II. The Báb’s Captivity in Ádhirbáyján. Copyright © Bahá’í International Community, bahai.org")
             # Obligatory prayers: the three prayers first, open, then the Aqdas guidance; Next stays among the prayers.
             app.navigate("obligatory")
             assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]
@@ -166,7 +177,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.key_pressed(None,reader.Gdk.KEY_F1,0,0)
             about=app.about_window
             assert about.get_visible() and about.get_transient_for() is app.window
-            assert list(app.about_rows)==["Made by","Created","License","Texts","Places","Calendar","Support","Privacy","Built with"]
+            assert list(app.about_rows)==["Made by","Created","License","Texts","bahai.org","Places","Calendar","Support","Privacy","Built with"]
             assert "bahaiprayers.net" in app.privacy() and "No accounts, no telemetry" in app.privacy()
             assert not app.about_license.get_visible()
             app.about_rows["License"].get_last_child().emit("clicked")

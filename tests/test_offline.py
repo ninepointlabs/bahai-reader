@@ -17,7 +17,7 @@ class OfflineTests(unittest.TestCase):
 
     def test_english_never_needs_network(self):
         with patch.object(reader,"fetch_json",side_effect=AssertionError("network")):
-            self.assertEqual(len(reader.load_library(1)),2616)
+            self.assertEqual(len(reader.load_library(1)),2616+442+468)  # BahaiPrayers.net, then bahai.org messages and Shoghi Effendi
 
     def test_download_is_atomic_and_language_specific(self):
         data=json.loads((reader.ROOT/"data/prayers.json").read_text())
@@ -47,7 +47,7 @@ class OfflineTests(unittest.TestCase):
     def test_old_english_pack_gains_bundled_collections(self):
         pack={k:json.loads((reader.ROOT/"data"/f"{k}.json").read_text()) for k in ("prayers","hidden","gleanings","meditations","tablets","iqan")}
         reader.atomic_json(self.path/"1.json",pack)
-        self.assertEqual(len(reader.load_library()),2616)
+        self.assertEqual(len(reader.load_library()),2616+442+468)
 
     def test_epistle_is_listed_under_writings(self):
         items=reader.load_library()
