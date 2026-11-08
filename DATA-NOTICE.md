@@ -36,9 +36,9 @@ not changed, shortened or summarised. Only the presentation is converted for the
 paragraphs become plain paragraphs; italics, bold, underlined transliteration (Ma<u>sh</u>riq) and
 indented quotations are kept as styling; footnote markers are shown as superscript numbers with the
 notes after the passage that cites them; numbered list items keep their numbers; table cells are
-separated by tabs. Riḍván messages that bahai.org also publishes are not added a second time; the
-copy already in the app (from BahaiPrayers.net) is kept, and the match is recorded in
-data/uhj-messages.json under "duplicates".
+separated by tabs. Where bahai.org publishes a text the app also had from BahaiPrayers.net (the 73
+Riḍván messages), the official bahai.org text is shown instead, under the same id so saved
+passages keep working; each match is recorded in data/uhj-messages.json under "replacements".
 
 Each passage records its source URL, the SHA-256 of the downloaded file and the download date.
 scripts/import-bahai-library.py downloads and rebuilds them by hand; the app never connects to bahai.org.

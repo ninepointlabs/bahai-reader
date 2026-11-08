@@ -93,6 +93,24 @@ with tempfile.TemporaryDirectory() as temp:
             assert underline and buffer.get_iter_at_offset(start+1).has_tag(underline) and not buffer.get_iter_at_offset(start).has_tag(underline)
             shown=buffer.get_text(buffer.get_start_iter(),buffer.get_end_iter(),False)
             assert shown.endswith("— Shoghi Effendi, God Passes By, II. The Báb’s Captivity in Ádhirbáyján. Copyright © Bahá’í International Community, bahai.org")
+            # Group by author: authors in order, each book inside, its parts inside that; the choice is kept. Back to by book.
+            assert app.grouping.get_visible() and app.grouping.get_active_id()=="book"
+            app.grouping.set_active_id("author")
+            top=[p for p in app.branches if p.count("/")==2]
+            assert top==["writings/by-author/Bahá’u’lláh","writings/by-author/‘Abdu’l‑Bahá","writings/by-author/Shoghi Effendi","writings/by-author/The Universal House of Justice"], top
+            assert "writings/by-author/Shoghi Effendi/God Passes By" in app.branches and "writings/by-author/The Universal House of Justice/Riḍván Messages" in app.branches
+            assert "writings/by-author/Shoghi Effendi/God Passes By/First Period: The Ministry of the Báb 1844–1853" in app.branches
+            assert reader.json.loads(reader.STATE.read_text())["writings_by"]=="author" and len(app.section_items)==len([i for i in app.items if i["section"]=="writings"])
+            app.search.set_text("Ádhirbáyján"); app.filter()
+            assert app.branches["writings/by-author/Shoghi Effendi"].get_expanded() and not app.branches["writings/by-author/‘Abdu’l‑Bahá"].get_visible()
+            app.search.set_text(""); app.filter()
+            app.grouping.set_active_id("book"); assert len([p for p in app.branches if p.count("/")==1])==17
+            # Passages outside any part keep their place: God Passes By opens with its Foreword and closes with Retrospect and Prospect.
+            box=app.branches["writings/God Passes By"].get_child(); rows=[]; child=box.get_first_child()
+            while child: rows.append(child); child=child.get_next_sibling()
+            label=lambda w: w.get_child().get_first_child().get_label() if isinstance(w,reader.Gtk.Button) else w.get_label_widget().get_first_child().get_label()
+            assert [label(rows[0]),label(rows[1]),label(rows[-1])]==["Foreword","First Period: The Ministry of the Báb 1844–1853","Retrospect and Prospect"],[label(r) for r in rows]
+            app.navigate("hidden"); assert not app.grouping.get_visible()
             # Obligatory prayers: the three prayers first, open, then the Aqdas guidance; Next stays among the prayers.
             app.navigate("obligatory")
             assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]

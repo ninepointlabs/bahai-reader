@@ -382,19 +382,24 @@ def build_messages(folder,log):
         record=dict(id=f"uhj:{doc}",document=doc,document_id=reader.meta.get("document-id"),date=date,iso_date=f"{doc[:4]}-{doc[4:6]}-{doc[6:8]}",
                     to=to,summary=summary,author=UHJ,title=reader.title,
                     **provenance(log,url,dict(page_url=f"{UHJ_INDEX}{doc}/1")))
-        if duplicate:
-            row=ridvan[duplicate][0]
-            aliases.append(dict(record,duplicate_of=duplicate,shared=round(scored[0][0],3),reason=f"Same message as the Riḍván {row['Year']} message already in the app (BahaiPrayers.net)")); continue
         if folded in seen_text:
             aliases.append(dict(record,duplicate_of=seen_text[folded],reason="Same text as another bahai.org message")); continue
         seen_text[folded]=record["id"]
-        items.append(dict(record,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),paragraphs=sum(1 for b in reader.blocks if clean_runs(b.runs))))
+        item=dict(record,riḍván=summary.startswith("Riḍván Message"),text=passage.text,words=word_count(passage.text),spans=passage.spans,
+                  notes=len(set(passage.cited)),paragraphs=sum(1 for b in reader.blocks if clean_runs(b.runs)))
+        if duplicate:
+            # The official text is used in place of the BahaiPrayers.net copy, under that copy's id, so saved passages keep working.
+            row=ridvan[duplicate][0]
+            item.update(replaces=duplicate,shared=round(scored[0][0],3))
+            aliases.append(dict(document=doc,id=record["id"],replaces=duplicate,shared=item["shared"],
+                                reason=f"Same message as BahaiPrayers.net’s Riḍván {row['Year']} entry; the bahai.org text replaces it under the id {duplicate}"))
+        items.append(item)
     twice={k:v for k,v in matched.items() if len(v)>1}
     if twice: raise ValueError(f"One Riḍván message matched by several bahai.org messages: {twice}")
     unmatched=[dict(id=k,year=row["Year"],title=row.get("Title")) for k,(row,_) in ridvan.items() if k not in matched]
-    return dict(collection="uhj-messages",group=UHJ_GROUP,author=UHJ,copyright=COPYRIGHT,terms=TERMS,
+    return dict(collection="uhj-messages",group=UHJ_GROUP,ridvan_group="Riḍván Messages",author=UHJ,copyright=COPYRIGHT,terms=TERMS,
                 source=dict(name="Bahá’í Reference Library",url=index_url,**provenance(log,index_url),listed=len(rows)),
-                parser_version=PARSER_VERSION,items=items,duplicates=aliases,omitted=omitted,source_discrepancies=discrepancies,ridvan_not_on_bahai_org=unmatched)
+                parser_version=PARSER_VERSION,items=items,replacements=[a for a in aliases if "replaces" in a],duplicates=[a for a in aliases if "replaces" not in a],omitted=omitted,source_discrepancies=discrepancies,ridvan_not_on_bahai_org=unmatched)
 
 HEADING=2.1   # rem; bahai.org sets titles and headings at this size or larger, body text at 1.9 and below
 PART=2.6      # part and period titles (and the book's own title)

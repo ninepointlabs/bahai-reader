@@ -102,8 +102,8 @@ class BundledDataTests(unittest.TestCase):
     def test_every_listed_message_is_accounted_for(self):
         m=self.messages
         self.assertEqual(len(m["items"])+len(m["duplicates"])+len(m["omitted"]),m["source"]["listed"])
-        self.assertEqual(m["omitted"],[])
-        documents=[r["document"] for r in m["items"]+m["duplicates"]]
+        self.assertEqual((m["omitted"],m["duplicates"],len(m["items"])),([],[],515))
+        documents=[r["document"] for r in m["items"]]
         self.assertEqual(len(documents),len(set(documents)))
 
     def test_stable_ids_and_provenance(self):
@@ -173,27 +173,46 @@ class BundledDataTests(unittest.TestCase):
         for work in self.shoghi["works"]: self.assertEqual(work["author"],"Shoghi Effendi")
 
 class DuplicateTests(unittest.TestCase):
-    def test_ridvan_messages_are_not_added_twice(self):
-        messages=data("uhj-messages.json"); ridvan={f"ridvan:{r['Id']}":r for r in data("ridvan.json")}
-        for row in messages["duplicates"]:
-            self.assertTrue(row["duplicate_of"] in ridvan or row["duplicate_of"].startswith("uhj:"),row)
-            self.assertNotIn(row["id"],{i["id"] for i in messages["items"]})
-        texts=[importer.shingles(re.sub(r"<[^>]+>"," ",html.unescape(r["Text"]))) for r in ridvan.values()]
-        for row in messages["items"]:
+    """The official text is used wherever bahai.org has it: each Riḍván message from BahaiPrayers.net is replaced, once, under its own id."""
+    @classmethod
+    def setUpClass(cls):
+        cls.messages=data("uhj-messages.json"); cls.ridvan={f"ridvan:{r['Id']}":r for r in data("ridvan.json")}
+        cls.items=reader.load_library()
+
+    def test_each_ridvan_message_is_replaced_by_one_official_text(self):
+        replaces=[r["replaces"] for r in self.messages["items"] if r.get("replaces")]
+        self.assertEqual(sorted(replaces),sorted(self.ridvan)); self.assertEqual(self.messages["ridvan_not_on_bahai_org"],[])
+        self.assertEqual(sorted(r["replaces"] for r in self.messages["replacements"]),sorted(self.ridvan))
+
+    def test_library_shows_the_official_text_once(self):
+        by_id={}
+        for item in self.items: by_id.setdefault(item["id"],[]).append(item)
+        official={r["id"]:r for r in self.messages["items"]}
+        for key in self.ridvan:
+            self.assertEqual(len(by_id[key]),1,key)
+            item=by_id[key][0]
+            self.assertEqual(item["text"],official[item["official_id"]]["text"])
+            self.assertTrue(item["citation"].endswith("Copyright © Bahá’í International Community, bahai.org"))
+        replaced={r["id"] for r in self.messages["items"] if r.get("replaces")}
+        self.assertFalse(replaced & set(by_id))  # not listed a second time under its bahai.org id
+        # No BahaiPrayers.net copy of a message is left beside the official one.
+        bp=[importer.shingles(re.sub(r"<[^>]+>"," ",html.unescape(r["Text"]))) for r in self.ridvan.values()]
+        for item in self.items:
+            if item["author"]=="The Universal House of Justice" and not item.get("official_id"): self.fail(item["id"])
+        self.assertEqual(sum(1 for i in self.items if i["tags"]==["Riḍván Messages"]),65)
+        new=[r for r in self.messages["items"] if not r.get("replaces")]
+        for row in new:
             grams=importer.shingles(row["text"])
-            self.assertFalse(any(importer.overlap(grams,other)>=importer.DUPLICATE for other in texts),row["id"])
-        # Every Riḍván message in the app is matched by exactly one bahai.org message, and none is re-added.
-        matched=[r["duplicate_of"] for r in messages["duplicates"]]
-        self.assertEqual(sorted(matched),sorted(ridvan)); self.assertEqual(messages["ridvan_not_on_bahai_org"],[])
+            self.assertFalse(any(importer.overlap(grams,other)>=importer.DUPLICATE for other in bp),row["id"])
 
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):
         items=reader.load_library(); ids={i["id"] for i in items}
-        old=[i for i in items if not i["id"].startswith(("uhj:","se:"))]
-        self.assertEqual(len(old),2616)
+        # Every id the app had before is still there (73 of them now carry bahai.org's text).
+        before={i["id"] for i in reader.load_bahaiprayers(1)}
+        self.assertEqual(len(before),2616); self.assertLessEqual(before,ids)
         for known in ("prayers:13691","aqdas:Paragraphs:18","ridvan:1343","ridvan:1"): self.assertIn(known,ids)
-        self.assertEqual({i["id"] for i in old},{i["id"] for i in reader.load_bahaiprayers(1)})
 
     def test_saved_settings_survive(self):
         prefs={"saved":["ridvan:1343","prayers:13691","uhj:20211230_001","se:advent-divine-justice:316204556"],
@@ -203,6 +222,14 @@ class UserDataTests(unittest.TestCase):
         self.assertEqual((clean["last"],clean["section"],clean["theme"],clean["size"]),("ridvan:1","writings","Sepia",24))
         ids={i["id"] for i in reader.load_library()}
         for item in prefs["saved"]: self.assertIn(item,ids)
+
+    def test_writings_grouping_setting(self):
+        for value in ("book","author"): self.assertEqual(reader.clean_settings({"writings_by":value})["writings_by"],value)
+        for bad in ("title",3,None): self.assertNotIn("writings_by",reader.clean_settings({"writings_by":bad}))
+
+    def test_every_writing_has_an_author(self):
+        for item in reader.load_library():
+            if item["section"]=="writings": self.assertIn(item["author"],reader.AUTHOR_ORDER,item["id"])
 
     def test_other_languages_do_not_get_english_official_texts(self):
         with tempfile.TemporaryDirectory() as folder, unittest.mock.patch.object(reader,"LIBRARY",Path(folder)):
