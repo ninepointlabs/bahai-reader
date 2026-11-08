@@ -643,7 +643,7 @@ def build_books(folder,log):
     return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings")
+BOOKS_DONE=("hidden","gleanings","meditations")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 

@@ -256,6 +256,13 @@ class OfficialBooksTests(unittest.TestCase):
         # The section numbers are the passage headings, not repeated in the text.
         self.assertFalse(any("– I –" in i["text"] for k,i in self.items.items() if k.startswith("gleanings:")))
 
+    def test_prayers_and_meditations(self):
+        book=self.books["meditations"]
+        self.assertEqual((book["rows"],book["replaced"]),(184,184))
+        # Dotted letters the earlier copy lacked.
+        self.assertIn("Thy Friend (Muḥammad)",self.items["meditations:38"]["text"]); self.assertIn("the horizon of Ḥijáz",self.items["meditations:38"]["text"])
+        self.assertIn("(Riḍván)",self.items["meditations:2"]["text"])
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):
