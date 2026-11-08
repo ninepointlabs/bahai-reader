@@ -1945,7 +1945,7 @@ textview text selection {{ background: {selection}; }}
         row("Created",text(CREATED))
         row("License",actions(f"{LICENSE_NAME}, {COPYRIGHT}",("Read it",toggle_license)))
         row("Texts",text("From BahaiPrayers.net, which permits their use in apps. The texts and translations are not covered by the MIT license, and no ownership is claimed (DATA-NOTICE.md). Not an official publication of a Bahá’í institution."))
-        row("bahai.org",text("Messages of the Universal House of Justice and works of Shoghi Effendi from the Bahá’í Reference Library, bahai.org. Copyright © Bahá’í International Community. Used under the terms at bahai.org/legal; not covered by the MIT license (DATA-NOTICE.md)."))
+        row("bahai.org",text("In English, the official text from the Bahá’í Reference Library, bahai.org, wherever it has the passage: the books and most prayers, messages of the Universal House of Justice and works of Shoghi Effendi. Copyright © Bahá’í International Community. Used under the terms at bahai.org/legal; not covered by the MIT license (DATA-NOTICE.md)."))
         row("Places",text("City data © GeoNames (geonames.org), trimmed, under the Creative Commons Attribution 4.0 license (creativecommons.org/licenses/by/4.0)."))
         row("Calendar",text("Badí‘ dates from the Bahá’í World Centre and the Universal House of Justice. Sun times use the public-domain NOAA solar calculation."))
         row("Support",actions(SUPPORT_EMAIL,("Email",email),("Copy",lambda *_: window.get_clipboard().set(SUPPORT_EMAIL))))
