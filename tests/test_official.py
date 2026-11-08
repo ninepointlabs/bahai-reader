@@ -324,6 +324,16 @@ class OfficialBooksTests(unittest.TestCase):
         self.assertEqual(nature["title"],self.before["saq:1"]["title"])  # the chapter's title, as before
         self.assertTrue(self.items["saq:67"]["text"].endswith("¹⁵⁰ See Chapter 84 for a fuller discussion of this subject."))
 
+    def test_days_of_remembrance(self):
+        book=self.books["days"]
+        self.assertEqual((book["rows"],book["replaced"]),(45,45))
+        maiden=self.items["days:198"]["text"]
+        # The selection's number and title as bahai.org prints them, and its numbered verses with a space after each number.
+        self.assertTrue(maiden.startswith("12\n\nḤÚR-I-‘UJÁB\n\n(TABLET OF THE WONDROUS MAIDEN)\n\n1 The hallowed Beauty shone"),maiden[:120])
+        self.assertIn("how wondrous indeed!\n\n2 And, lo, the flame",maiden)
+        # Still where Today looks for each Holy Day's readings.
+        self.assertEqual(self.items["days:198"]["subgroup"],self.before["days:198"]["subgroup"])
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

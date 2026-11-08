@@ -318,7 +318,7 @@ class Reader:
         if self.hidden&classes(element): return
         if tag=="a" and "td" in classes(element) and (element.text or "").strip().isdigit():
             # bahai.org's paragraph or item number, shown in the margin: kept, and marked as a number.
-            block.runs.append((element.text.strip(),frozenset(styles|{"num"}),None)); return
+            block.runs.append((element.text.strip(),frozenset(styles|{"num"}),None)); block.runs.append((" ",frozenset(styles),None)); return
         if tag=="br": block.runs.append(("\n",frozenset(styles),note))
         elif tag=="wbr": pass
         else:
@@ -657,14 +657,21 @@ def match_rows(rows,blocks,size=5,notes=None):
         inside=range(first,last_+1)
         if any(b in owner and owner[b]!=r for b in inside): report["split"].append(ident); continue
         # Short lines next to the passage (a heading, "He is God!", "O Son of Spirit!") belong to it when its text has them.
-        def fits(b):
+        def fits(b,opening=True):
             if b in taken or not words(match_text(blocks[b])): return False
             if title_page(blocks,b): return False
             # A heading joins only a passage that opens with it; other lines when the passage has their words in sequence.
-            if blocks[b].size>=HEADING: return folded[r].startswith(fold(match_text(blocks[b])))
+            if blocks[b].size>=HEADING:
+                # A heading joins a passage that opens with it (several headings may: "– 12 –", a title, its translation).
+                # Never at a passage's end; short ones ("– IV –") only where the passage starts with them.
+                heading=fold(match_text(blocks[b]))
+                if not opening or not heading: return False
+                # It must come before the passage's first placed line in the app's text.
+                lead=fold(match_text(blocks[first]))[:40]; at=folded[r].find(lead) if lead else -1
+                return folded[r].startswith(heading) or (at>0 and heading in folded[r][:at])
             return contains(row_words[r],words(match_text(blocks[b])))
         while first>0 and fits(first-1): first-=1
-        while last_+1<len(blocks) and fits(last_+1): last_+=1
+        while last_+1<len(blocks) and fits(last_+1,opening=False): last_+=1
         # The title page (title, byline, the translator's credit under them) is never passage text.
         chosen=[b for b in range(first,last_+1) if not title_page(blocks,b)]; taken.update(chosen)
         # The official passage with the notes it cites, which follow it in the app as they do in some app copies (SAQ).
@@ -769,6 +776,7 @@ def build_books(folder,log):
             # An added line from the same paragraph as the first matched one (a title the app spells differently) is part of the opening.
             while start>0 and blocks[chosen[start]].joined is blocks[chosen[start-1]]: start-=1
             for b in chosen[start:]:
+                if blocks[b].size>=HEADING and any(blocks[x].size<HEADING for x in chosen[start:]): continue  # the number and title headings
                 first.add_block(blocks[b],reader.notes)
                 if len(first.text)>=120: break
             numbers=[(a,b) for a,b,k in first.spans if k=="num"]
@@ -800,7 +808,7 @@ def build_books(folder,log):
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
