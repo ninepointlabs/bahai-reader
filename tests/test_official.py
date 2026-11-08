@@ -20,6 +20,7 @@ STYLE="""<style>@charset "UTF-8";
 .b .k, .b .l, .b h3.m { font-size: 2.3rem; }
 .b .s, .b .t, .b .u, .b .v, .b .w, .b h5.x { font-size: 1.9rem; }
 .b .hb, .b .ib { font-style: italic; }
+.gc li.mc { list-style-type: decimal; }
 .b .jb, .b .kb { font-weight: bold; }
 </style>"""
 
@@ -284,6 +285,25 @@ class OfficialBooksTests(unittest.TestCase):
         self.assertIn("the dayspring of Baṭḥá³⁴ unto Yathrib,³⁵ He",self.items["iqan:54"]["text"])
         self.assertIn("\n\nNotes\n\n³³ The direction toward which the face must be turned when praying.",self.items["iqan:54"]["text"])
         self.assertTrue(self.items["iqan:287"]["text"].startswith("Part One\n\n¹ Qur’án 36:30.\n\n² Qur’án 40:5."))
+
+    def test_kitab_i_aqdas(self):
+        book=self.books["aqdas"]
+        self.assertEqual((book["rows"],book["replaced"]),(491,491))
+        # Passages bahai.org has revised are placed by position and listed for review.
+        self.assertEqual(sorted(r[0] for r in book["kept"]["revised"]),["aqdas:Notes:108","aqdas:Notes:113","aqdas:Notes:124","aqdas:Notes:140","aqdas:Notes:88","aqdas:QAs:49"])
+        self.assertIn("“…it is enjoined upon you to offer a feast…” Is this obligatory or not?",self.items["aqdas:QAs:49"]["text"])
+        # bahai.org's wording for cross-references, which the earlier copy had rewritten ("Q&A 66, Q&A 67").
+        self.assertIn("Questions and Answers, numbers 66, 67, 81, and 82.",self.items["aqdas:Notes:3"]["text"])
+        # The numbers the page draws before a list's items.
+        self.assertIn("in the case of intestacy are:\n\n1. If the deceased is a father",self.items["aqdas:Notes:38"]["text"])
+        # A note's closing remark stays with its note, not the next one.
+        self.assertTrue(self.items["aqdas:Notes:21"]["text"].endswith("Numbers 21, 58, 59, 60, and 61 in Questions and Answers amplify this provision."))
+        self.assertTrue(self.items["aqdas:Notes:22"]["text"].startswith("22. "))
+        # Footnotes of the Questions and Answers follow them.
+        self.assertIn("\n\nNotes\n\n¹ Bahá’u’lláh",self.items["aqdas:QAs:3"]["text"])
+        # The obligatory prayer guidance still finds its paragraphs, notes and answers.
+        groups=reader.obligatory(list(self.items.values()))
+        self.assertEqual([i["id"] for i in groups["Kitáb-i-Aqdas"][:2]],["aqdas:Paragraphs:6","aqdas:Paragraphs:8"])
 
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""

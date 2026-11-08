@@ -496,6 +496,15 @@ DIRECTION=re.compile(r'To be recited|God hath exempted|"The daily obligatory|\(|
 SPAN_STYLES={"i":dict(style=Pango.Style.ITALIC),"b":dict(weight=Pango.Weight.BOLD),"u":dict(underline=Pango.Underline.SINGLE),
              "quote":dict(left_margin=36,right_margin=24),"num":dict(scale=0.75,weight=Pango.Weight.LIGHT),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
 
+def unnumbered(item):
+    """The text without bahai.org's margin numbers, for plain labels (the counter's verse, the passage of the day)."""
+    numbers=sorted((a,b) for a,b,k in item.get("spans",()) if k=="num")
+    if not numbers: return item["text"]
+    text=item["text"]; out=[]; at=0
+    for a,b in numbers:
+        out.append(text[at:a]); at=b+1 if text[b:b+1]==" " else b
+    return "".join(out)+text[at:]
+
 def apply_spans(buffer,item,offset=0):
     table=buffer.get_tag_table(); length=len(item["text"])
     for start,end,kind in item.get("spans",()):
@@ -1433,7 +1442,7 @@ class Reader(Gtk.Application):
         self.show_view("counter")
         item=self.counter_verse_item()
         self.counter_verse.set_visible(bool(item)); self.counter_source.set_visible(bool(item))
-        if item: self.counter_verse.set_text(item["text"]); self.counter_source.set_text("— "+item["citation"])
+        if item: self.counter_verse.set_text(unnumbered(item)); self.counter_source.set_text("— "+item["citation"])
         self.counter_button.grab_focus()
     def leave_counter(self):
         self.show_view(self.counter_return)
@@ -1551,7 +1560,7 @@ class Reader(Gtk.Application):
         # Passage of the day
         passage=passage_of_the_day(self.items,moment.date())
         if passage:
-            opening=" ".join(passage["text"].split()); excerpt=opening if len(opening)<=240 else opening[:240].rsplit(" ",1)[0]+"…"
+            opening=" ".join(unnumbered(passage).split()); excerpt=opening if len(opening)<=240 else opening[:240].rsplit(" ",1)[0]+"…"
             rows=[("title","Passage of the day"),("reading",excerpt)]
             if passage["citation"]: rows.append(("dim","— "+passage["citation"]))
             rows.append(("button","Read the passage of the day",lambda *_:self.daily_passage()))

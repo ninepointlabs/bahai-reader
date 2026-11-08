@@ -164,6 +164,34 @@ def css_hidden(document):
             if match: hidden.add(match.group(1))
     return hidden
 
+def css_lists(document):
+    """Class name -> list style (decimal, lower-alpha, none…) from the stylesheet inside the file."""
+    lists={}
+    sheet=re.sub(r"/\*.*?\*/|@charset[^;]*;","","".join(re.findall(r"<style[^>]*>(.*?)</style>",document,re.S)),flags=re.S)
+    for selectors,body in re.findall(r"([^{}]*)\{([^{}]*)\}",sheet):
+        found=re.search(r"list-style(?:-type)?:\s*([a-z-]+)",body)
+        if not found: continue
+        for selector in selectors.split(","):
+            parts=selector.split()
+            if not parts or ":" in selector or parts[0] not in (".b",".gc"): continue  # the reading area; .gc is the contents list
+            for name in re.findall(r"\.([A-Za-z0-9_-]+)",parts[-1]): lists[name]=found.group(1)
+    return lists
+
+def list_style(element,lists,inherited=None):
+    named=[lists[c] for c in classes(element) if c in lists]
+    if named: return named[-1]
+    return inherited or ("decimal" if local(element.tag)=="ol" else "disc")
+
+def list_marker(kind,number):
+    if kind=="decimal": return f"{number}. "
+    if kind=="upper-roman": return roman(number)+". "
+    if kind=="lower-roman": return roman(number).lower()+". "
+    if kind in ("upper-alpha","upper-latin"): return chr(64+number)+". " if number<=26 else f"{number}. "
+    if kind in ("lower-alpha","lower-latin"): return chr(96+number)+". " if number<=26 else f"{number}. "
+    if kind in ("disc","circle"): return "• "
+    if kind=="square": return "▪ "
+    return None
+
 def css_sizes(document):
     """Class name -> font size in rem, from the stylesheet inside the file: how bahai.org marks titles and headings."""
     sizes={}
@@ -221,7 +249,8 @@ def lines(blocks):
 
 class Reader:
     def __init__(self,document):
-        self.styles=css_styles(document); self.sizes=css_sizes(document); self.hidden=css_hidden(document); self.root=parse(document)
+        self.styles=css_styles(document); self.sizes=css_sizes(document); self.hidden=css_hidden(document); self.lists=css_lists(document)
+        self.markers={}; self.open_items=[]; self.root=parse(document)
         self.body=next(e for e in self.root.iter() if local(e.tag)=="body")
         self.meta={m.get("name"):m.get("content") for m in self.root.iter() if local(m.tag)=="meta" and m.get("name")}
         self.title=next(("".join(e.itertext()).strip() for e in self.root.iter() if local(e.tag)=="title"),"")
@@ -248,6 +277,22 @@ class Reader:
         if not entries: return False
         inside={id(p) for d in entries for p in d.iter()}
         return all(id(p) in inside or not "".join(p.itertext()).strip() for p in element.iter() if local(p.tag) in ("p","blockquote","table"))
+    def number_items(self,element):
+        """The markers a browser draws before list items (1., a., iv., •), which are not in the text: kept in self.markers by
+        item, and put at the start of the item's first paragraph. bahai.org's own margin numbers (a.td) take their place."""
+        style=list_style(element,self.lists)
+        number=int(element.get("start") or 1)
+        for item in [c for c in element if local(c.tag)=="li"]:
+            if item.get("value") and item.get("value").isdigit(): number=int(item.get("value"))
+            kind=list_style(item,self.lists,style)
+            marker=list_marker(kind,number)
+            if marker and not any(local(a.tag)=="a" and "td" in classes(a) for a in item.iter()): self.markers[id(item)]=marker
+            number+=1
+    def take_marker(self,element,block):
+        """The pending list marker of this element, or of the list item it opens."""
+        for owner in [element]+[e for e in self.open_items]:
+            marker=self.markers.pop(id(owner),None)
+            if marker: block.runs.append((marker,frozenset(),None)); return
     def walk(self,element,block,inherited,quoted=False):
         tag=local(element.tag); quoted=quoted or tag=="blockquote"
         if tag=="nav": self.read_toc(element); return
@@ -257,17 +302,16 @@ class Reader:
             anchor=next((a.get("id") for a in element.iter() if local(a.tag)=="a" and "sf" in classes(a) and a.get("id")),None)
             block=Block(anchor,tag,classes(element)); block.quote=quoted; self.blocks.append(block)
             block.size=max([self.sizes.get(c,0) for c in block.cls]+[{"h1":3.6,"h2":2.8,"h3":2.3,"h4":2.1}.get(tag,0)])
-            if tag=="li" and element.get("value"):
-                marker={"mc":element.get("value")+". ","oc":roman(int(element.get("value")))+". "}
-                prefix=next((v for k,v in marker.items() if k in classes(element)),None)
-                if prefix: block.runs.append((prefix,frozenset(),None))
+            self.take_marker(element,block)
             self.inline(element,block,inherited|self.style_of(element)); return
-        if tag=="li" and element.get("value") and {"mc","oc"}&classes(element): raise ValueError("A numbered list item holding paragraphs; its number would be lost")
+        if tag in ("ol","ul"): self.number_items(element)
         if tag=="hr": self.blocks.append(Block(None,"hr",classes(element))); self.blocks[-1].runs.append(("* * *",frozenset(),None)); return
         if element.text and element.text.strip() and block is None: raise ValueError(f"Loose text outside a paragraph: {element.text.strip()[:60]!r}")
+        if tag=="li": self.open_items.append(element)
         for child in element:
             self.walk(child,None,inherited|self.style_of(element),quoted)
             if child.tail and child.tail.strip(): raise ValueError(f"Loose text outside a paragraph: {child.tail.strip()[:60]!r}")
+        if tag=="li": self.open_items.remove(element)
     def inline(self,element,block,styles,note=None):
         tag=local(element.tag)
         if tag=="a" and "jc" in classes(element): return  # the ↩ link back from a note
@@ -548,6 +592,7 @@ def build_shoghi(folder,log):
 
 MATCH_BLOCK=0.6    # share of an official paragraph's word sequences found in an app passage, to place it there
 SMALL=1.7  # rem; body text is 1.7, credits and notes smaller
+REVISED_WORDS=0.25  # least word-by-word similarity for a passage placed by position alone
 ATTACH_BLOCKS=3; ATTACH_CHARS=600  # what counts as a short official line the app lacks
 MATCH_WORDS=0.9    # or: word-by-word similarity of the two texts (difflib ratio)
 MATCH_PASSAGE=0.9  # share of an app passage's word sequences covered by the official paragraphs placed in it
@@ -574,7 +619,7 @@ def match_rows(rows,blocks,size=5):
     grams=[shingles(text,size) for _,text in rows]
     row_words=[words(text) for _,text in rows]
     folded=[fold(text) for _,text in rows]
-    owner={}; last=0
+    candidates=[]
     for b,block in enumerate(blocks):
         text=match_text(block)
         if len(words(text))<size: continue
@@ -583,11 +628,9 @@ def match_rows(rows,blocks,size=5):
         good=[(score,r) for score,r in scores if score>=MATCH_BLOCK]
         if not good: continue
         best=max(score for score,_ in good)
-        # A paragraph found in several passages (a repeated invocation) goes to the nearest one ahead.
-        near=[r for score,r in good if score>=best-0.05]
-        ahead=[r for r in near if r>=last]
-        r=min(ahead) if ahead else max(near)
-        owner[b]=r; last=r
+        # Near-equal candidates (a repeated invocation, a quoted verse) are all kept for the ordering pass to choose from.
+        candidates+=[(b,r) for r in sorted({r for score,r in good if score>=best-0.05},reverse=True)]
+    owner=dict(in_order(candidates))
     # A line too short to place by itself ("O SON OF SPIRIT!") goes with the rest of its paragraph, when that passage has its words.
     changed=True
     while changed:
@@ -632,6 +675,20 @@ def match_rows(rows,blocks,size=5):
             if similar<MATCH_WORDS:
                 report["partial" if covered<within else "extra"].append((ident,round(min(covered,within),3),round(similar,3))); continue
         result[ident]=chosen
+    # A passage bahai.org has revised (an Aqdas note rewritten) no longer matches by its words. When its neighbours are placed and
+    # the official paragraphs between them are unplaced, those paragraphs are that passage; it is reported as revised for review.
+    report["revised"]=[]
+    taken={b for chosen in result.values() for b in chosen}
+    for r,(ident,text) in enumerate(rows):
+        if ident in result or r==0 or r==len(rows)-1: continue
+        before,after=rows[r-1][0],rows[r+1][0]
+        if before not in result or after not in result: continue
+        gap=list(range(max(result[before])+1,min(result[after])))
+        if not gap or any(b in taken or blocks[b].size>=HEADING for b in gap): continue
+        similar=difflib.SequenceMatcher(None,words(text),words("\n\n".join(match_text(blocks[b]) for b in gap)),autojunk=False).ratio()
+        if similar<REVISED_WORDS: continue
+        result[ident]=gap; taken.update(gap); report["revised"].append((ident,round(similar,3)))
+        for kind in ("unmatched","split","partial","extra"): report[kind]=[x for x in report[kind] if (x[0] if isinstance(x,tuple) else x)!=ident]
     # Short official lines the app's copy lacks (a part's opening invocation, a line introducing the next passage) open the
     # passage that follows them. Headings are structure the contents list already shows; long stretches are left out and reported.
     starts=sorted((chosen[0],ident) for ident,chosen in result.items())
@@ -642,11 +699,33 @@ def match_rows(rows,blocks,size=5):
         while b>=0 and b not in used and blocks[b].size<HEADING and match_text(blocks[b]) and not FRONT.intersection(blocks[b].cls) and not 0<blocks[b].size<SMALL:
             lead.insert(0,b); b-=1
         while lead and blocks[lead[0]].tag=="hr": lead.pop(0)  # a separator does not open a passage
-        if lead and len(lead)<=ATTACH_BLOCKS and all(len(block_text(blocks[x]))<=ATTACH_CHARS for x in lead) and (b<0 or b in used or blocks[b].size>=HEADING or blocks[b].tag=="hr" or not match_text(blocks[b])):
-            result[ident]=lead+result[ident]; used.update(lead); report["added"].append((ident,[block_text(blocks[x])[:60] for x in lead]))
+        if not lead or len(lead)>ATTACH_BLOCKS or any(len(block_text(blocks[x]))>ATTACH_CHARS for x in lead): continue
+        before=lead[0]-1
+        if not (before<0 or before in used or blocks[before].size>=HEADING or blocks[before].tag=="hr" or not match_text(blocks[before])): continue
+        # The lines open the next passage after a heading or separator, or when they start with a number or end with a colon
+        # ("…in the fifth Tablet of Paradise, He saith:"); right after another passage they close that one (a note's last remark).
+        numbered=any("num" in run[1] for run in clean_runs(blocks[lead[0]].runs)[:1]) or re.match(r"\d+\.? ",block_text(blocks[lead[0]]))
+        if before>=0 and before in used and not numbered and not block_text(blocks[lead[-1]]).rstrip().endswith(":"):
+            previous=next(i for i,chosen in result.items() if before in chosen)
+            result[previous]=result[previous]+lead; used.update(lead); report["added"].append((previous,[block_text(blocks[x])[:60] for x in lead])); continue
+        result[ident]=lead+result[ident]; used.update(lead); report["added"].append((ident,[block_text(blocks[x])[:60] for x in lead]))
     used={b for chosen in result.values() for b in chosen}
     report["unused"]=[(b,match_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
     return result,report
+
+def in_order(candidates):
+    """The longest chain of (paragraph, passage) pairs that keeps both in reading order, at most one passage per paragraph:
+    so a passage quoted elsewhere in the book (a note citing ¶189) does not pull that paragraph out of place."""
+    import bisect
+    keys=[]; ends=[]; back={}
+    for n,(b,r) in enumerate(candidates):
+        key=(r,b); i=bisect.bisect_left(keys,key)
+        back[n]=ends[i-1] if i else None
+        if i==len(keys): keys.append(key); ends.append(n)
+        else: keys[i]=key; ends[i]=n
+    chain=[]; n=ends[-1] if ends else None
+    while n is not None: chain.append(candidates[n]); n=back[n]
+    return chain[::-1]
 
 def contains(haystack,needle):
     """True when the word list needle appears as a run in haystack."""
@@ -707,7 +786,7 @@ def build_books(folder,log):
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
