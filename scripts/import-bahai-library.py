@@ -55,6 +55,15 @@ BOOK_SOURCES={
     "saq":("abdul-baha","some-answered-questions"),
     "days":("bahaullah","days-remembrance"),
     "prayers":("prayers","bahai-prayers"),
+    # Prayers not in Bahá’í Prayers, looked for in further bahai.org books (collection+source): only prayers still unmatched.
+    "prayers+additional-abdul-baha":("abdul-baha","additional-prayers-revealed-abdul-baha"),
+    "prayers+additional-bahaullah":("bahaullah","additional-prayers-revealed-bahaullah"),
+    "prayers+additional-tablets":("bahaullah","additional-tablets-extracts-from-tablets-revealed-bahaullah"),
+    "prayers+children":("prayers","bahai-prayers-tablets-children"),
+    # Days of Remembrance before Prayers and Meditations: it prints the holy-day prayers with their opening invocations.
+    "prayers+days":("bahaullah","days-remembrance"),
+    "prayers+meditations":("bahaullah","prayers-meditations"),
+    "prayers+selections-abdul-baha":("abdul-baha","selections-writings-abdul-baha"),
 }
 
 # ---------------------------------------------------------------- fetching
@@ -593,6 +602,7 @@ def build_shoghi(folder,log):
 MATCH_BLOCK=0.6    # share of an official paragraph's word sequences found in an app passage, to place it there
 SMALL=1.7  # rem; body text is 1.7, credits and notes smaller
 MATCH_REPEATED=0.85  # coverage counting text the app already shows from another bahai.org book
+MAX_PIECES=4  # most separate pieces a passage is rebuilt from
 REVISED_WORDS=0.25  # least word-by-word similarity for a passage placed by position alone
 ATTACH_BLOCKS=3; ATTACH_CHARS=600  # what counts as a short official line the app lacks
 MATCH_WORDS=0.9    # or: word-by-word similarity of the two texts (difflib ratio)
@@ -796,17 +806,31 @@ def match_unordered(rows,blocks,size=5,notes=None,elsewhere=frozenset()):
         # the pieces follow the app: split wherever the app's order goes back, then sorted by where each piece is in the app.
         pieces=[[]]; last=-1
         for b in chosen:
-            at=folded.find(fold(match_text(blocks[b]))[:30]) if blocks[b].size<HEADING and len(words(match_text(blocks[b])))>=size else -1
-            if at>=0 and at<last and pieces[-1]: pieces.append([])
+            key=fold(match_text(blocks[b]))[:30] if blocks[b].size<HEADING and len(words(match_text(blocks[b])))>=size else ""
+            # Looked for after the previous paragraph first, so a refrain ("Glorified be our Lord, the Most High!") stays in place.
+            at=folded.find(key,max(last,0)) if key else -1
+            if key and at<0:
+                at=folded.find(key)
+                if at>=0 and pieces[-1]:
+                    # Short lines just before (a tablet's title, "He is the Peerless!") go with the piece they open.
+                    moved=[]
+                    while pieces[-1] and len(words(match_text(blocks[pieces[-1][-1]])))<size: moved.insert(0,pieces[-1].pop())
+                    pieces.append(moved)
             pieces[-1].append(b); last=max(last,at)
         for i in range(len(pieces)-1):  # a heading belongs with what follows it
             while pieces[i] and blocks[pieces[i][-1]].size>=HEADING: pieces[i+1].insert(0,pieces[i].pop())
         pieces=[piece for piece in pieces if piece]
         if len(pieces)>1:
             def where(piece):
-                spots=[folded.find(fold(match_text(blocks[b]))[:30]) for b in piece if blocks[b].size<HEADING and len(words(match_text(blocks[b])))>=size]
-                spots=[x for x in spots if x>=0]
-                return min(spots) if spots else 0
+                # Placed by its longest paragraph: short openings ("He is the Peerless!") recur in many tablets.
+                body=[b for b in piece if blocks[b].size<HEADING]
+                if not body: return 0
+                longest=max(body,key=lambda b:len(match_text(blocks[b])))
+                key=fold(match_text(blocks[longest]))[:60]; at=folded.find(key)
+                return at-sum(len(fold(match_text(blocks[b]))) for b in body[:body.index(longest)]) if at>=0 else len(folded)
+            if len(pieces)>MAX_PIECES:
+                # Rebuilding a passage from many pieces (the app's copy of a whole book) cannot be trusted to keep its order.
+                report.setdefault("too_composite",[]).append((ident,len(pieces))); continue
             pieces.sort(key=where); chosen=[b for piece in pieces for b in piece]
             if ident not in dict(report.get("composite",[])): report.setdefault("composite",[]).append((ident,len(pieces)))
         cited=dict.fromkeys(run[2] for b in chosen for run in blocks[b].runs if run[2] and notes and run[2] in notes)
@@ -865,8 +889,9 @@ def build_books(folder,log):
         raw=(folder/f"books/{slug}.xhtml").read_bytes()
         if sha256(raw)!=log[url]["sha256"]: raise ValueError(f"{slug}.xhtml does not match fetch-log.json")
         reader=Reader(raw.decode("utf-8")); blocks=lines([b for b in reader.blocks if clean_runs(b.runs)])
-        rows=app_rows(key)
-        if key in UNORDERED:
+        base=key.split("+")[0]
+        rows=[row for row in app_rows(base) if row[0] not in replacements]  # a further source only sees what is still unmatched
+        if base in UNORDERED:
             elsewhere=set().union(*(shingles(row["text"],5) for row in replacements.values())) if replacements else set()
             matched,report=match_unordered(rows,blocks,notes=reader.notes,elsewhere=elsewhere)
         else: matched,report=match_rows(rows,blocks,notes=reader.notes)
@@ -922,7 +947,7 @@ UNORDERED={"prayers"}
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days","prayers")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days","prayers","prayers+additional-abdul-baha",)
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 

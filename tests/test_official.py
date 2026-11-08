@@ -216,7 +216,7 @@ class OfficialBooksTests(unittest.TestCase):
 
     def test_every_passage_is_replaced_or_reported(self):
         for book in self.data["books"]:
-            kept=sum(len(book["kept"][k]) for k in ("unmatched","split","partial","extra"))
+            kept=sum(len(book["kept"].get(k,[])) for k in ("unmatched","split","partial","extra","too_composite"))
             self.assertEqual(book["replaced"]+kept,book["rows"],book["key"])
             self.assertTrue(book["source_url"].startswith("https://www.bahai.org/library/authoritative-texts/"))
             self.assertRegex(book["sha256"],r"^[0-9a-f]{64}$")

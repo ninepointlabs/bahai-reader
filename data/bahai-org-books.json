@@ -5604,10 +5604,6 @@
 2
 ],
 [
-"prayers:388",
-56
-],
-[
 "prayers:6834",
 2
 ]
@@ -6698,6 +6694,644 @@
 "sha256":"85b928393ac8f41d2018c64a6ed2d7a5edb3da5f938da07cae95c1ee98c8f1cb",
 "retrieved":"2026-11-08",
 "page_url":"https://www.bahai.org/library/authoritative-texts/prayers/bahai-prayers/"
+},
+{
+"key":"prayers+additional-abdul-baha",
+"slug":"additional-prayers-revealed-abdul-baha",
+"title":"Additional Prayers Revealed by ‘Abdu’l‑Bahá",
+"author":"",
+"document_id":"",
+"edition":"1ad18c18",
+"rows":242,
+"replaced":86,
+"kept":{
+"unmatched":[
+"prayers:13866",
+"prayers:13870",
+"prayers:13869",
+"prayers:13878",
+"prayers:13871",
+"prayers:13876",
+"prayers:13873",
+"prayers:13872",
+"prayers:13875",
+"prayers:13868",
+"prayers:13874",
+"prayers:13867",
+"prayers:13877",
+"prayers:13879",
+"prayers:13880",
+"prayers:13881",
+"prayers:13882",
+"prayers:13886",
+"prayers:13887",
+"prayers:13888",
+"prayers:13889",
+"prayers:13890",
+"prayers:13891",
+"prayers:13893",
+"prayers:13892",
+"prayers:13885",
+"prayers:13884",
+"prayers:13883",
+"prayers:6347",
+"prayers:6342",
+"prayers:13083",
+"prayers:6346",
+"prayers:246",
+"prayers:247",
+"prayers:8257",
+"prayers:8258",
+"prayers:8259",
+"prayers:8260",
+"prayers:10153",
+"prayers:10154",
+"prayers:10155",
+"prayers:10158",
+"prayers:10162",
+"prayers:8271",
+"prayers:8269",
+"prayers:6307",
+"prayers:8268",
+"prayers:6799",
+"prayers:10143",
+"prayers:10144",
+"prayers:10145",
+"prayers:10146",
+"prayers:10147",
+"prayers:10148",
+"prayers:10149",
+"prayers:10150",
+"prayers:10152",
+"prayers:13684",
+"prayers:8254",
+"prayers:8255",
+"prayers:8256",
+"prayers:6343",
+"prayers:6663",
+"prayers:6344",
+"prayers:6667",
+"prayers:6800",
+"prayers:6809",
+"prayers:6802",
+"prayers:6803",
+"prayers:11017",
+"prayers:6788",
+"prayers:6789",
+"prayers:6801",
+"prayers:6361",
+"prayers:6345",
+"prayers:14184",
+"prayers:14187",
+"prayers:14188",
+"prayers:14189",
+"prayers:14190",
+"prayers:14191",
+"prayers:14192",
+"prayers:14193",
+"prayers:14194",
+"prayers:14195",
+"prayers:14196",
+"prayers:8261",
+"prayers:8264",
+"prayers:8262",
+"prayers:8263",
+"prayers:8265",
+"prayers:8266",
+"prayers:8232",
+"prayers:8234",
+"prayers:8235",
+"prayers:6794",
+"prayers:6795",
+"prayers:6796",
+"prayers:6793",
+"prayers:12569",
+"prayers:6804",
+"prayers:8236",
+"prayers:8237",
+"prayers:8241",
+"prayers:8243",
+"prayers:8244",
+"prayers:8247",
+"prayers:8248",
+"prayers:8250",
+"prayers:8252",
+"prayers:8239",
+"prayers:8240",
+"prayers:8245",
+"prayers:8246",
+"prayers:8251",
+"prayers:8253",
+"prayers:8249",
+"prayers:8242",
+"prayers:12874",
+"prayers:6836",
+"prayers:6835",
+"prayers:6839",
+"prayers:6837",
+"prayers:6838",
+"prayers:6305",
+"prayers:6664",
+"prayers:6665",
+"prayers:6666",
+"prayers:6797",
+"prayers:6815",
+"prayers:6670",
+"prayers:6787",
+"prayers:6806",
+"prayers:9524",
+"prayers:6798",
+"prayers:6668",
+"prayers:6814",
+"prayers:12223",
+"prayers:6833",
+"prayers:6834",
+"prayers:6442",
+"prayers:6808",
+"prayers:439",
+"prayers:2455",
+"prayers:6792",
+"prayers:6791",
+"prayers:354",
+"prayers:6669",
+"prayers:6811",
+"prayers:6813",
+"prayers:6812"
+],
+"split":[],
+"partial":[
+[
+"prayers:6309",
+0.008,
+0.038
+],
+[
+"prayers:8270",
+0.005,
+0.023
+],
+[
+"prayers:10151",
+0.451,
+0.63
+],
+[
+"prayers:8233",
+0.002,
+0.01
+],
+[
+"prayers:8238",
+0.011,
+0.043
+]
+],
+"extra":[],
+"added":[],
+"revised":[],
+"unused":[
+[
+0,
+"Additional Prayers Revealed by ‘Abdu’l‑Bahá"
+],
+[
+2,
+"—‘Abdu’l‑Bahá"
+],
+[
+3,
+"* * *"
+],
+[
+6,
+"—‘Abdu’l‑Bahá"
+],
+[
+7,
+"* * *"
+],
+[
+10,
+"—‘Abdu’l‑Bahá"
+],
+[
+11,
+"* * *"
+],
+[
+15,
+"—‘Abdu’l‑Bahá"
+],
+[
+16,
+"* * *"
+],
+[
+24,
+"—‘Abdu’l‑Bahá"
+],
+[
+25,
+"* * *"
+],
+[
+26,
+"O Lord, my Lord! I praise Thee and thank Thee for the favour Thou hast bestowed upon this feeble han"
+],
+[
+27,
+"O my Lord! I dedicate that which is in my womb to Thee. Grant that this child may be praised in Thy "
+],
+[
+28,
+"—‘Abdu’l‑Bahá"
+],
+[
+29,
+"* * *"
+],
+[
+32,
+"—‘Abdu’l‑Bahá"
+],
+[
+33,
+"* * *"
+],
+[
+35,
+"—‘Abdu’l‑Bahá"
+],
+[
+36,
+"* * *"
+],
+[
+40,
+"—‘Abdu’l‑Bahá"
+],
+[
+41,
+"* * *"
+],
+[
+45,
+"—‘Abdu’l‑Bahá"
+],
+[
+46,
+"* * *"
+],
+[
+51,
+"—‘Abdu’l‑Bahá"
+],
+[
+52,
+"* * *"
+],
+[
+57,
+"—‘Abdu’l‑Bahá"
+],
+[
+58,
+"* * *"
+],
+[
+62,
+"—‘Abdu’l‑Bahá"
+],
+[
+63,
+"* * *"
+],
+[
+67,
+"—‘Abdu’l‑Bahá"
+],
+[
+68,
+"* * *"
+],
+[
+72,
+"—‘Abdu’l‑Bahá"
+],
+[
+73,
+"* * *"
+],
+[
+76,
+"—‘Abdu’l‑Bahá"
+],
+[
+77,
+"* * *"
+],
+[
+80,
+"—‘Abdu’l‑Bahá"
+],
+[
+81,
+"* * *"
+],
+[
+85,
+"—‘Abdu’l‑Bahá"
+],
+[
+86,
+"* * *"
+],
+[
+88,
+"—‘Abdu’l‑Bahá"
+],
+[
+89,
+"* * *"
+],
+[
+93,
+"—‘Abdu’l‑Bahá"
+],
+[
+94,
+"* * *"
+],
+[
+96,
+"—‘Abdu’l‑Bahá"
+],
+[
+97,
+"* * *"
+],
+[
+101,
+"—‘Abdu’l‑Bahá"
+],
+[
+102,
+"* * *"
+],
+[
+104,
+"—‘Abdu’l‑Bahá"
+],
+[
+105,
+"* * *"
+],
+[
+109,
+"—‘Abdu’l‑Bahá"
+],
+[
+110,
+"* * *"
+],
+[
+116,
+"—‘Abdu’l‑Bahá"
+],
+[
+117,
+"* * *"
+],
+[
+121,
+"—‘Abdu’l‑Bahá"
+],
+[
+122,
+"* * *"
+],
+[
+125,
+"—‘Abdu’l‑Bahá"
+],
+[
+126,
+"* * *"
+],
+[
+128,
+"—‘Abdu’l‑Bahá"
+],
+[
+129,
+"* * *"
+],
+[
+132,
+"—‘Abdu’l‑Bahá"
+],
+[
+133,
+"* * *"
+],
+[
+136,
+"—‘Abdu’l‑Bahá"
+],
+[
+137,
+"* * *"
+],
+[
+142,
+"—‘Abdu’l‑Bahá"
+],
+[
+143,
+"* * *"
+],
+[
+145,
+"—‘Abdu’l‑Bahá"
+],
+[
+146,
+"* * *"
+],
+[
+149,
+"—‘Abdu’l‑Bahá"
+],
+[
+150,
+"* * *"
+],
+[
+153,
+"—‘Abdu’l‑Bahá"
+],
+[
+154,
+"* * *"
+],
+[
+158,
+"—‘Abdu’l‑Bahá"
+],
+[
+159,
+"* * *"
+],
+[
+161,
+"—‘Abdu’l‑Bahá"
+],
+[
+162,
+"* * *"
+],
+[
+165,
+"—‘Abdu’l‑Bahá"
+],
+[
+166,
+"* * *"
+],
+[
+169,
+"—‘Abdu’l‑Bahá"
+],
+[
+170,
+"* * *"
+],
+[
+172,
+"—‘Abdu’l‑Bahá"
+],
+[
+173,
+"* * *"
+],
+[
+175,
+"—‘Abdu’l‑Bahá"
+],
+[
+176,
+"* * *"
+],
+[
+179,
+"—‘Abdu’l‑Bahá"
+],
+[
+180,
+"* * *"
+],
+[
+182,
+"—‘Abdu’l‑Bahá"
+],
+[
+183,
+"* * *"
+],
+[
+184,
+"He is the Most Holy, the Most Glorious."
+],
+[
+185,
+"In the name of God, the Compassionate, the Merciful! Praise be to God, the Lord of all worlds!"
+],
+[
+186,
+"O Lord my God, my Haven and my Refuge! How can I befittingly make mention of Thee, even with the mos"
+],
+[
+187,
+"O Lord! Graciously assist me and Thy sincere servants in our servitude to Thine exalted Threshold, s"
+],
+[
+188,
+"—‘Abdu’l‑Bahá"
+],
+[
+189,
+"* * *"
+],
+[
+192,
+"—‘Abdu’l‑Bahá"
+],
+[
+193,
+"* * *"
+],
+[
+197,
+"—‘Abdu’l‑Bahá"
+],
+[
+198,
+"* * *"
+],
+[
+201,
+"—‘Abdu’l‑Bahá"
+],
+[
+202,
+"* * *"
+],
+[
+205,
+"—‘Abdu’l‑Bahá"
+],
+[
+206,
+"* * *"
+],
+[
+209,
+"—‘Abdu’l‑Bahá"
+],
+[
+210,
+"* * *"
+],
+[
+212,
+"—‘Abdu’l‑Bahá"
+],
+[
+213,
+"* * *"
+],
+[
+216,
+"* * *"
+],
+[
+221,
+"—‘Abdu’l‑Bahá"
+],
+[
+222,
+"* * *"
+],
+[
+239,
+"—‘Abdu’l‑Bahá"
+]
+]
+},
+"source_url":"https://www.bahai.org/library/authoritative-texts/abdul-baha/additional-prayers-revealed-abdul-baha/additional-prayers-revealed-abdul-baha.xhtml",
+"sha256":"0eb137d89408a7e946776c2204e5541a292df2ef77b9e5ff71043335280edf54",
+"retrieved":"2026-11-08",
+"page_url":"https://www.bahai.org/library/authoritative-texts/abdul-baha/additional-prayers-revealed-abdul-baha/"
 }
 ],
 "replacements":{
@@ -48749,6 +49383,821 @@
 "notes":0,
 "opening":"O Thou kind Lord! Graciously bestow a pair of heavenly wings unto each of these fledglings, and give them spiritual powe",
 "anchor":"339113674"
+},
+"prayers:15692":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! Bless this family and grant it happiness in both this world and the world to come. Confirm this distinguished person in the greatest service to the human world, which is the unity of all mankind, that he may attain to Thy good-pleasure in this world and obtain a bounteous portion from the surging ocean of divine outpourings in this luminous age.",
+"words":63,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Bless this family and grant it happiness in both this world and the world to come. Confirm this distinguished pe",
+"anchor":"446042641"
+},
+"prayers:15693":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO Thou kind Lord! Illumine the hearts with the light of Thy most great guidance. Revive the souls through Thy most joyful glad-tidings. Illumine the eyes by granting them to behold Thy lights. Make the ears attentive by causing them to hear Thy call. Enable us to enter the Kingdom of Thy holiness and quicken us with the breaths of the Holy Spirit. Give us everlasting life and grant us heavenly perfections. O Lord! Make our lives to be a ransom for Thy sake and bestow upon us a new spirit. Confer upon us heavenly power and bestow upon us everlasting joy. Confirm us in service to the world of humanity. Make us instruments of concord, binding together the hearts. O Lord! Awaken us from our slumber and grant us wisdom and understanding, that we may unravel the secrets of Thy Book and discover the mysteries that lie hid in Thy Words. Thou art the Almighty. Thou art the Giver. Thou art the Ever-Loving.",
+"words":167,
+"spans":[],
+"notes":0,
+"opening":"He is God. O Thou kind Lord! Illumine the hearts with the light of Thy most great guidance. Revive the souls through Thy",
+"anchor":"348303195"
+},
+"prayers:15694":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO Divine Providence! Bestow happiness and blessings upon Washington. Illumine that land with the rays beaming from the faces of the friends, turn that region into an exalted paradise, and make that place of dust the envy of every verdant rose-garden. Assist Thou the friends and increase their number. Make the hearts to be recipients of inspiration and the souls to be daysprings of light. Thus may that region become a delectable paradise and that land be perfumed with the sweet fragrance of musk.",
+"words":87,
+"spans":[],
+"notes":0,
+"opening":"He is God. O Divine Providence! Bestow happiness and blessings upon Washington. Illumine that land with the rays beaming",
+"anchor":"603792452"
+},
+"prayers:15695":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO ye children of the Kingdom! Give thanks unto God that, at this tender age, ye have entered into the Divine Kingdom. The bounty and bestowal of God have surrounded you. While ye were yet children, He chose you and elected you. Ye became the intimates of His mysteries, whilst those of riper age remained deprived. This is naught but a divine bestowal. Therefore give ye thanks unto God, saying:\n\nO Compassionate God! O Lord of Hosts! Praise be unto Thee that Thou hast preferred these little children over the full-grown and mature, and bestowed upon them Thy special favours. Thou hast guided them. Thou hast been kind to them. Thou hast conferred upon them illumination and spirituality. Grant us Thy confirmation so that, when we grow up, we may engage in service to Thy Kingdom, become the cause of educating others, burn like radiant candles and shine like brilliant stars. Thou art the Giver, the Bestower, the Compassionate.",
+"words":162,
+"spans":[],
+"notes":0,
+"opening":"He is God. O ye children of the Kingdom! Give thanks unto God that, at this tender age, ye have entered into the Divine ",
+"anchor":"578804710"
+},
+"prayers:15696":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nPraise be unto Thee, O my Lord, O my Lord! I cry unto Thee from within the depths of my heart, within mine inmost being, the reality of mine essence, the very core of my life. I call Thee to mind from mine outward and mine inward self, from out my very bones and flesh and blood, from my soul and heart and tongue and pen—aflame with the fire of my love for Thy chosen ones, frenzied with yearning over Thy greatly favoured ones, those who have cast away their lives upon Thy pathway and given up their own selves for love of Thee, and their own blood for desire of Thee. They are the ones who have made themselves the arrow’s target, who have found sweet the lance-head’s biting steel, who craved that, for the upraising of Thy Word, their heads be raised upon the spear-point, and that their hearts be torn apart—out of adoration for Thy beauty, and yearning for Thy presence, and longing for Thy love, and in ardently seeking to extol Thy glory, to be drawn unto Thy heaven, and to be drowned in the sea of devotion unto Thee.\n\nAmong these was this youth, comely and sweet, he whom Thou didst call ‘Alí the Less¹ in the kingdom of names, he whom Thou hast made, in the kingdom of attributes, to be ‘Alí the Great.² For he, O my Lord, when he did drink from the cup of bestowals at the hands of the cupbearer of Thy grace, became drunken with the red wine of love for Thee, and there rose, over the horizon of his heart, the bright rays of knowing Thee. Then was he enraptured with the wine of desire for Thee, and out of longing for Thee he sped to the martyr’s field, and following Thy path, he quit the bridal chamber on his wedding night, he left his cushioned ease and joy for a place of affliction and pain, and from his rank of honour and esteem was cast down to the depths of humiliation and abasement.\n\nAnd then, at the decree of the worst among Thy creatures, did he redden his smooth and delicate cheek with the blush of his spilled-out blood, and with his life-blood dyed his clustered locks. Then did he exchange the fine embroidered garment, put on for his wedding night, for clothing dark with gouts of blood, and laid himself down in the bed of the scorned and despised, down in the dust of misery and loss, in exchange for his safe couch of bliss. This he did in his yearning for Thy realm, the all-glorious, and Thine Abhá Company. Then they rent his breast that had rejoiced in the tokens of Thy love, and they ripped at his heart, flaming with desire for Thee; and on Thy path, they shot their arrows of hate at his fair, open bosom and, because of his love for Thee, with their cruel blade struck off the noble head.\n\nThen they set his head on the point of their tyrant’s lance, and they carried it to his tender-hearted and grievously wronged mother and to his honourable, his sorrowing bride. And to terrify their hearts and threaten them with more—so as to make them waver in their faith and cause their feet to stumble on Thy highway of truth, Thy path that runneth straight—they flung it into the courtyard of their spacious home.\n\nPraise be unto Thee, O my Lord, that Thou didst keep their hearts firmly grounded in Thy love. They took that noble head and set it down outside the house, returning that precious substance to the merciless among Thy creatures, and told them: “God forbid! The head that we have offered up on the path of God, we will not take back. We will not ask for it again, the hidden gem, the treasured and well-guarded pearl that we have given up in love for God. O, may this comely head but vanish under the galloping horses’ hooves! May the steeds of the obdurate trample it to dust!”\n\nO my Lord! Make Thou this martyr a hero of Thy Kingdom, make him a mighty pillar in Thy supernal realms, a blazing star in Thy resplendent heaven.\n\nNotes\n\n¹ ‘Alí-Aṣghar.\n\n² ‘Alí-Akbar.",
+"words":722,
+"spans":[
+[
+3798,
+3803,
+"b"
+],
+[
+3814,
+3816,
+"u"
+]
+],
+"notes":2,
+"opening":"He is God! Praise be unto Thee, O my Lord, O my Lord! I cry unto Thee from within the depths of my heart, within mine in",
+"anchor":"853877301"
+},
+"prayers:15698":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! Thou didst bestow and Thou didst summon back unto Thyself. Everything Thou dost purpose is to be obeyed, and all that Thou ordainest is the very essence of wisdom. I am content with Thy decree, yearning for Thy trials, and assured of Thy trust.\n\nO God, my God! Cheer my heart through seemly patience and endurance under every grievous affliction. Bestow upon me fortitude, O Lord, and grant that I may be reckoned among Thy servants who have surrendered their will to Thy decree, who endure patiently every trial sent by Thee, who tread no path but that of resignation, and whom no grief, however great, can ever sadden. Thou art, in truth, the All-Bountiful, the Compassionate, the All-Merciful.¹\n\nNotes\n\n¹ Revealed for the recipient on the occasion of the death of his newborn child.",
+"words":138,
+"spans":[
+[
+707,
+712,
+"b"
+]
+],
+"notes":1,
+"opening":"O Lord! Thou didst bestow and Thou didst summon back unto Thyself. Everything Thou dost purpose is to be obeyed, and all",
+"anchor":"595621465"
+},
+"prayers:15699":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my God! Verily, the tabernacle of justice hath been pitched in the east and the west of this Holy Land. We yield Thee praise and thanksgiving for the arrival of this just authority and triumphant government, which exerciseth its power for the comfort of its subjects and the well-being of all people. O God! Assist Thou the great emperor George V, the King of England, through Thine eternal grace and Thy divine confirmations. Maintain then its sheltering shade over this venerable land through Thine aid, protection, and preservation. Verily, Thou art the Almighty, the Most Exalted, the All-Glorious, the Most Bountiful.",
+"words":102,
+"spans":[],
+"notes":0,
+"opening":"O my God! Verily, the tabernacle of justice hath been pitched in the east and the west of this Holy Land. We yield Thee ",
+"anchor":"420430086"
+},
+"prayers:15700":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord!\n\nPlant this tender seedling in the garden of Thy manifold bounties, water it from the fountains of Thy loving-kindness and grant that it may grow into a goodly plant through the outpourings of Thy favour and grace.\n\nThou art the Mighty and the Powerful.",
+"words":46,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Plant this tender seedling in the garden of Thy manifold bounties, water it from the fountains of Thy loving-kin",
+"anchor":"571548807"
+},
+"prayers:15701":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is the Most Glorious!\n\nO my merciful Lord! This is a hyacinth which hath grown in the garden of Thy good pleasure and a twig which hath appeared in the orchard of true knowledge. Cause it, O Lord of bounty, to be refreshed continually and at all times through Thy vitalizing breezes, and make it verdant, fresh and flourishing through the outpourings of the clouds of Thy favours, O Thou kind Lord!\n\nVerily Thou art the All-Glorious.",
+"words":78,
+"spans":[],
+"notes":0,
+"opening":"He is the Most Glorious! O my merciful Lord! This is a hyacinth which hath grown in the garden of Thy good pleasure and ",
+"anchor":"708223938"
+},
+"prayers:15702":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nO Thou kind Lord! We are poor children, needy and insignificant, yet we are plants which have sprouted by Thy heavenly stream and saplings bursting into bloom in Thy divine springtime. Make us fresh and verdant by the outpourings of the clouds of Thy mercy; help us to grow and develop through the rays of the sun of Thy goodly gifts and cause us to be refreshed by the quickening breeze wafting from the meadows of Truth. Grant that we may become flourishing trees laden with fruit in the orchard of knowledge, brilliant stars shining above the horizon of eternal happiness and radiant lamps shedding light upon the assemblage of mankind.\n\nO Lord! Should Thy tender care be vouchsafed unto us, each one of us would, even as an eagle, soar to the pinnacle of knowledge, but were we left to ourselves we would be consumed away and would fall into loss and frustration. Whatever we are, from Thee do we proceed and before Thy threshold do we seek refuge.\n\nThou art the Bestower, the Bountiful, the All-Loving.",
+"words":181,
+"spans":[],
+"notes":0,
+"opening":"He is God! O Thou kind Lord! We are poor children, needy and insignificant, yet we are plants which have sprouted by Thy",
+"anchor":"498530378"
+},
+"prayers:15703":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nO Thou pure God! Let these saplings which have sprouted by the stream of Thy guidance become fresh and verdant through the outpourings of the clouds of Thy tender mercy; cause them to be stirred by the gentle winds wafting from the meads of Thy oneness and suffer them to be revived through the rays of the Sun of Reality, that they may continually grow and flourish, and burst into blossoms and fruit.\n\nO Lord God! Bestow upon each one understanding; give them power and strength and cause them to mirror forth Thy divine aid and confirmation, so that they may become highly distinguished among the people.\n\nThou art the Mighty and the Powerful.",
+"words":117,
+"spans":[],
+"notes":0,
+"opening":"He is God! O Thou pure God! Let these saplings which have sprouted by the stream of Thy guidance become fresh and verdan",
+"anchor":"009304160"
+},
+"prayers:15704":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord!\n\nHelp this daughter of the Kingdom to be exalted in both worlds; cause her to turn away from this mortal world of dust and from those who have set their hearts thereon and enable her to have communion and close association with the world of immortality. Give her heavenly power and strengthen her through the breaths of the Holy Spirit that she may arise to serve Thee.\n\nThou art the Mighty One.",
+"words":74,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Help this daughter of the Kingdom to be exalted in both worlds; cause her to turn away from this mortal world of",
+"anchor":"676221640"
+},
+"prayers:15705":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord!\n\nGrant that these trees may become the adornment of the Abhá Paradise. Cause them to grow through Thy celestial bounty. Make them fresh and verdant and besprinkle them with heavenly dewdrops. Attire them with robes of radiant beauty and crown their heads with gorgeous blossoms. Adorn them with goodly fruit and waft over them Thy sweet savours.\n\nThou art the Bestower, the All-Loving, the Most Radiant, the Most Resplendent.",
+"words":73,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! Grant that these trees may become the adornment of the Abhá Paradise. Cause them to grow through Thy c",
+"anchor":"202492236"
+},
+"prayers:15706":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nO God, my God! We are children who have sucked the milk of divine knowledge from the breast of Thy love and have been admitted into Thy Kingdom while of tender age. We implore Thee in the daytime and in the night season saying: O Lord! Make firm our steps in Thy Faith, guard us within the stronghold of Thy protection, nourish us from Thy heavenly table, enable us to become signs of divine guidance and lamps aglow with upright conduct and aid us through the potency of the angels of Thy kingdom, O Thou Who art the Lord of glory and majesty!\n\nVerily Thou art the Bestower, the Merciful, the Compassionate.",
+"words":115,
+"spans":[],
+"notes":0,
+"opening":"He is God! O God, my God! We are children who have sucked the milk of divine knowledge from the breast of Thy love and h",
+"anchor":"604895973"
+},
+"prayers:15707":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou Lord of wondrous grace!\n\nBestow upon us new blessings. Give to us the freshness of the spring. We are saplings which have been planted by the fingers of Thy bounty and have been formed out of the water and clay of Thy tender affection. We thirst for the living waters of Thy favours and are dependent upon the outpourings of the clouds of Thy generosity. Abandon not to itself this grove wherein our hopes aspire, nor withhold therefrom the showers of Thy loving-kindness. Grant that from the clouds of Thy mercy may fall copious rain so that the trees of our lives may bring forth fruit and we may attain the most cherished desire of our hearts.",
+"words":119,
+"spans":[],
+"notes":0,
+"opening":"O Thou Lord of wondrous grace! Bestow upon us new blessings. Give to us the freshness of the spring. We are saplings whi",
+"anchor":"463025302"
+},
+"prayers:15708":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou pure God! I am a little child; grant that the breast of Thy loving-kindness be the breast that I cherish; suffer me to be nourished with the honey and the milk of Thy love; rear me in the bosom of Thy knowledge, and bestow upon me nobility and wisdom while I am still a child.\n\nO Thou the Self-Sufficing God! Make me a confidant of the Kingdom of the Unseen. Verily, Thou art the Mighty, the Powerful.",
+"words":79,
+"spans":[],
+"notes":0,
+"opening":"O Thou pure God! I am a little child; grant that the breast of Thy loving-kindness be the breast that I cherish; suffer ",
+"anchor":"592771989"
+},
+"prayers:15709":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nO peerless Lord! Praised be Thou for having kindled that light in the glass of the Concourse on high, for having guided that bird of faithfulness to the nest of the Abhá Kingdom. Thou hast joined that precious river to the mighty sea, Thou hast returned that spreading ray of light to the Sun of Truth. Thou hast welcomed that captive of remoteness into the garden of reunion, and led him who longed to look upon Thee to Thy presence in Thy bright place of lights.\n\nThou art the Lord of tender love, Thou art the last goal of the yearning heart, Thou art the dearest wish of the martyr’s soul.",
+"words":114,
+"spans":[],
+"notes":0,
+"opening":"He is God! O peerless Lord! Praised be Thou for having kindled that light in the glass of the Concourse on high, for hav",
+"anchor":"739172569"
+},
+"prayers:15710":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my God, O my God! Verily this plant hath yielded its fruit and standeth upright upon its stalk. Verily it hath astounded the farmers and perturbed the envious. O God, water it with showers from the cloud of Thy favours and cause it to yield great harvests heaped up like unto mighty hills in Thy land. Enlighten the hearts with a ray shining forth from Thy Kingdom of Oneness, illumine the eyes by beholding the signs of Thy grace, and gratify the ears by hearing the melodies of the birds of Thy confirmations singing in Thy heavenly gardens, so that these souls may become like thirsty fish swimming in the pools of Thy guidance and like tawny lions roaming in the forests of Thy bounty. Verily Thou art the Generous, the Merciful, the Glorious and the Bestower.",
+"words":138,
+"spans":[],
+"notes":0,
+"opening":"O my God, O my God! Verily this plant hath yielded its fruit and standeth upright upon its stalk. Verily it hath astound",
+"anchor":"056252557"
+},
+"prayers:15711":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou beloved of my heart and soul! I have no refuge save Thee. I raise no voice at dawn save in Thy commemoration and praise. Thy love encompasseth me and Thy grace is perfect. My hope is in Thee.\n\nO God, give me a new life at every instant and bestow upon me the breaths of the Holy Spirit at every moment, in order that I may remain steadfast in Thy love, attain unto great felicity, perceive the manifest light and be in the state of utmost tranquillity and submissiveness.\n\nVerily, Thou art the Giver, the Forgiver, the Compassionate.",
+"words":100,
+"spans":[],
+"notes":0,
+"opening":"O Thou beloved of my heart and soul! I have no refuge save Thee. I raise no voice at dawn save in Thy commemoration and ",
+"anchor":"358807005"
+},
+"prayers:15712":{
+"book":"prayers+additional-abdul-baha",
+"text":"O God, my God! Give me to drink from the cup of Thy bestowal and illumine my face with the light of guidance. Make me firm in the path of faithfulness, assist me to be steadfast in Thy mighty Covenant, and suffer me to be numbered with Thy chosen servants. Unlock before my face the doors of abundance, grant me deliverance, and sustain me, through means I cannot reckon, from the treasuries of heaven. Suffer me to turn my face toward the countenance of Thy generosity and to be entirely devoted to Thee, O Thou Who art merciful and compassionate! To those that stand fast and firm in Thy Covenant Thou, verily, art gracious and generous. All praise be to God, the Lord of the worlds!",
+"words":126,
+"spans":[],
+"notes":0,
+"opening":"O God, my God! Give me to drink from the cup of Thy bestowal and illumine my face with the light of guidance. Make me fi",
+"anchor":"196496356"
+},
+"prayers:15713":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind God!\n\nFrom America, that distant country, we hastened to the Holy Land and directed our steps toward this blessed Spot. We attained unto the two blessed and sacred Thresholds and obtained boundless grace therefrom. We have now come to Mount Carmel, which is Thy sacred garden. Most of the Prophets turned to Thee in prayer upon this holy mountain, communing with Thee in the utmost humility at the midnight hour.\n\nO Lord! We are now in this blessed place. We beseech Thine infinite bounties and long for a joyous and tranquil conscience. We desire firmness in the Covenant and seek Thy good-pleasure to our last breath.\n\nO Lord! Forgive our sins and bestow upon us Thy manifold favours. Shield us within the shelter of Thy protection. Guard and preserve these two little children and nurture them in the embrace of Thy Love.\n\nThou art the Forgiver, the Resplendent, the Ever-Loving.",
+"words":153,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind God! From America, that distant country, we hastened to the Holy Land and directed our steps toward this ble",
+"anchor":"699024254"
+},
+"prayers:15714":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou forgiving God! Forgive the sins of my loving mother, pardon her shortcomings, cast upon her the glance of Thy gracious providence, and enable her to gain admittance into Thy Kingdom.\n\nO God! From the earliest days of my life she educated and nurtured me, yet I did not recompense her for her toil and labours. Do Thou reward her by granting her eternal life and making her exalted in Thy Kingdom.\n\nVerily, Thou art the Forgiver, the Bestower, and the Kind.",
+"words":83,
+"spans":[],
+"notes":0,
+"opening":"O Thou forgiving God! Forgive the sins of my loving mother, pardon her shortcomings, cast upon her the glance of Thy gra",
+"anchor":"885686074"
+},
+"prayers:15715":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO thou who circlest in adoration about the Spot round which circle the Concourse on high! Raise thou thy hands in gratitude at the Threshold of the one true God, and say: O Thou the highest aspiration of every ardent lover! O Thou the Guide of every wandering soul! Thou hast favoured this feeble servant with Thine infinite blessings, and led this hapless and lowly one unto the Threshold of Thy oneness. Thou hast lifted to these parched lips the living waters of Thy loving-kindness and revived this weary and withered soul with the breezes of divine mercy. I yield Thee thanks for having bestowed upon me a full portion from Thy most gracious favour and invested me with the honour of attaining unto Thy sacred Threshold.¹ I beseech an infinite share from the bounties of Thy Kingdom on high. Grant Thine assistance. Confer Thy gracious favour.\n\nNotes\n\n¹ Reference to the Shrine of Bahá’u’lláh.",
+"words":159,
+"spans":[
+[
+862,
+867,
+"b"
+]
+],
+"notes":1,
+"opening":"He is God. O thou who circlest in adoration about the Spot round which circle the Concourse on high! Raise thou thy hand",
+"anchor":"874196702"
+},
+"prayers:15716":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou unseen Friend! O Desire of all in this world and the world to come! O Thou compassionate Beloved! These helpless souls are captivated by Thy love, and these feeble ones seek shelter at Thy Threshold. Every night they sigh and moan in their remoteness from Thee, and every morn they lament and weep by reason of the onslaught of the people of malice. They are afflicted at every moment with a fresh anguish, and are sore tried at each breath by the tyranny of every wicked oppressor. Praise be to Thee that, notwithstanding this, they are ablaze as a temple of fire and shine resplendent as the sun and the moon. They stand tall, like upraised banners, in the Cause of God, and hasten, like valiant horsemen, into the arena. They have bloomed like sweet blossoms and are filled with joy like the laughing rose. Wherefore, O Thou loving Provider, graciously assist these holy souls by Thy heavenly grace which is vouchsafed from Thy Kingdom, and grant that these sanctified beings may manifest the signs of the Most High. Thou art the All-Bountiful, the Pitiful, the All-Merciful, the Compassionate.",
+"words":191,
+"spans":[],
+"notes":0,
+"opening":"O Thou unseen Friend! O Desire of all in this world and the world to come! O Thou compassionate Beloved! These helpless ",
+"anchor":"874596004"
+},
+"prayers:15717":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou peerless and loving Lord! Though capacity and worthiness are lacking, and it is infinitely hard to withstand tribulations, yet worthiness and capacity are gifts vouchsafed by Thee. O Lord! Give us capacity and make us worthy, that we may evince the most great steadfastness, renounce this world and all its people, kindle the fire of Thy love, and even as candles, burn bright with a consuming flame and shed abroad our radiance.\n\nO Lord of the Kingdom! Deliver us from this world of vain illusions, and lead us unto the realm of the infinite. Suffer us to be wholly freed from this nether life, and cause us to be blessed with the bountiful gifts of the Kingdom. Release us from this world of nothingness that beareth the semblance of reality, and confer upon us life everlasting. Bestow on us joy and delight, and favour us with gladness and contentment. Comfort our hearts, and grant peace and tranquillity to our souls, so that upon ascending unto Thy Kingdom we may attain Thy presence and may rejoice in the realms above. Thou art the Giver, the Bestower, the Almighty!",
+"words":189,
+"spans":[],
+"notes":0,
+"opening":"O Thou peerless and loving Lord! Though capacity and worthiness are lacking, and it is infinitely hard to withstand trib",
+"anchor":"874596006"
+},
+"prayers:15718":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord! These souls are Thy friends who are gathered together and are carried away by Thy love. They are transported by the rays of Thy beauty and captivated by Thy musk-laden locks. They have surrendered their hearts to Thee and, lowly and helpless, wander in Thy path. They have forsaken friend and stranger alike and have laid hold of Thy unity, bowing in adoration before Thee.\n\nThey belonged to this nether world; Thou didst welcome them into Thy Kingdom. They were as withered plants in the wilderness of deprivation and loss; Thou didst make them the saplings of the garden of knowledge and understanding. Their voices were stilled; Thou didst cause them to speak forth. They were dispirited; Thou didst shed illumination upon them. They were as parched and barren soil; Thou didst turn them into a rose-garden of inner meanings. They were as children in the world of humanity; Thou didst enable them to attain heavenly maturity.\n\nO Thou kind One! Grant them a haven and a refuge within the shelter of Thy protection, and shield them from tests and trials. Lend them Thine invisible assistance, and confer upon them Thine infallible grace.\n\nO Thou kind and beloved Lord! They are as the body, and Thou art the Spirit of life. The body is dependent for its freshness and beauty upon the grace of the spirit. They stand, therefore, in need of Thy confirmations and yearn for the sustaining power of the Holy Spirit in this new Revelation. Thou art the Mighty. Thou art the Giver, the Provider, the Bestower, and the Forgiver. Thou art the One Who shineth brightly from the invisible Realm.",
+"words":278,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! These souls are Thy friends who are gathered together and are carried away by Thy love. They are trans",
+"anchor":"874596012"
+},
+"prayers:15719":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence! Perplexing difficulties have arisen and formidable obstacles have appeared. O Lord! Remove these difficulties and show forth the evidences of Thy might and power. Ease these hardships and smooth our way along this arduous path. O Divine Providence! The obstacles are unyielding, and our toil and hardship are conjoined with a myriad adversities. There is no helper save Thee, and no succourer except Thyself. We set all our hopes on Thee, and commit all our affairs unto Thy care. Thou art the Guide and the Remover of every difficulty, and Thou art the Wise, the Seeing, and the Hearing.",
+"words":102,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence! Perplexing difficulties have arisen and formidable obstacles have appeared. O Lord! Remove these di",
+"anchor":"874596017"
+},
+"prayers:15720":{
+"book":"prayers+additional-abdul-baha",
+"text":"O God of Mercy! O Thou Omnipotent One! I am but a feeble servant, weak and helpless, but I have been nurtured within the shelter of Thy grace and favour, nourished from the breast of Thy mercy, and reared in the bosom of Thy loving-kindness. O Lord! Poor and needy though I be, yet every needy one is made prosperous through Thy bounty, while every wealthy one, if bereft of Thy favours, is indeed poor and desolate.\n\nO Divine Providence! Grant me the strength to bear this heavy burden, and enable me to safeguard this supreme bestowal, for so strong is the force of tests and so grievous the onslaught of trials that every mountain is scattered in dust, and the highest peak reduced to nothing. Thou knowest full well that in my heart I seek naught but Thy remembrance, and in my soul I desire nothing save Thy love. Raise me up to serve Thy loved ones, and let me abide forever in servitude at Thy Threshold. Thou art the Loving. Thou art the Lord of manifold bounties.",
+"words":179,
+"spans":[],
+"notes":0,
+"opening":"O God of Mercy! O Thou Omnipotent One! I am but a feeble servant, weak and helpless, but I have been nurtured within the",
+"anchor":"874596019"
+},
+"prayers:15721":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence! Awaken me and make me conscious. Cause me to be detached from all else save Thee, and captivate me by the love of Thy beauty. Waft upon me the breath of the Holy Spirit, and suffer me to hearken to the call of the Abhá Kingdom. Bestow upon me heavenly power, and kindle the lamp of the spirit within the innermost chamber of my heart. Release me from every bond, and deliver me from every attachment, that I may cherish no desire except Thy good-pleasure, seek naught besides Thy Countenance, and tread no path other than Thy path. Grant that I may enable the heedless to become mindful and the slumberers to awaken, that I may proffer the water of life to those who are sore athirst and bring divine healing to those who are sick and ailing.\n\nThough I am lowly, abased, and poor, yet Thou art my haven and my refuge, my supporter and my helper. Send down Thine aid in such wise that all may be astounded. O God! Thou art, verily, the Almighty, the Most Powerful, the Giver, the Bestower, and the All-Seeing.",
+"words":190,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence! Awaken me and make me conscious. Cause me to be detached from all else save Thee, and captivate me ",
+"anchor":"874596022"
+},
+"prayers:15722":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO God, my God! I have set my face towards Thee, and supplicate the outpourings of the ocean of Thy healing. Graciously assist me, O Lord, to serve Thy people and to heal Thy servants. If Thou dost aid me, the remedy I offer will become a healing medicine for every ailment, a draught of life-giving waters for every burning thirst, and a soothing balm for every yearning heart. If Thou dost not aid me, it will be naught but affliction itself, and I will scarcely bring healing to any soul.\n\nO God, my God! Aid and assist me through Thy power to heal the sick. Thou art, verily, the Healer, the Sufficer, He Who is the remover of every pain and sickness, He Who hath dominion over all things.",
+"words":133,
+"spans":[],
+"notes":0,
+"opening":"He is God. O God, my God! I have set my face towards Thee, and supplicate the outpourings of the ocean of Thy healing. G",
+"anchor":"874596025"
+},
+"prayers:15723":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! Grant me a measure of Thy grace and loving-kindness, Thy care and protection, Thy shelter and bounty, that the end of my days may be distinguished above their beginning, and the close of my life may open the portals to Thy manifold blessings. May Thy loving-kindness and bounty descend upon me at every moment, and Thy forgiveness and mercy be vouchsafed with every breath, until, beneath the sheltering shadow of Thine upraised Standard, I may at last repair to the Kingdom of the All-Praised. Thou art the Bestower and the Ever-Loving, and Thou art, verily, the Lord of grace and bounty.",
+"words":103,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Grant me a measure of Thy grace and loving-kindness, Thy care and protection, Thy shelter and bounty, that the e",
+"anchor":"874596029"
+},
+"prayers:15724":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou Provider, O Thou Forgiver! A noble soul hath ascended unto the Kingdom of reality, and hastened from the mortal world of dust to the realm of everlasting glory. Exalt the station of this recently arrived guest, and attire this long-standing servant with a new and wondrous robe.\n\nO Thou Peerless Lord! Grant Thy forgiveness and tender care so that this soul may be admitted into the retreats of Thy mysteries and may become an intimate companion in the assemblage of splendours. Thou art the Giver, the Bestower, the Ever-Loving. Thou art the Pardoner, the Tender, the Most Powerful.",
+"words":100,
+"spans":[],
+"notes":0,
+"opening":"O Thou Provider, O Thou Forgiver! A noble soul hath ascended unto the Kingdom of reality, and hastened from the mortal w",
+"anchor":"874596030"
+},
+"prayers:15725":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO Thou forgiving Lord! These servants were noble souls, and these radiant hearts were made illumined and resplendent through the light of Thy guidance. They drank a brimming cup of the wine of Thy love, and gave ear to eternal mysteries imparted by the melodies of Thy knowledge. They bound their hearts to Thee, broke free from the snare of estrangement, and laid hold of Thy unity. Make these precious souls companions of the inmates of Heaven, and admit them into the circle of Thy chosen ones. Make them intimates of Thy mysteries in the retreats of the realm above, and immerse them in the sea of lights. Thou art the Bestower, the Luminous, and the Kind.",
+"words":120,
+"spans":[],
+"notes":0,
+"opening":"He is God. O Thou forgiving Lord! These servants were noble souls, and these radiant hearts were made illumined and resp",
+"anchor":"874596033"
+},
+"prayers:15726":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence! Immerse the father and mother of this servant of Thy Threshold in the ocean of Thy forgiveness, and purge and sanctify them from every sin and transgression. Grant them Thy forgiveness and mercy, and bestow upon them Thy gracious pardon. Thou, verily, art the Pardoner, the Ever-Forgiving, the Bestower of abundant grace. O Thou forgiving Lord! Though we are sinners, yet our hopes are fixed upon Thy promise and assurance. Though we are enveloped by the darkness of error, yet we have at all times turned our faces to the morn of Thy bountiful favours. Deal with us as beseemeth Thy Threshold, and confer upon us that which is worthy of Thy Court. Thou art the Ever-Forgiving, the Pardoner, He Who overlooketh every shortcoming.",
+"words":127,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence! Immerse the father and mother of this servant of Thy Threshold in the ocean of Thy forgiveness, and",
+"anchor":"874596036"
+},
+"prayers:15727":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord! Sanctify my heart from all attachment, and gladden my soul with tidings of joy. Free me from attachment to friend and stranger alike, and captivate me with Thy love, that I may become wholly devoted to Thee and be filled with fervid rapture; that I may desire naught but Thee, seek no one except Thyself, tread no other path besides Thine, and commune only with Thee; that I may, even as a nightingale, be spellbound by Thy love and, by day and night, sigh and wail and weep and cry out, “Yá Bahá’u’l-Abhá!”",
+"words":97,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! Sanctify my heart from all attachment, and gladden my soul with tidings of joy. Free me from attachmen",
+"anchor":"874596038"
+},
+"prayers:15728":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! What an outpouring of bounty Thou hast vouchsafed, and what a flood of abounding grace Thou hast granted! Thou didst make all the hearts to become even as a single heart, and all the souls to be bound together as one soul. Thou didst endow inert bodies with life and feeling, and didst bestow upon lifeless frames the consciousness of the spirit. Through the effulgent rays shed from the Day-Star of the All-Merciful, Thou didst invest these atoms of dust with visible existence, and through the billows of the ocean of oneness, Thou didst enable these evanescent drops to surge and roar.\n\nO Almighty One Who endowest a blade of straw with the might of a mountain and enablest a speck of dust to mirror forth the glory of the resplendent sun! Grant us Thy tender grace and favour, so that we may arise to serve Thy Cause and not be shamefaced before the peoples of the earth.",
+"words":160,
+"spans":[],
+"notes":0,
+"opening":"O Lord! What an outpouring of bounty Thou hast vouchsafed, and what a flood of abounding grace Thou hast granted! Thou d",
+"anchor":"874596040"
+},
+"prayers:15729":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou Omnipotent Lord! We are all held within the mighty grasp of Thy power. Thou art our Supporter and our Helper. Grant us Thy tender mercy, bestow upon us Thy bounty, open the portals of grace, and cast upon us the glance of Thy favours. Let a vivifying breeze waft over us, and quicken Thou our yearning hearts. Illumine our eyes and make the sanctuary of our hearts the envy of every blossoming bower. Rejoice every soul and gladden every spirit. Reveal Thine ancient power and make manifest Thy great might. Cause the birds of human souls to soar to new heights, and let Thy confidants in this nether world fathom the mysteries of Thy Kingdom. Set firm our steps and bestow upon us unwavering hearts. We are sinners, and Thou art the Ever-Forgiving. We are Thy servants, and Thou art the Sovereign Lord. We are homeless wanderers, and Thou art our haven and refuge. Graciously aid and assist us to diffuse Thy sweet savours and to exalt Thy Word. Elevate the station of the dispossessed, and bestow Thine inexhaustible treasure upon the destitute. Vouchsafe Thy strength unto the weak, and confer heavenly power upon the feeble. Thou art the Provider, Thou art the Gracious, Thou art the Lord Who ruleth over all things.",
+"words":215,
+"spans":[],
+"notes":0,
+"opening":"O Thou Omnipotent Lord! We are all held within the mighty grasp of Thy power. Thou art our Supporter and our Helper. Gra",
+"anchor":"874596043"
+},
+"prayers:15730":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord, our God! We are helpless; Thou art the Lord of strength and power. We are wretched; Thou art the Almighty, the All-Glorious. We are poor; Thou art the All-Possessing, the Most Generous. Graciously assist us in our servitude to Thy sacred Threshold, and aid us, through Thy strengthening grace, to worship Thee at the dawning-places of Thy praise. Enable us to diffuse Thy holy fragrances amongst Thy creatures, and strengthen our loins to serve Thee amidst Thy servants, so that we may guide all nations to Thy Most Great Name and lead all peoples to the shores of the glorious ocean of Thy oneness.\n\nO Lord! Deliver us from the attachments of the world and its peoples, from the transgressions of the past, and from the afflictions yet to come, that we may arise to exalt Thy Word with the utmost joy and radiance and celebrate Thy praise in the daytime and in the night season, that we may summon all people to the way of guidance and enjoin them to observe righteousness, and that we may chant the verses of Thy unity amidst all Thy creation. Potent art Thou to do what pleaseth Thee. Thou art, verily, the Almighty, the Most Powerful.",
+"words":205,
+"spans":[],
+"notes":0,
+"opening":"O Lord, our God! We are helpless; Thou art the Lord of strength and power. We are wretched; Thou art the Almighty, the A",
+"anchor":"874596050"
+},
+"prayers:15731":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO Thou kind and beloved Lord! These friends are exhilarated with the wine of the Covenant and are wanderers in the wilderness of Thy love. Their hearts are consumed by the flames of remoteness from Thee, and they yearn eagerly for the revelation of Thy splendours. From Thine invisible Kingdom, the Realm of the unseen, reveal unto them the effulgent glory of Thy grace, and shed upon them the radiance of Thy bounty. At every moment, send forth a new blessing and reveal a fresh favour.\n\nO Divine Providence! We are weak and Thou art the Most Powerful. We are as tiny ants and Thou art the King of the Realm of Glory. Bestow Thy grace and confer Thy bounty upon us, that we may kindle a flame and shed its splendour abroad, that we may show forth strength and render some service. Grant that we may bring illumination to this darksome earth and spirituality to this fleeting world of dust. Suffer us not to rest for a moment, nor to defile ourselves with the transitory things of this life. Enable us to prepare a banquet of guidance, inscribe with our life-blood the verses of love, leave fear and peril behind, become even as fruitful trees, and cause human perfections to appear in this ephemeral world. Thou, in truth, art the All-Bountiful, the Most Compassionate, the Ever-Forgiving, the Pardoner.",
+"words":232,
+"spans":[],
+"notes":0,
+"opening":"He is God. O Thou kind and beloved Lord! These friends are exhilarated with the wine of the Covenant and are wanderers i",
+"anchor":"874596053"
+},
+"prayers:15732":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is the All-Glorious.\n\nO my Lord, my King, my Ruler, and my Sovereign! I call upon Thee with my tongue, my heart, and my soul, saying: Clothe this servant of Thine with the robe of Thy care, the raiment of Thine unfailing help, and the armour of Thy protection. Assist him to make mention of Thee and to extol Thy virtues amidst Thy people, and unloose his tongue to utter Thy glorification and praise in every assemblage held to celebrate Thy unity and sanctity. Thou art, in truth, the Mighty, the Powerful, the All-Glorious, the Self-Subsisting.",
+"words":97,
+"spans":[],
+"notes":0,
+"opening":"He is the All-Glorious. O my Lord, my King, my Ruler, and my Sovereign! I call upon Thee with my tongue, my heart, and m",
+"anchor":"874596057"
+},
+"prayers:15733":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou incomparable God! We are Thy humble servants, and Thou art the All-Glorious. We are sinners, and Thou art the Ever-Forgiving. We are captives, poor and lowly, and Thou art our shelter and our aid. We are as tiny ants, and Thou art the Lord of majesty, enthroned in the highest heaven. Protect us, as a token of Thy grace, and withhold not from us Thy care and assistance. O Lord! Thy tests are indeed severe, and Thy trials can lay in ruin foundations wrought of steel. Preserve and strengthen us; cheer and gladden our hearts. Graciously assist us to serve, even as ‘Abdu’l-Bahá, Thy sacred Threshold.\n\n—‘Abdu’l‑Bahá",
+"words":109,
+"spans":[
+[
+611,
+624,
+"i"
+]
+],
+"notes":0,
+"opening":"O Thou incomparable God! We are Thy humble servants, and Thou art the All-Glorious. We are sinners, and Thou art the Eve",
+"anchor":"874596068"
+},
+"prayers:15734":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO God, my God! With utter lowliness and fervour, humility and devotion, I implore Thee with my tongue and my heart, with my spirit and my soul, and with my mind and my conscience, to grant the most cherished of all desires, destine the most meritorious of all deeds, and ordain all honour and perfection, favour and beauty, prosperity and salvation for this family that hath hastened to Thy sheltering shadow at the break of Thy resplendent morn and sought refuge within Thy safe haven and Thy mighty stronghold. Verily, these souls heeded Thy call, drew nigh unto Thy Threshold, were set aflame with the fire of Thy love, and were carried away by the breaths of Thy holiness. They were constant in the service of Thy Cause, humble before Thy Countenance, and noble beneath Thy sheltering shadow. They are renowned as the bearers of Thy name amongst Thy people and make mention of Thee amidst Thy servants.\n\nO God, my God! Exalt them by Thine ancient glory, honour them in Thy Kingdom of grandeur, and assist them with the hosts of Thy favours in this great Day. O Lord, my God! Raise aloft their banner, grant them an ampler share of Thy protection, spread abroad their signs, and increase their radiance, that they may become a glass for the lamp of Thy manifold favours and spreaders of Thy loving-kindness and bounties.\n\nO Lord, my God! Be Thou their companion in their loneliness, and in their moments of anguish surround them with Thine aid. Bequeath unto them Thy Book and vouchsafe unto them the full measure of Thy gifts and bestowals. Thou art in truth the Mighty, the Powerful, the Gracious, the Bountiful, and verily, Thou art the Merciful, the Compassionate.",
+"words":294,
+"spans":[],
+"notes":0,
+"opening":"He is God. O God, my God! With utter lowliness and fervour, humility and devotion, I implore Thee with my tongue and my ",
+"anchor":"874596070"
+},
+"prayers:11700":{
+"book":"prayers+additional-abdul-baha",
+"text":"O God! Grant Thy favour, and bestow Thy blessing. Vouchsafe Thy grace, and give a portion of Thy bounty. Enable these men to witness during this year the fulfilment of their hopes. Send down Thy heavenly rain, and provide Thy plenteousness and abundance. Thou art the Powerful, the Mighty.",
+"words":49,
+"spans":[],
+"notes":0,
+"opening":"O God! Grant Thy favour, and bestow Thy blessing. Vouchsafe Thy grace, and give a portion of Thy bounty. Enable these me",
+"anchor":"091818442"
+},
+"prayers:11699":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my God! O Thou Who endowest every just power and equitable dominion with abiding glory and everlasting might, with permanence and stability, with constancy and honour! Aid Thou by Thy heavenly grace every government that acteth justly towards its subjects and every sovereign authority, derived from Thee, that shieldeth the poor and the weak under the banner of its protection.\n\nI beseech Thee, by Thy divine grace and surpassing bounty, to aid this just government, the canopy of whose authority is spread over vast and mighty lands and the evidences of whose justice are apparent in its prosperous and flourishing regions. Assist, O my God, its hosts, raise aloft its ensigns, bestow influence upon its word and its utterance, protect its lands, increase its honour, spread its fame, reveal its signs, and unfurl its banner through Thine all-subduing power and Thy resplendent might in the kingdom of creation.\n\nThou, verily, aidest whomsoever Thou willest, and Thou, verily, art the Almighty, the Most Powerful.",
+"words":164,
+"spans":[],
+"notes":0,
+"opening":"O my God! O Thou Who endowest every just power and equitable dominion with abiding glory and everlasting might, with per",
+"anchor":"764030886"
+},
+"prayers:10519":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind God!\n\nFrom America, that distant country, we hastened to the Holy Land and directed our steps toward this blessed Spot. We attained unto the two blessed and sacred Thresholds and obtained boundless grace therefrom. We have now come to Mount Carmel, which is Thy sacred garden. Most of the Prophets turned to Thee in prayer upon this holy mountain, communing with Thee in the utmost humility at the midnight hour.\n\nO Lord! We are now in this blessed place. We beseech Thine infinite bounties and long for a joyous and tranquil conscience. We desire firmness in the Covenant and seek Thy good-pleasure to our last breath.\n\nO Lord! Forgive our sins and bestow upon us Thy manifold favours. Shield us within the shelter of Thy protection. Guard and preserve these two little children and nurture them in the embrace of Thy Love.\n\nThou art the Forgiver, the Resplendent, the Ever-Loving.",
+"words":153,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind God! From America, that distant country, we hastened to the Holy Land and directed our steps toward this ble",
+"anchor":"699024254"
+},
+"prayers:12582":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou unseen Friend! O Desire of all in this world and the world to come! O Thou compassionate Beloved! These helpless souls are captivated by Thy love, and these feeble ones seek shelter at Thy Threshold. Every night they sigh and moan in their remoteness from Thee, and every morn they lament and weep by reason of the onslaught of the people of malice. They are afflicted at every moment with a fresh anguish, and are sore tried at each breath by the tyranny of every wicked oppressor. Praise be to Thee that, notwithstanding this, they are ablaze as a temple of fire and shine resplendent as the sun and the moon. They stand tall, like upraised banners, in the Cause of God, and hasten, like valiant horsemen, into the arena. They have bloomed like sweet blossoms and are filled with joy like the laughing rose. Wherefore, O Thou loving Provider, graciously assist these holy souls by Thy heavenly grace which is vouchsafed from Thy Kingdom, and grant that these sanctified beings may manifest the signs of the Most High. Thou art the All-Bountiful, the Pitiful, the All-Merciful, the Compassionate.",
+"words":191,
+"spans":[],
+"notes":0,
+"opening":"O Thou unseen Friend! O Desire of all in this world and the world to come! O Thou compassionate Beloved! These helpless ",
+"anchor":"874596004"
+},
+"prayers:12583":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou peerless and loving Lord! Though capacity and worthiness are lacking, and it is infinitely hard to withstand tribulations, yet worthiness and capacity are gifts vouchsafed by Thee. O Lord! Give us capacity and make us worthy, that we may evince the most great steadfastness, renounce this world and all its people, kindle the fire of Thy love, and even as candles, burn bright with a consuming flame and shed abroad our radiance.\n\nO Lord of the Kingdom! Deliver us from this world of vain illusions, and lead us unto the realm of the infinite. Suffer us to be wholly freed from this nether life, and cause us to be blessed with the bountiful gifts of the Kingdom. Release us from this world of nothingness that beareth the semblance of reality, and confer upon us life everlasting. Bestow on us joy and delight, and favour us with gladness and contentment. Comfort our hearts, and grant peace and tranquillity to our souls, so that upon ascending unto Thy Kingdom we may attain Thy presence and may rejoice in the realms above. Thou art the Giver, the Bestower, the Almighty!",
+"words":189,
+"spans":[],
+"notes":0,
+"opening":"O Thou peerless and loving Lord! Though capacity and worthiness are lacking, and it is infinitely hard to withstand trib",
+"anchor":"874596006"
+},
+"prayers:12584":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my eternal Beloved and my adored Friend! How long shall I remain bereft of Thy presence and sorely afflicted by remoteness from Thee? To the retreats of Thy heavenly Kingdom lead me, and at the scene of the appearance of Thy supernal Realm cast upon me the glance of Thy loving-kindness.\n\nO Thou Omnipotent Lord! Number me among the denizens of the Kingdom. This mortal world is my abode; grant me a habitation in the realms of the Placeless. To this earthly plane I pertain; shed upon me the effulgence of Thy glorious light. In this world of dust I dwell; make me an inmate of Thy heavenly realm, so that I may lay down my life in Thy path and attain to my heart’s desire, may crown my head with the diadem of divine favour and raise the triumphal cry of “O Glory of God, the Most Glorious!”",
+"words":150,
+"spans":[],
+"notes":0,
+"opening":"O my eternal Beloved and my adored Friend! How long shall I remain bereft of Thy presence and sorely afflicted by remote",
+"anchor":"874596009"
+},
+"prayers:12585":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord! These souls are Thy friends who are gathered together and are carried away by Thy love. They are transported by the rays of Thy beauty and captivated by Thy musk-laden locks. They have surrendered their hearts to Thee and, lowly and helpless, wander in Thy path. They have forsaken friend and stranger alike and have laid hold of Thy unity, bowing in adoration before Thee.\n\nThey belonged to this nether world; Thou didst welcome them into Thy Kingdom. They were as withered plants in the wilderness of deprivation and loss; Thou didst make them the saplings of the garden of knowledge and understanding. Their voices were stilled; Thou didst cause them to speak forth. They were dispirited; Thou didst shed illumination upon them. They were as parched and barren soil; Thou didst turn them into a rose-garden of inner meanings. They were as children in the world of humanity; Thou didst enable them to attain heavenly maturity.\n\nO Thou kind One! Grant them a haven and a refuge within the shelter of Thy protection, and shield them from tests and trials. Lend them Thine invisible assistance, and confer upon them Thine infallible grace.\n\nO Thou kind and beloved Lord! They are as the body, and Thou art the Spirit of life. The body is dependent for its freshness and beauty upon the grace of the spirit. They stand, therefore, in need of Thy confirmations and yearn for the sustaining power of the Holy Spirit in this new Revelation. Thou art the Mighty. Thou art the Giver, the Provider, the Bestower, and the Forgiver. Thou art the One Who shineth brightly from the invisible Realm.",
+"words":278,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! These souls are Thy friends who are gathered together and are carried away by Thy love. They are trans",
+"anchor":"874596012"
+},
+"prayers:12586":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence! Perplexing difficulties have arisen and formidable obstacles have appeared. O Lord! Remove these difficulties and show forth the evidences of Thy might and power. Ease these hardships and smooth our way along this arduous path. O Divine Providence! The obstacles are unyielding, and our toil and hardship are conjoined with a myriad adversities. There is no helper save Thee, and no succourer except Thyself. We set all our hopes on Thee, and commit all our affairs unto Thy care. Thou art the Guide and the Remover of every difficulty, and Thou art the Wise, the Seeing, and the Hearing.",
+"words":102,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence! Perplexing difficulties have arisen and formidable obstacles have appeared. O Lord! Remove these di",
+"anchor":"874596017"
+},
+"prayers:12587":{
+"book":"prayers+additional-abdul-baha",
+"text":"O God of Mercy! O Thou Omnipotent One! I am but a feeble servant, weak and helpless, but I have been nurtured within the shelter of Thy grace and favour, nourished from the breast of Thy mercy, and reared in the bosom of Thy loving-kindness. O Lord! Poor and needy though I be, yet every needy one is made prosperous through Thy bounty, while every wealthy one, if bereft of Thy favours, is indeed poor and desolate.\n\nO Divine Providence! Grant me the strength to bear this heavy burden, and enable me to safeguard this supreme bestowal, for so strong is the force of tests and so grievous the onslaught of trials that every mountain is scattered in dust, and the highest peak reduced to nothing. Thou knowest full well that in my heart I seek naught but Thy remembrance, and in my soul I desire nothing save Thy love. Raise me up to serve Thy loved ones, and let me abide forever in servitude at Thy Threshold. Thou art the Loving. Thou art the Lord of manifold bounties.",
+"words":179,
+"spans":[],
+"notes":0,
+"opening":"O God of Mercy! O Thou Omnipotent One! I am but a feeble servant, weak and helpless, but I have been nurtured within the",
+"anchor":"874596019"
+},
+"prayers:12589":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO God, my God! I have set my face towards Thee, and supplicate the outpourings of the ocean of Thy healing. Graciously assist me, O Lord, to serve Thy people and to heal Thy servants. If Thou dost aid me, the remedy I offer will become a healing medicine for every ailment, a draught of life-giving waters for every burning thirst, and a soothing balm for every yearning heart. If Thou dost not aid me, it will be naught but affliction itself, and I will scarcely bring healing to any soul.\n\nO God, my God! Aid and assist me through Thy power to heal the sick. Thou art, verily, the Healer, the Sufficer, He Who is the remover of every pain and sickness, He Who hath dominion over all things.",
+"words":133,
+"spans":[],
+"notes":0,
+"opening":"He is God. O God, my God! I have set my face towards Thee, and supplicate the outpourings of the ocean of Thy healing. G",
+"anchor":"874596025"
+},
+"prayers:12590":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! Grant me a measure of Thy grace and loving-kindness, Thy care and protection, Thy shelter and bounty, that the end of my days may be distinguished above their beginning, and the close of my life may open the portals to Thy manifold blessings. May Thy loving-kindness and bounty descend upon me at every moment, and Thy forgiveness and mercy be vouchsafed with every breath, until, beneath the sheltering shadow of Thine upraised Standard, I may at last repair to the Kingdom of the All-Praised. Thou art the Bestower and the Ever-Loving, and Thou art, verily, the Lord of grace and bounty.",
+"words":103,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Grant me a measure of Thy grace and loving-kindness, Thy care and protection, Thy shelter and bounty, that the e",
+"anchor":"874596029"
+},
+"prayers:12591":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou Provider, O Thou Forgiver! A noble soul hath ascended unto the Kingdom of reality, and hastened from the mortal world of dust to the realm of everlasting glory. Exalt the station of this recently arrived guest, and attire this long-standing servant with a new and wondrous robe.\n\nO Thou Peerless Lord! Grant Thy forgiveness and tender care so that this soul may be admitted into the retreats of Thy mysteries and may become an intimate companion in the assemblage of splendours. Thou art the Giver, the Bestower, the Ever-Loving. Thou art the Pardoner, the Tender, the Most Powerful.",
+"words":100,
+"spans":[],
+"notes":0,
+"opening":"O Thou Provider, O Thou Forgiver! A noble soul hath ascended unto the Kingdom of reality, and hastened from the mortal w",
+"anchor":"874596030"
+},
+"prayers:12592":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO Thou forgiving Lord! These servants were noble souls, and these radiant hearts were made illumined and resplendent through the light of Thy guidance. They drank a brimming cup of the wine of Thy love, and gave ear to eternal mysteries imparted by the melodies of Thy knowledge. They bound their hearts to Thee, broke free from the snare of estrangement, and laid hold of Thy unity. Make these precious souls companions of the inmates of Heaven, and admit them into the circle of Thy chosen ones. Make them intimates of Thy mysteries in the retreats of the realm above, and immerse them in the sea of lights. Thou art the Bestower, the Luminous, and the Kind.",
+"words":120,
+"spans":[],
+"notes":0,
+"opening":"He is God. O Thou forgiving Lord! These servants were noble souls, and these radiant hearts were made illumined and resp",
+"anchor":"874596033"
+},
+"prayers:12593":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence! Immerse the father and mother of this servant of Thy Threshold in the ocean of Thy forgiveness, and purge and sanctify them from every sin and transgression. Grant them Thy forgiveness and mercy, and bestow upon them Thy gracious pardon. Thou, verily, art the Pardoner, the Ever-Forgiving, the Bestower of abundant grace. O Thou forgiving Lord! Though we are sinners, yet our hopes are fixed upon Thy promise and assurance. Though we are enveloped by the darkness of error, yet we have at all times turned our faces to the morn of Thy bountiful favours. Deal with us as beseemeth Thy Threshold, and confer upon us that which is worthy of Thy Court. Thou art the Ever-Forgiving, the Pardoner, He Who overlooketh every shortcoming.",
+"words":127,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence! Immerse the father and mother of this servant of Thy Threshold in the ocean of Thy forgiveness, and",
+"anchor":"874596036"
+},
+"prayers:12595":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! What an outpouring of bounty Thou hast vouchsafed, and what a flood of abounding grace Thou hast granted! Thou didst make all the hearts to become even as a single heart, and all the souls to be bound together as one soul. Thou didst endow inert bodies with life and feeling, and didst bestow upon lifeless frames the consciousness of the spirit. Through the effulgent rays shed from the Day-Star of the All-Merciful, Thou didst invest these atoms of dust with visible existence, and through the billows of the ocean of oneness, Thou didst enable these evanescent drops to surge and roar.\n\nO Almighty One Who endowest a blade of straw with the might of a mountain and enablest a speck of dust to mirror forth the glory of the resplendent sun! Grant us Thy tender grace and favour, so that we may arise to serve Thy Cause and not be shamefaced before the peoples of the earth.",
+"words":160,
+"spans":[],
+"notes":0,
+"opening":"O Lord! What an outpouring of bounty Thou hast vouchsafed, and what a flood of abounding grace Thou hast granted! Thou d",
+"anchor":"874596040"
+},
+"prayers:12596":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou Omnipotent Lord! We are all held within the mighty grasp of Thy power. Thou art our Supporter and our Helper. Grant us Thy tender mercy, bestow upon us Thy bounty, open the portals of grace, and cast upon us the glance of Thy favours. Let a vivifying breeze waft over us, and quicken Thou our yearning hearts. Illumine our eyes and make the sanctuary of our hearts the envy of every blossoming bower. Rejoice every soul and gladden every spirit. Reveal Thine ancient power and make manifest Thy great might. Cause the birds of human souls to soar to new heights, and let Thy confidants in this nether world fathom the mysteries of Thy Kingdom. Set firm our steps and bestow upon us unwavering hearts. We are sinners, and Thou art the Ever-Forgiving. We are Thy servants, and Thou art the Sovereign Lord. We are homeless wanderers, and Thou art our haven and refuge. Graciously aid and assist us to diffuse Thy sweet savours and to exalt Thy Word. Elevate the station of the dispossessed, and bestow Thine inexhaustible treasure upon the destitute. Vouchsafe Thy strength unto the weak, and confer heavenly power upon the feeble. Thou art the Provider, Thou art the Gracious, Thou art the Lord Who ruleth over all things.",
+"words":215,
+"spans":[],
+"notes":0,
+"opening":"O Thou Omnipotent Lord! We are all held within the mighty grasp of Thy power. Thou art our Supporter and our Helper. Gra",
+"anchor":"874596043"
+},
+"prayers:12597":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord, our God! We are helpless; Thou art the Lord of strength and power. We are wretched; Thou art the Almighty, the All-Glorious. We are poor; Thou art the All-Possessing, the Most Generous. Graciously assist us in our servitude to Thy sacred Threshold, and aid us, through Thy strengthening grace, to worship Thee at the dawning-places of Thy praise. Enable us to diffuse Thy holy fragrances amongst Thy creatures, and strengthen our loins to serve Thee amidst Thy servants, so that we may guide all nations to Thy Most Great Name and lead all peoples to the shores of the glorious ocean of Thy oneness.\n\nO Lord! Deliver us from the attachments of the world and its peoples, from the transgressions of the past, and from the afflictions yet to come, that we may arise to exalt Thy Word with the utmost joy and radiance and celebrate Thy praise in the daytime and in the night season, that we may summon all people to the way of guidance and enjoin them to observe righteousness, and that we may chant the verses of Thy unity amidst all Thy creation. Potent art Thou to do what pleaseth Thee. Thou art, verily, the Almighty, the Most Powerful.",
+"words":205,
+"spans":[],
+"notes":0,
+"opening":"O Lord, our God! We are helpless; Thou art the Lord of strength and power. We are wretched; Thou art the Almighty, the A",
+"anchor":"874596050"
+},
+"prayers:12598":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO Thou kind and beloved Lord! These friends are exhilarated with the wine of the Covenant and are wanderers in the wilderness of Thy love. Their hearts are consumed by the flames of remoteness from Thee, and they yearn eagerly for the revelation of Thy splendours. From Thine invisible Kingdom, the Realm of the unseen, reveal unto them the effulgent glory of Thy grace, and shed upon them the radiance of Thy bounty. At every moment, send forth a new blessing and reveal a fresh favour.\n\nO Divine Providence! We are weak and Thou art the Most Powerful. We are as tiny ants and Thou art the King of the Realm of Glory. Bestow Thy grace and confer Thy bounty upon us, that we may kindle a flame and shed its splendour abroad, that we may show forth strength and render some service. Grant that we may bring illumination to this darksome earth and spirituality to this fleeting world of dust. Suffer us not to rest for a moment, nor to defile ourselves with the transitory things of this life. Enable us to prepare a banquet of guidance, inscribe with our life-blood the verses of love, leave fear and peril behind, become even as fruitful trees, and cause human perfections to appear in this ephemeral world. Thou, in truth, art the All-Bountiful, the Most Compassionate, the Ever-Forgiving, the Pardoner.",
+"words":232,
+"spans":[],
+"notes":0,
+"opening":"He is God. O Thou kind and beloved Lord! These friends are exhilarated with the wine of the Covenant and are wanderers i",
+"anchor":"874596053"
+},
+"prayers:12599":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is the All-Glorious.\n\nO my Lord, my King, my Ruler, and my Sovereign! I call upon Thee with my tongue, my heart, and my soul, saying: Clothe this servant of Thine with the robe of Thy care, the raiment of Thine unfailing help, and the armour of Thy protection. Assist him to make mention of Thee and to extol Thy virtues amidst Thy people, and unloose his tongue to utter Thy glorification and praise in every assemblage held to celebrate Thy unity and sanctity. Thou art, in truth, the Mighty, the Powerful, the All-Glorious, the Self-Subsisting.",
+"words":97,
+"spans":[],
+"notes":0,
+"opening":"He is the All-Glorious. O my Lord, my King, my Ruler, and my Sovereign! I call upon Thee with my tongue, my heart, and m",
+"anchor":"874596057"
+},
+"prayers:12600":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my kind Lord, O Thou the desire of my heart and soul! Bestow upon Thy friends Thy loving-kindness, and grant them Thine unfailing mercy. Be Thou a solace to Thine ardent lovers, and a friend, a comforter, and a loving companion to them who yearn for Thee. Their hearts are ablaze with the fire of Thy love, and their souls are consumed with the flame of devotion to Thee. They long, one and all, to hasten unto the altar of love, that they may willingly lay down their lives.\n\nO Divine Providence! Grant them Thy favour, guide them aright, graciously aid them to achieve spiritual victory, and confer upon them heavenly bestowals. O Lord, assist them by Thy munificence and grace, and make their radiant faces lamps of guidance in assemblies devoted to the knowledge of Thee, and signs of heavenly bounty in gatherings where Thy verses are expounded. Thou art, verily, the Merciful, the All-Bountiful, the One Whose help is implored by all men.",
+"words":166,
+"spans":[],
+"notes":0,
+"opening":"O my kind Lord, O Thou the desire of my heart and soul! Bestow upon Thy friends Thy loving-kindness, and grant them Thin",
+"anchor":"874596060"
+},
+"prayers:12601":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is the All-Glorious, the Most Effulgent.\n\nO Divine Providence, O forgiving Lord! How can I ever befittingly sing Thy praise or sufficiently worship and glorify Thee? Thy description by any tongue is naught but error, and Thy depiction by any pen is an evidence of folly in attempting this formidable task. The tongue is but an instrument composed of elements; voice and speech are naught but accidental attributes. How, then, can I celebrate, with the instrument of an earthly voice, the praise of Him Who hath neither peer nor likeness? All that I can say or seek is limited by the grasp of the human mind and encompassed by the bounds of the human world. How can human thought ever scale the lofty summits of divine holiness, and how can the spider of idle fancy ever weave the frail web of vain imaginings upon the retreats of sanctity? Naught can I do but testify to my powerlessness and confess my failure. Thou art, verily, He Who is the All-Possessing, the Inaccessible, He Who is immeasurably exalted above the comprehension of them that are endued with understanding.",
+"words":187,
+"spans":[],
+"notes":0,
+"opening":"He is the All-Glorious, the Most Effulgent. O Divine Providence, O forgiving Lord! How can I ever befittingly sing Thy p",
+"anchor":"874596063"
+},
+"prayers:12602":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence, Thou art the Ever-Forgiving! O Thou Almighty God, Thou art the Gracious! Let this dearly loved servant of Thine abide beneath the shadow of Thy glory, and grant that this hapless and lowly one may prosper and flourish within the precincts of Thy mercy. Give him to drink from the chalice of Thy nearness, and let him abide under the shade of the Blessed Tree. Confer upon him the honour of attaining Thy presence, and bestow upon him everlasting bliss. Graciously assist the surviving kindred of this noble soul to follow in the footsteps of their dear father, to show forth his character and conduct amongst all people, to follow Thy path, seek Thy good-pleasure, and utter Thy praise. Thou art the Ever-Loving God, the Lord of bounty.",
+"words":131,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence, Thou art the Ever-Forgiving! O Thou Almighty God, Thou art the Gracious! Let this dearly loved serv",
+"anchor":"874596066"
+},
+"prayers:12603":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou incomparable God! We are Thy humble servants, and Thou art the All-Glorious. We are sinners, and Thou art the Ever-Forgiving. We are captives, poor and lowly, and Thou art our shelter and our aid. We are as tiny ants, and Thou art the Lord of majesty, enthroned in the highest heaven. Protect us, as a token of Thy grace, and withhold not from us Thy care and assistance. O Lord! Thy tests are indeed severe, and Thy trials can lay in ruin foundations wrought of steel. Preserve and strengthen us; cheer and gladden our hearts. Graciously assist us to serve, even as ‘Abdu’l-Bahá, Thy sacred Threshold.\n\n—‘Abdu’l‑Bahá",
+"words":109,
+"spans":[
+[
+611,
+624,
+"i"
+]
+],
+"notes":0,
+"opening":"O Thou incomparable God! We are Thy humble servants, and Thou art the All-Glorious. We are sinners, and Thou art the Eve",
+"anchor":"874596068"
+},
+"prayers:12604":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO God, my God! With utter lowliness and fervour, humility and devotion, I implore Thee with my tongue and my heart, with my spirit and my soul, and with my mind and my conscience, to grant the most cherished of all desires, destine the most meritorious of all deeds, and ordain all honour and perfection, favour and beauty, prosperity and salvation for this family that hath hastened to Thy sheltering shadow at the break of Thy resplendent morn and sought refuge within Thy safe haven and Thy mighty stronghold. Verily, these souls heeded Thy call, drew nigh unto Thy Threshold, were set aflame with the fire of Thy love, and were carried away by the breaths of Thy holiness. They were constant in the service of Thy Cause, humble before Thy Countenance, and noble beneath Thy sheltering shadow. They are renowned as the bearers of Thy name amongst Thy people and make mention of Thee amidst Thy servants.\n\nO God, my God! Exalt them by Thine ancient glory, honour them in Thy Kingdom of grandeur, and assist them with the hosts of Thy favours in this great Day. O Lord, my God! Raise aloft their banner, grant them an ampler share of Thy protection, spread abroad their signs, and increase their radiance, that they may become a glass for the lamp of Thy manifold favours and spreaders of Thy loving-kindness and bounties.\n\nO Lord, my God! Be Thou their companion in their loneliness, and in their moments of anguish surround them with Thine aid. Bequeath unto them Thy Book and vouchsafe unto them the full measure of Thy gifts and bestowals. Thou art in truth the Mighty, the Powerful, the Gracious, the Bountiful, and verily, Thou art the Merciful, the Compassionate.",
+"words":294,
+"spans":[],
+"notes":0,
+"opening":"He is God. O God, my God! With utter lowliness and fervour, humility and devotion, I implore Thee with my tongue and my ",
+"anchor":"874596070"
+},
+"prayers:12605":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord so rich in bounty, so replete with grace,\n\nWhose knowledge doth mine inmost heart and soul embrace!\n\nAt morn, the solace of my soul is none but Thee;\n\nThe knower of my loss and woe is none but Thee.\n\nThe heart that for a moment hath Thy mention known\n\nWill seek no friend save longing pain for Thee alone.\n\nWithered be the heart that sigheth not for Thee,\n\nAnd better blind the eye that crieth not for Thee!\n\nIn all mine hours of deepest gloom, O Lord of might,\n\nMy heart hath Thy remembrance for a shining light.\n\nDo, through Thy favour, breathe Thy spirit into me,\n\nThat what hath never been may thus forever be.\n\nConsider not our merit and our worth,\n\nO Lord of bounty, but the grace Thou pourest forth.\n\nUpon these broken-winged birds whose flight is slow\n\nOut of Thy tender mercy newfound wings bestow.",
+"words":151,
+"spans":[],
+"notes":0,
+"opening":"O Lord so rich in bounty, so replete with grace, Whose knowledge doth mine inmost heart and soul embrace! At morn, the s",
+"anchor":"874596075"
+},
+"prayers:12903":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God.\n\nO thou who circlest in adoration about the Spot round which circle the Concourse on high! Raise thou thy hands in gratitude at the Threshold of the one true God, and say: O Thou the highest aspiration of every ardent lover! O Thou the Guide of every wandering soul! Thou hast favoured this feeble servant with Thine infinite blessings, and led this hapless and lowly one unto the Threshold of Thy oneness. Thou hast lifted to these parched lips the living waters of Thy loving-kindness and revived this weary and withered soul with the breezes of divine mercy. I yield Thee thanks for having bestowed upon me a full portion from Thy most gracious favour and invested me with the honour of attaining unto Thy sacred Threshold.¹ I beseech an infinite share from the bounties of Thy Kingdom on high. Grant Thine assistance. Confer Thy gracious favour.\n\nNotes\n\n¹ Reference to the Shrine of Bahá’u’lláh.",
+"words":159,
+"spans":[
+[
+862,
+867,
+"b"
+]
+],
+"notes":1,
+"opening":"He is God. O thou who circlest in adoration about the Spot round which circle the Concourse on high! Raise thou thy hand",
+"anchor":"874196702"
+},
+"prayers:12594":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord! Sanctify my heart from all attachment, and gladden my soul with tidings of joy. Free me from attachment to friend and stranger alike, and captivate me with Thy love, that I may become wholly devoted to Thee and be filled with fervid rapture; that I may desire naught but Thee, seek no one except Thyself, tread no other path besides Thine, and commune only with Thee; that I may, even as a nightingale, be spellbound by Thy love and, by day and night, sigh and wail and weep and cry out, “Yá Bahá’u’l-Abhá!”",
+"words":97,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! Sanctify my heart from all attachment, and gladden my soul with tidings of joy. Free me from attachmen",
+"anchor":"874596038"
+},
+"prayers:12588":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Divine Providence! Awaken me and make me conscious. Cause me to be detached from all else save Thee, and captivate me by the love of Thy beauty. Waft upon me the breath of the Holy Spirit, and suffer me to hearken to the call of the Abhá Kingdom. Bestow upon me heavenly power, and kindle the lamp of the spirit within the innermost chamber of my heart. Release me from every bond, and deliver me from every attachment, that I may cherish no desire except Thy good-pleasure, seek naught besides Thy Countenance, and tread no path other than Thy path. Grant that I may enable the heedless to become mindful and the slumberers to awaken, that I may proffer the water of life to those who are sore athirst and bring divine healing to those who are sick and ailing.\n\nThough I am lowly, abased, and poor, yet Thou art my haven and my refuge, my supporter and my helper. Send down Thine aid in such wise that all may be astounded. O God! Thou art, verily, the Almighty, the Most Powerful, the Giver, the Bestower, and the All-Seeing.",
+"words":190,
+"spans":[],
+"notes":0,
+"opening":"O Divine Providence! Awaken me and make me conscious. Cause me to be detached from all else save Thee, and captivate me ",
+"anchor":"874596022"
+},
+"prayers:10132":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord! Guard Thou the children that are born in Thy day, are nurtured at the breast of Thy love, and fostered in the bosom of Thy grace.\n\nO Lord, they are verily young branches growing in the gardens of Thy knowledge, they are boughs budding in Thy groves of grace. Grant them a share of Thy generous gifts, make them to thrive and flourish in the rain that raineth from the clouds of Thy bestowal.\n\nThou art verily the Generous, the Clement, the Compassionate!",
+"words":85,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Guard Thou the children that are born in Thy day, are nurtured at the breast of Thy love, and fostered in the bo",
+"anchor":"556983696"
+},
+"prayers:10505":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nO Thou pure God! Let these saplings which have sprouted by the stream of Thy guidance become fresh and verdant through the outpourings of the clouds of Thy tender mercy; cause them to be stirred by the gentle winds wafting from the meads of Thy oneness and suffer them to be revived through the rays of the Sun of Reality, that they may continually grow and flourish, and burst into blossoms and fruit.\n\nO Lord God! Bestow upon each one understanding; give them power and strength and cause them to mirror forth Thy divine aid and confirmation, so that they may become highly distinguished among the people.\n\nThou art the Mighty and the Powerful.",
+"words":117,
+"spans":[],
+"notes":0,
+"opening":"He is God! O Thou pure God! Let these saplings which have sprouted by the stream of Thy guidance become fresh and verdan",
+"anchor":"009304160"
+},
+"prayers:10509":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou pure God! I am a little child; grant that the breast of Thy loving-kindness be the breast that I cherish; suffer me to be nourished with the honey and the milk of Thy love; rear me in the bosom of Thy knowledge, and bestow upon me nobility and wisdom while I am still a child.\n\nO Thou the Self-Sufficing God! Make me a confidant of the Kingdom of the Unseen. Verily, Thou art the Mighty, the Powerful.",
+"words":79,
+"spans":[],
+"notes":0,
+"opening":"O Thou pure God! I am a little child; grant that the breast of Thy loving-kindness be the breast that I cherish; suffer ",
+"anchor":"592771989"
+},
+"prayers:10510":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord!\n\nHelp this daughter of the Kingdom to be exalted in both worlds; cause her to turn away from this mortal world of dust and from those who have set their hearts thereon and enable her to have communion and close association with the world of immortality. Give her heavenly power and strengthen her through the breaths of the Holy Spirit that she may arise to serve Thee.\n\nThou art the Mighty One.",
+"words":74,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Help this daughter of the Kingdom to be exalted in both worlds; cause her to turn away from this mortal world of",
+"anchor":"676221640"
+},
+"prayers:10515":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Compassionate God! O Lord of Hosts! Praise be unto Thee that Thou hast preferred these little children over the full-grown and mature, and bestowed upon them Thy special favours. Thou hast guided them. Thou hast been kind to them. Thou hast conferred upon them illumination and spirituality. Grant us Thy confirmation so that, when we grow up, we may engage in service to Thy Kingdom, become the cause of educating others, burn like radiant candles and shine like brilliant stars. Thou art the Giver, the Bestower, the Compassionate.",
+"words":89,
+"spans":[],
+"notes":0,
+"opening":"O Compassionate God! O Lord of Hosts! Praise be unto Thee that Thou hast preferred these little children over the full-g",
+"anchor":"578804712"
+},
+"prayers:10514":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my God, O my God! Verily this plant hath yielded its fruit and standeth upright upon its stalk. Verily it hath astounded the farmers and perturbed the envious. O God, water it with showers from the cloud of Thy favours and cause it to yield great harvests heaped up like unto mighty hills in Thy land. Enlighten the hearts with a ray shining forth from Thy Kingdom of Oneness, illumine the eyes by beholding the signs of Thy grace, and gratify the ears by hearing the melodies of the birds of Thy confirmations singing in Thy heavenly gardens, so that these souls may become like thirsty fish swimming in the pools of Thy guidance and like tawny lions roaming in the forests of Thy bounty. Verily Thou art the Generous, the Merciful, the Glorious and the Bestower.",
+"words":138,
+"spans":[],
+"notes":0,
+"opening":"O my God, O my God! Verily this plant hath yielded its fruit and standeth upright upon its stalk. Verily it hath astound",
+"anchor":"056252557"
+},
+"prayers:10502":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord!\n\nPlant this tender seedling in the garden of Thy manifold bounties, water it from the fountains of Thy loving-kindness and grant that it may grow into a goodly plant through the outpourings of Thy favour and grace.\n\nThou art the Mighty and the Powerful.",
+"words":46,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Plant this tender seedling in the garden of Thy manifold bounties, water it from the fountains of Thy loving-kin",
+"anchor":"571548807"
+},
+"prayers:13683":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord!\n\nGrant that these trees may become the adornment of the Abhá Paradise. Cause them to grow through Thy celestial bounty. Make them fresh and verdant and besprinkle them with heavenly dewdrops. Attire them with robes of radiant beauty and crown their heads with gorgeous blossoms. Adorn them with goodly fruit and waft over them Thy sweet savours.\n\nThou art the Bestower, the All-Loving, the Most Radiant, the Most Resplendent.",
+"words":73,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! Grant that these trees may become the adornment of the Abhá Paradise. Cause them to grow through Thy c",
+"anchor":"202492236"
+},
+"prayers:13685":{
+"book":"prayers+additional-abdul-baha",
+"text":"O God, my God! We are children who have sucked the milk of divine knowledge from the breast of Thy love and have been admitted into Thy Kingdom while of tender age. We implore Thee in the daytime and in the night season saying: O Lord! Make firm our steps in Thy Faith, guard us within the stronghold of Thy protection, nourish us from Thy heavenly table, enable us to become signs of divine guidance and lamps aglow with upright conduct and aid us through the potency of the angels of Thy kingdom, O Thou Who art the Lord of glory and majesty!\n\nVerily Thou art the Bestower, the Merciful, the Compassionate.",
+"words":112,
+"spans":[],
+"notes":0,
+"opening":"O God, my God! We are children who have sucked the milk of divine knowledge from the breast of Thy love and have been ad",
+"anchor":"226284753"
+},
+"prayers:13686":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou kind Lord! We are poor children, needy and insignificant, yet we are plants which have sprouted by Thy heavenly stream and saplings bursting into bloom in Thy divine springtime. Make us fresh and verdant by the outpourings of the clouds of Thy mercy; help us to grow and develop through the rays of the sun of Thy goodly gifts and cause us to be refreshed by the quickening breeze wafting from the meadows of Truth. Grant that we may become flourishing trees laden with fruit in the orchard of knowledge, brilliant stars shining above the horizon of eternal happiness and radiant lamps shedding light upon the assemblage of mankind.\n\nO Lord! Should Thy tender care be vouchsafed unto us, each one of us would, even as an eagle, soar to the pinnacle of knowledge, but were we left to ourselves we would be consumed away and would fall into loss and frustration. Whatever we are, from Thee do we proceed and before Thy threshold do we seek refuge.\n\nThou art the Bestower, the Bountiful, the All-Loving.",
+"words":178,
+"spans":[],
+"notes":0,
+"opening":"O Thou kind Lord! We are poor children, needy and insignificant, yet we are plants which have sprouted by Thy heavenly s",
+"anchor":"997029423"
+},
+"prayers:13677":{
+"book":"prayers+additional-abdul-baha",
+"text":"O my merciful Lord! This is a hyacinth which hath grown in the garden of Thy good pleasure and a twig which hath appeared in the orchard of true knowledge. Cause it, O Lord of bounty, to be refreshed continually and at all times through Thy vitalizing breezes, and make it verdant, fresh and flourishing through the outpourings of the clouds of Thy favours, O Thou kind Lord!\n\nVerily Thou art the All-Glorious.",
+"words":73,
+"spans":[],
+"notes":0,
+"opening":"O my merciful Lord! This is a hyacinth which hath grown in the garden of Thy good pleasure and a twig which hath appeare",
+"anchor":"653012308"
+},
+"prayers:10513":{
+"book":"prayers+additional-abdul-baha",
+"text":"He is God!\n\nO peerless Lord! Praised be Thou for having kindled that light in the glass of the Concourse on high, for having guided that bird of faithfulness to the nest of the Abhá Kingdom. Thou hast joined that precious river to the mighty sea, Thou hast returned that spreading ray of light to the Sun of Truth. Thou hast welcomed that captive of remoteness into the garden of reunion, and led him who longed to look upon Thee to Thy presence in Thy bright place of lights.\n\nThou art the Lord of tender love, Thou art the last goal of the yearning heart, Thou art the dearest wish of the martyr’s soul.",
+"words":114,
+"spans":[],
+"notes":0,
+"opening":"He is God! O peerless Lord! Praised be Thou for having kindled that light in the glass of the Concourse on high, for hav",
+"anchor":"739172569"
+},
+"prayers:10516":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou beloved of my heart and soul! I have no refuge save Thee. I raise no voice at dawn save in Thy commemoration and praise. Thy love encompasseth me and Thy grace is perfect. My hope is in Thee.\n\nO God, give me a new life at every instant and bestow upon me the breaths of the Holy Spirit at every moment, in order that I may remain steadfast in Thy love, attain unto great felicity, perceive the manifest light and be in the state of utmost tranquillity and submissiveness.\n\nVerily, Thou art the Giver, the Forgiver, the Compassionate.",
+"words":100,
+"spans":[],
+"notes":0,
+"opening":"O Thou beloved of my heart and soul! I have no refuge save Thee. I raise no voice at dawn save in Thy commemoration and ",
+"anchor":"358807005"
+},
+"prayers:10517":{
+"book":"prayers+additional-abdul-baha",
+"text":"O God, my God! Give me to drink from the cup of Thy bestowal and illumine my face with the light of guidance. Make me firm in the path of faithfulness, assist me to be steadfast in Thy mighty Covenant, and suffer me to be numbered with Thy chosen servants. Unlock before my face the doors of abundance, grant me deliverance, and sustain me, through means I cannot reckon, from the treasuries of heaven. Suffer me to turn my face toward the countenance of Thy generosity and to be entirely devoted to Thee, O Thou Who art merciful and compassionate! To those that stand fast and firm in Thy Covenant Thou, verily, art gracious and generous. All praise be to God, the Lord of the worlds!",
+"words":126,
+"spans":[],
+"notes":0,
+"opening":"O God, my God! Give me to drink from the cup of Thy bestowal and illumine my face with the light of guidance. Make me fi",
+"anchor":"196496356"
+},
+"prayers:6810":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Lord!\n\nHelp this daughter of the Kingdom to be exalted in both worlds; cause her to turn away from this mortal world of dust and from those who have set their hearts thereon and enable her to have communion and close association with the world of immortality. Give her heavenly power and strengthen her through the breaths of the Holy Spirit that she may arise to serve Thee.\n\nThou art the Mighty One.",
+"words":74,
+"spans":[],
+"notes":0,
+"opening":"O Lord! Help this daughter of the Kingdom to be exalted in both worlds; cause her to turn away from this mortal world of",
+"anchor":"676221640"
+},
+"prayers:10520":{
+"book":"prayers+additional-abdul-baha",
+"text":"O Thou forgiving God! Forgive the sins of my loving mother, pardon her shortcomings, cast upon her the glance of Thy gracious providence, and enable her to gain admittance into Thy Kingdom.\n\nO God! From the earliest days of my life she educated and nurtured me, yet I did not recompense her for her toil and labours. Do Thou reward her by granting her eternal life and making her exalted in Thy Kingdom.\n\nVerily, Thou art the Forgiver, the Bestower, and the Kind.",
+"words":83,
+"spans":[],
+"notes":0,
+"opening":"O Thou forgiving God! Forgive the sins of my loving mother, pardon her shortcomings, cast upon her the glance of Thy gra",
+"anchor":"885686074"
 }
 }
 }
