@@ -263,6 +263,21 @@ class OfficialBooksTests(unittest.TestCase):
         self.assertIn("Thy Friend (Muḥammad)",self.items["meditations:38"]["text"]); self.assertIn("the horizon of Ḥijáz",self.items["meditations:38"]["text"])
         self.assertIn("(Riḍván)",self.items["meditations:2"]["text"])
 
+    def test_tablets(self):
+        book=self.books["tablets"]
+        self.assertEqual((book["rows"],book["replaced"]),(660,660))
+        # Lines the app keeps as passages of their own are placed on their own, not left behind or repeated.
+        self.assertEqual(self.items["tablets:442"]["text"],"HE IS THE ALL-KNOWING")
+        self.assertTrue(self.items["tablets:443"]["text"].startswith("O VAFÁ! Render thanks unto thy Lord"))
+        self.assertTrue(self.items["tablets:141"]["text"].startswith("The word of God which the Abhá Pen hath revealed and inscribed on the"))
+        self.assertNotIn("The word of God which",self.items["tablets:142"]["text"])
+        # Notes follow the passage that cites them, and the app's footnotes passage lists bahai.org's notes by tablet.
+        self.assertIn("the She-Serpent¹⁵ whose cruelty",self.items["tablets:506"]["text"])
+        self.assertIn("\n\nNotes\n\n¹⁵ The Imám-Jum’ih of Iṣfáhán",self.items["tablets:506"]["text"])
+        notes=self.items["tablets:660"]["text"]
+        self.assertTrue(notes.startswith("2. Lawḥ-i-Aqdas (The Most Holy Tablet)\n\n¹ Sometimes referred to as Tablet to the Christians."))
+        self.assertEqual(self.data["replacements"]["tablets:660"]["notes"],sum(1 for l in notes.split("\n\n") if re.match(r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+ ",l)))
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

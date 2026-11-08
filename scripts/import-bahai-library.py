@@ -198,8 +198,26 @@ def roman(number):
 class Block:
     """One paragraph-like element: its anchor, element name, classes, and text runs [(text, styles, note target)]."""
     def __init__(self,anchor,tag,cls):
-        self.anchor=anchor; self.tag=tag; self.cls=cls; self.runs=[]; self.size=0; self.quote=False
+        self.anchor=anchor; self.tag=tag; self.cls=cls; self.runs=[]; self.size=0; self.quote=False; self.joined=None
     def text(self): return "".join(r[0] for r in self.runs)
+
+def lines(blocks):
+    """Each paragraph split at its line breaks, so that a line the app keeps as its own passage (a tablet's
+    "The word of God which the Supreme Pen hath recorded on the") can be placed on its own. Lines of one paragraph that
+    stay together are joined again by a line break (Block.joined)."""
+    out=[]
+    for block in blocks:
+        parts=[[]]
+        for run in block.runs:
+            if run[0]=="\n": parts.append([])
+            else: parts[-1].append(run)
+        if len(parts)==1: out.append(block); continue
+        previous=None
+        for n,runs in enumerate(parts):
+            line=Block(block.anchor if n==0 else None,block.tag,block.cls); line.runs=runs
+            line.size=block.size; line.quote=block.quote; line.joined=previous
+            if clean_runs(runs): out.append(line); previous=line
+    return out
 
 class Reader:
     def __init__(self,document):
@@ -321,11 +339,12 @@ SUPERSCRIPT=str.maketrans("0123456789","⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 class Passage:
     """Builds a passage's text and its styled spans; footnote markers become superscript digits pointing at notes."""
-    def __init__(self): self.text=""; self.spans=[]; self.cited=[]
+    def __init__(self): self.text=""; self.spans=[]; self.cited=[]; self.previous=None
     def add_block(self,block,notes):
         runs=clean_runs(block.runs)
         if not runs: return
-        if self.text: self.text+="\n\n"
+        if self.text: self.text+="\n" if block.joined is not None and block.joined is self.previous else "\n\n"
+        self.previous=block
         begin=len(self.text)
         for text,styles,note in runs:
             if note:
@@ -546,6 +565,10 @@ def app_rows(key):
 
 def block_text(block): return "".join(r[0] for r in clean_runs(block.runs))
 
+def match_text(block):
+    """A paragraph's words for matching: without bahai.org's margin numbers, which the app's copy does not have."""
+    return "".join(r[0] for r in clean_runs([r for r in block.runs if "num" not in r[1]]))
+
 def match_rows(rows,blocks,size=5):
     """Places the official paragraphs in the app's passages. Returns ({row id: [block index]}, report)."""
     grams=[shingles(text,size) for _,text in rows]
@@ -553,7 +576,7 @@ def match_rows(rows,blocks,size=5):
     folded=[fold(text) for _,text in rows]
     owner={}; last=0
     for b,block in enumerate(blocks):
-        text=block_text(block)
+        text=match_text(block)
         if len(words(text))<size: continue
         mine=shingles(text,size)
         scores=[(len(mine&g)/len(mine),r) for r,g in enumerate(grams) if mine&g]
@@ -565,6 +588,23 @@ def match_rows(rows,blocks,size=5):
         ahead=[r for r in near if r>=last]
         r=min(ahead) if ahead else max(near)
         owner[b]=r; last=r
+    # A line too short to place by itself ("O SON OF SPIRIT!") goes with the rest of its paragraph, when that passage has its words.
+    changed=True
+    while changed:
+        changed=False
+        for b,block in enumerate(blocks):
+            if b in owner: continue
+            mates=[x for x in (b-1,b+1) if 0<=x<len(blocks) and x in owner and (blocks[b].joined is blocks[x] or blocks[x].joined is blocks[b])]
+            for x in mates:
+                if contains(row_words[owner[x]],words(match_text(block))): owner[b]=owner[x]; changed=True; break
+    # A passage too short to place by word sequences ("He is the All-Knowing") takes an unplaced line with exactly its words,
+    # between its neighbours' paragraphs.
+    placed=set(owner.values())
+    for r,(ident,text) in enumerate(rows):
+        if r in placed: continue
+        lo=max((b for b,o in owner.items() if o<r),default=-1); hi=min((b for b,o in owner.items() if o>r),default=len(blocks))
+        same=[b for b in range(lo+1,hi) if b not in owner and words(match_text(blocks[b]))==row_words[r]]
+        if len(same)==1: owner[same[0]]=r
     spans={}
     for b,r in owner.items(): spans.setdefault(r,[]).append(b)
     taken=set(owner); result={}; report=dict(unmatched=[],split=[],partial=[],extra=[])
@@ -575,14 +615,14 @@ def match_rows(rows,blocks,size=5):
         if any(b in owner and owner[b]!=r for b in inside): report["split"].append(ident); continue
         # Short lines next to the passage (a heading, "He is God!", "O Son of Spirit!") belong to it when its text has them.
         def fits(b):
-            if b in taken or not words(block_text(blocks[b])): return False
+            if b in taken or not words(match_text(blocks[b])): return False
             # A heading joins only a passage that opens with it; other lines when the passage has their words in sequence.
-            if blocks[b].size>=HEADING: return folded[r].startswith(fold(block_text(blocks[b])))
-            return contains(row_words[r],words(block_text(blocks[b])))
+            if blocks[b].size>=HEADING: return folded[r].startswith(fold(match_text(blocks[b])))
+            return contains(row_words[r],words(match_text(blocks[b])))
         while first>0 and fits(first-1): first-=1
         while last_+1<len(blocks) and fits(last_+1): last_+=1
         chosen=list(range(first,last_+1)); taken.update(chosen)
-        joined="\n\n".join(block_text(blocks[b]) for b in chosen); official=shingles(joined,size)
+        joined="\n\n".join(match_text(blocks[b]) for b in chosen); official=shingles(joined,size)
         covered=overlap_of(grams[r],official)
         # And the other way: the official paragraphs hold nothing much the app's passage lacks.
         within=overlap_of(official,grams[r])
@@ -599,13 +639,13 @@ def match_rows(rows,blocks,size=5):
     for first,ident in starts:
         b=first-1; lead=[]
         # Small print (a translator's credit) does not open a passage.
-        while b>=0 and b not in used and blocks[b].size<HEADING and block_text(blocks[b]) and not FRONT.intersection(blocks[b].cls) and not 0<blocks[b].size<SMALL:
+        while b>=0 and b not in used and blocks[b].size<HEADING and match_text(blocks[b]) and not FRONT.intersection(blocks[b].cls) and not 0<blocks[b].size<SMALL:
             lead.insert(0,b); b-=1
         while lead and blocks[lead[0]].tag=="hr": lead.pop(0)  # a separator does not open a passage
-        if lead and len(lead)<=ATTACH_BLOCKS and all(len(block_text(blocks[x]))<=ATTACH_CHARS for x in lead) and (b<0 or b in used or blocks[b].size>=HEADING or blocks[b].tag=="hr" or not block_text(blocks[b])):
+        if lead and len(lead)<=ATTACH_BLOCKS and all(len(block_text(blocks[x]))<=ATTACH_CHARS for x in lead) and (b<0 or b in used or blocks[b].size>=HEADING or blocks[b].tag=="hr" or not match_text(blocks[b])):
             result[ident]=lead+result[ident]; used.update(lead); report["added"].append((ident,[block_text(blocks[x])[:60] for x in lead]))
     used={b for chosen in result.values() for b in chosen}
-    report["unused"]=[(b,block_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
+    report["unused"]=[(b,match_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
     return result,report
 
 def contains(haystack,needle):
@@ -624,7 +664,7 @@ def build_books(folder,log):
         page=(folder/f"books/{slug}.html").read_text(); url,edition=xhtml_link(page,slug,category)
         raw=(folder/f"books/{slug}.xhtml").read_bytes()
         if sha256(raw)!=log[url]["sha256"]: raise ValueError(f"{slug}.xhtml does not match fetch-log.json")
-        reader=Reader(raw.decode("utf-8")); blocks=[b for b in reader.blocks if clean_runs(b.runs)]
+        reader=Reader(raw.decode("utf-8")); blocks=lines([b for b in reader.blocks if clean_runs(b.runs)])
         rows=app_rows(key); matched,report=match_rows(rows,blocks)
         lead={ident:len(lines) for ident,lines in report["added"]}
         for ident,chosen in matched.items():
@@ -632,18 +672,42 @@ def build_books(folder,log):
             for b in chosen: passage.add_block(blocks[b],reader.notes)
             passage.add_notes(reader.notes)
             # The opening the contents list shows: from the app's own first paragraph, without bahai.org's margin numbers.
-            first=Passage(); first.add_block(blocks[chosen[lead.get(ident,0)]],{**reader.notes})
+            first=Passage(); start=lead.get(ident,0)
+            # An added line from the same paragraph as the first matched one (a title the app spells differently) is part of the opening.
+            while start>0 and blocks[chosen[start]].joined is blocks[chosen[start-1]]: start-=1
+            for b in chosen[start:]:
+                first.add_block(blocks[b],reader.notes)
+                if len(first.text)>=120: break
             numbers=[(a,b) for a,b,k in first.spans if k=="num"]
             opening="".join(c for i,c in enumerate(first.text) if not any(a<=i<b for a,b in numbers))
             replacements[ident]=dict(book=key,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),
                                      opening=" ".join(opening.split())[:120],anchor=next((blocks[b].anchor for b in chosen if blocks[b].anchor),None))
+        # The app keeps a book's footnotes as one passage; it gets bahai.org's notes, by the part they belong to.
+        if key in NOTES_ROWS:
+            ident=NOTES_ROWS[key]; passage=Passage(); group=None
+            for anchor,note in reader.notes.items():
+                if note["group"]!=group:
+                    group=note["group"]; heading=Block(None,"p",set()); heading.runs=[(group or "",frozenset(),None)]; heading.size=HEADING
+                    passage.add_block(heading,{})
+                for n,block in enumerate(note["blocks"]):
+                    line=Block(None,"note",set())
+                    line.runs=([(note["number"].translate(SUPERSCRIPT)+" ",frozenset(),None)] if n==0 else [])+block.runs
+                    passage.add_block(line,{})
+            replacements[ident]=dict(book=key,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(reader.notes),
+                                     opening=" ".join(passage.text.split())[:120],anchor=None)
+            for kind in ("unmatched","split","partial","extra"):
+                report[kind]=[x for x in report[kind] if (x[0] if isinstance(x,tuple) else x)!=ident]
+            matched[ident]=[]
         books.append(dict(key=key,slug=slug,title=reader.title.strip(),author=reader.meta.get("author"),document_id=reader.meta.get("document-id"),edition=edition,
                           rows=len(rows),replaced=len(matched),kept={k:v for k,v in report.items()},
                           **provenance(log,url,dict(page_url=f"{SITE}/library/authoritative-texts/{category}/{slug}/"))))
     return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
 
+# Collections whose footnotes the app keeps as one passage of their own.
+NOTES_ROWS={"tablets":"tablets:660"}
+
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
