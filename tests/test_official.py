@@ -278,6 +278,13 @@ class OfficialBooksTests(unittest.TestCase):
         self.assertTrue(notes.startswith("2. Lawḥ-i-Aqdas (The Most Holy Tablet)\n\n¹ Sometimes referred to as Tablet to the Christians."))
         self.assertEqual(self.data["replacements"]["tablets:660"]["notes"],sum(1 for l in notes.split("\n\n") if re.match(r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+ ",l)))
 
+    def test_kitab_i_iqan(self):
+        book=self.books["iqan"]
+        self.assertEqual((book["rows"],book["replaced"]),(287,287))
+        self.assertIn("the dayspring of Baṭḥá³⁴ unto Yathrib,³⁵ He",self.items["iqan:54"]["text"])
+        self.assertIn("\n\nNotes\n\n³³ The direction toward which the face must be turned when praying.",self.items["iqan:54"]["text"])
+        self.assertTrue(self.items["iqan:287"]["text"].startswith("Part One\n\n¹ Qur’án 36:30.\n\n² Qur’án 40:5."))
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

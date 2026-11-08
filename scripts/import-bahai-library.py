@@ -704,10 +704,10 @@ def build_books(folder,log):
     return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
 
 # Collections whose footnotes the app keeps as one passage of their own.
-NOTES_ROWS={"tablets":"tablets:660"}
+NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
