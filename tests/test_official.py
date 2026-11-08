@@ -313,6 +313,17 @@ class OfficialBooksTests(unittest.TestCase):
         self.assertNotIn("Translated by Shoghi Effendi",epistle["text"][:300])  # the title page stays out
         self.assertEqual((epistle["section"],epistle["tags"],epistle["title"]),("writings",["Epistle to the Son of the Wolf"],"Epistle to the Son of the Wolf"))
 
+    def test_some_answered_questions(self):
+        book=self.books["saq"]
+        self.assertEqual((book["rows"],book["replaced"]),(84,84))
+        nature=self.items["saq:1"]; text=nature["text"]
+        # bahai.org's 2014 revised edition, with its numbered paragraphs.
+        self.assertTrue(text.startswith("1 NATURE IS THAT condition or reality"))
+        self.assertIn([0,1,"num"],self.data["replacements"]["saq:1"]["spans"])
+        self.assertIn("in particular, man.\n\n4 Man is able",text)
+        self.assertEqual(nature["title"],self.before["saq:1"]["title"])  # the chapter's title, as before
+        self.assertTrue(self.items["saq:67"]["text"].endswith("¹⁵⁰ See Chapter 84 for a fuller discussion of this subject."))
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

@@ -614,7 +614,7 @@ def match_text(block):
     """A paragraph's words for matching: without bahai.org's margin numbers, which the app's copy does not have."""
     return "".join(r[0] for r in clean_runs([r for r in block.runs if "num" not in r[1]]))
 
-def match_rows(rows,blocks,size=5):
+def match_rows(rows,blocks,size=5,notes=None):
     """Places the official paragraphs in the app's passages. Returns ({row id: [block index]}, report)."""
     grams=[shingles(text,size) for _,text in rows]
     row_words=[words(text) for _,text in rows]
@@ -667,10 +667,17 @@ def match_rows(rows,blocks,size=5):
         while last_+1<len(blocks) and fits(last_+1): last_+=1
         # The title page (title, byline, the translator's credit under them) is never passage text.
         chosen=[b for b in range(first,last_+1) if not title_page(blocks,b)]; taken.update(chosen)
-        joined="\n\n".join(match_text(blocks[b]) for b in chosen); official=shingles(joined,size)
-        covered=overlap_of(grams[r],official)
-        # And the other way: the official paragraphs hold nothing much the app's passage lacks.
-        within=overlap_of(official,grams[r])
+        # The official passage with the notes it cites, which follow it in the app as they do in some app copies (SAQ).
+        cited=dict.fromkeys(run[2] for b in chosen for run in blocks[b].runs if run[2] and notes and run[2] in notes)
+        # Compared with and without those notes, whichever fits the app's copy better.
+        body=[match_text(blocks[b]) for b in chosen]; extra=[match_text(x) for anchor in cited for x in notes[anchor]["blocks"]]
+        best=None
+        for joined in dict.fromkeys(["\n\n".join(body),"\n\n".join(body+extra)]):
+            official=shingles(joined,size)
+            # Both ways: the official text covers the app's, and holds nothing much the app's lacks.
+            score=(overlap_of(grams[r],official),overlap_of(official,grams[r]),joined)
+            if best is None or min(score[:2])>min(best[:2]): best=score
+        covered,within,joined=best
         if min(covered,within)<MATCH_PASSAGE:
             # Short passages lose many word sequences to one changed word ("lingers", "lingereth"); compare word by word too.
             similar=difflib.SequenceMatcher(None,words(rows[r][1]),words(joined),autojunk=False).ratio()
@@ -751,7 +758,7 @@ def build_books(folder,log):
         raw=(folder/f"books/{slug}.xhtml").read_bytes()
         if sha256(raw)!=log[url]["sha256"]: raise ValueError(f"{slug}.xhtml does not match fetch-log.json")
         reader=Reader(raw.decode("utf-8")); blocks=lines([b for b in reader.blocks if clean_runs(b.runs)])
-        rows=app_rows(key); matched,report=match_rows(rows,blocks)
+        rows=app_rows(key); matched,report=match_rows(rows,blocks,notes=reader.notes)
         lead={ident:len(lines) for ident,lines in report["added"]}
         for ident,chosen in matched.items():
             passage=Passage()
@@ -793,7 +800,7 @@ def build_books(folder,log):
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle")
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq")
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
