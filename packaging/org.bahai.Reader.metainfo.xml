@@ -41,6 +41,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.9" date="2026-11-09">
+      <description><p>In English, the books and prayers now show the official text from the Bahá’í Reference Library at bahai.org wherever it has the same passage, and 515 messages of the Universal House of Justice and seven works of Shoghi Effendi are added. Also new: grouping Writings by author, and narrow windows down to 320 px.</p></description>
+    </release>
     <release version="0.1.8" date="2026-11-01">
       <description><p>A new Today view brings together the Badí‘ date, sun times, obligatory prayer times, the next Feast and Holy Day, the Fast and the passage of the day. Also new: an Alláh-u-Abhá counter, optional reminders, a typed-in location and clock times.</p></description>
     </release>

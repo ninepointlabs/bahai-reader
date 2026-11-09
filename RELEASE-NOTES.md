@@ -1,4 +1,6 @@
-## Unreleased
+Patch release of Bahá’í Reader.
+
+v0.1.9 brings the official texts from the Bahá’í Reference Library at bahai.org to the English library.
 
 - New: **Official texts from bahai.org** in Writings (English): 515 messages of the Universal House of Justice and seven works of Shoghi Effendi (The Advent of Divine Justice, Bahá’í Administration, Citadel of Faith, God Passes By, The Promised Day Is Come, The World Order of Bahá’u’lláh, This Decisive Hour). Footnotes, headings and underlined transliteration are kept; each passage carries “Copyright © Bahá’í International Community, bahai.org”. Bundled; the app does not connect to bahai.org.
 - Changed: **the Riḍván messages now show the official bahai.org text.** Saved passages keep working. Eight messages that bahai.org does not class as Riḍván messages (Naw-Rúz and other dates) moved to Messages of the Universal House of Justice, under their bahai.org dates.
@@ -8,22 +10,9 @@
 - New: **Passage headings and position**: “Arabic no. 1”, “Paragraph 4”, and “1 of 71” between Previous and Next.
 - Fixed: neither pane can be dragged below its minimum width, so neither can disappear.
 
-Patch release of Bahá’í Reader.
+The bahai.org texts are not covered by the app’s MIT license; see DATA-NOTICE.md.
 
-v0.1.8 adds a new **Today** view that brings the day together, and reorganizes the header around it.
-
-- New: **Today**, the first sidebar entry: the Badí‘ date, sunrise, noon and sunset, your obligatory prayer’s time, the next Feast and Holy Day, the Fast and the passage of the day. In the sidebar it lists the next 12 months and this year’s months. New installs open here; existing installs keep their place.
-- Changed: **Ctrl+T and the Today button now open the Today view** instead of the passage of the day, which is a card there.
-- Changed: **Languages & offline libraries and About moved from Aa to a new ⋮ menu**, with Location & reminders and Keyboard shortcuts. Aa keeps the reading settings. F1 still opens About.
-- New: **Location**: type a city, found offline in a bundled GeoNames list, or enter coordinates. It is never detected and never sent anywhere.
-- New: **Obligatory prayer times and Said today**, taken from the bundled texts. For the Long prayer you choose which twenty-four hours count, because no text says and no ruling has been made; sunset to sunset is the default, and its one reminder is opt-in.
-- New: **Clock times**, for regions where days and nights vary greatly: enter the hours your National Spiritual Assembly uses, and they replace the sun. The app has none of its own.
-- New: **Alláh-u-Abhá counter** (Ctrl+Shift+A), with Kitáb-i-Aqdas ¶18.
-- New: **Reminders**, all off by default, for the prayer, Feasts, Holy Days and the Fast, with an opt-in to keep them running when the window is closed.
-- New: **The Fast**: the day, the fasting hours and an optional private Fasted today check.
-- Badí‘ dates come from the Universal House of Justice’s table for 172 to 221 B.E.; after that the app says they have not been published yet.
-
-v0.1.7 added every Kitáb-i-Aqdas paragraph on obligatory prayer to the Obligatory prayers section. v0.1.6 showed the directions in the obligatory prayers in italics. v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
+v0.1.8 added the Today view: the Badí‘ date, sun and prayer times, Feasts and Holy Days, the Fast, the Alláh-u-Abhá counter and reminders. v0.1.7 added every Kitáb-i-Aqdas paragraph on obligatory prayer to the Obligatory prayers section. v0.1.6 showed the directions in the obligatory prayers in italics. v0.1.5 added Copy with citation (Ctrl+Shift+C), the Obligatory prayers section, collections for saved passages, Today and Random passages (Ctrl+T, Ctrl+R), and two languages side by side.
 
 - Ten English collections included for offline reading.
 - Downloadable language libraries with 112 prayer languages in the catalog.
