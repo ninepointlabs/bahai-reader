@@ -26,6 +26,10 @@ def child(width,height,temp):
         ok,rect=widget.compute_bounds(app.window)
         return [rect.get_x(),rect.get_x()+rect.get_width()] if ok else None
     def steps():
+        # Wait for the window to be on screen: asked before the display server's first configure, the size can be lost to the
+        # window's 1160 px default when that configure arrives (a slower start makes this likelier).
+        while not (app.window and app.window.get_mapped()): yield
+        yield
         # Some backends (Broadway) size windows themselves; ask again and re-evaluate.
         app.window.set_default_size(width,height); app.window_resized(); yield; yield; yield
         nav=app.position.get_parent()
