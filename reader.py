@@ -66,6 +66,9 @@ def version():
     return path.read_text().strip() if path else "unknown"
 
 SECTIONS=("today","prayers","obligatory","hidden","writings","saved")
+# Writings are listed by book (the standard contents), or by author, then book.
+WRITINGS_GROUPINGS={"book":"Group by book","author":"Group by author"}
+AUTHOR_ORDER=("The Báb","Bahá’u’lláh","‘Abdu’l‑Bahá","Shoghi Effendi","The Universal House of Justice")
 THEMES=("Omarchy","Light","Dark","Sepia")
 # Slider ranges; loaded values are clamped to them.
 LIMITS={"size":(15,36,22),"spacing":(0,20,8),"margin":(24,160,80)}
@@ -92,6 +95,7 @@ def clean_settings(data):
     if prefs.get("section")=="gleanings": prefs["section"]="writings"
     if prefs.get("section") not in SECTIONS: prefs.pop("section",None)
     if prefs.get("theme") not in THEMES: prefs.pop("theme",None)
+    if prefs.get("writings_by") not in WRITINGS_GROUPINGS: prefs.pop("writings_by",None)
     for key in ("font","last"):
         if not isinstance(prefs.get(key),str): prefs.pop(key,None)
     saved=prefs.get("saved")
@@ -341,13 +345,54 @@ def align(key,row):
 def heading(item):
     """The reading pane's title: what the passage is, not just its number."""
     if item["section"]=="prayers": return "Prayer"
+    if item.get("heading"): return item["heading"]
     number=item["title"].split(" · ")[0]; parts=item["id"].split(":"); kind=parts[-2] if len(parts)>=2 else parts[0]
     if kind=="hidden":
         origin="Arabic" if "From the Arabic" in item["tags"] else "Persian" if "From the Persian" in item["tags"] else None
         return f"{origin} no. {number}" if origin else number
     return {"Paragraphs":f"Paragraph {number}","QAs":f"Question and Answer {number}","Notes":f"Note {number}"}.get(kind,number)
 
+# Official texts from the Bahá’í Reference Library (bahai.org), imported by scripts/import-bahai-library.py.
+# English only; they are bundled in data/ and never downloaded by the app.
+OFFICIAL=("uhj-messages","shoghi-effendi")
+BAHAI_ORG_NOTICE="Copyright © Bahá’í International Community, bahai.org"
+
+def official_items(name):
+    """The passages of one bahai.org collection, as reader items. Each keeps its source URL and its styled spans."""
+    try: data=json.loads((ROOT/"data"/f"{name}.json").read_text())
+    except (OSError,ValueError): return []
+    result=[]
+    for row in data.get("items",[]):
+        if not isinstance(row,dict) or not isinstance(row.get("text"),str) or not row["text"]: continue
+        author=row.get("author") or data.get("author")
+        if name=="uhj-messages":
+            year=row["iso_date"][:4]; subgroup=f"{int(year)//10*10}s"; head=row["date"]
+            to=row["to"][:1].lower()+row["to"][1:] if row["to"].startswith("To ") else row["to"]
+            citation=f"{author}, {row['date']}, {to}. {BAHAI_ORG_NOTICE}"
+            # bahai.org's own classification: its Riḍván messages (dated Riḍván, or 21 April) form their own group.
+            if row.get("riḍván") or row["iso_date"].endswith("-04-21"):
+                group=data.get("ridvan_group",BOOKS["ridvan"])
+                title=f"{year} · "+("Riḍván message" if row["to"] in ("To the Bahá’ís of the World","The Bahá’ís of the World") else row["to"])
+            else: group=data["group"]; title=f"{row['date']} · {row['summary'] or row['to']}"
+        else:
+            group=row["book"]; subgroup=row.get("part"); title=row["title"]; head=row["title"]
+            citation=f"{author}, {row['book']}, {row['title']}. {BAHAI_ORG_NOTICE}"
+        spans=[tuple(s) for s in row.get("spans",[]) if isinstance(s,list) and len(s)==3]
+        # An official text that replaces a BahaiPrayers.net copy takes that copy's id, so saved passages and the reading position follow it.
+        result.append(dict(id=row.get("replaces") or row["id"],official_id=row["id"],author=author,section="writings",tags=[group],title=title,heading=head,text=row["text"],subgroup=subgroup,
+                           word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),references=[],match=None,citation=citation,spans=spans,source=row.get("page_url")))
+    return result
+
 def load_library(language=1):
+    """The library for a language. In English, bahai.org's official text is used wherever it has the same text as BahaiPrayers.net."""
+    result=load_bahaiprayers(language)
+    if language==1:
+        official=[i for name in OFFICIAL for i in official_items(name)]
+        replaced={i["id"] for i in official}
+        result=[i for i in result if i["id"] not in replaced]+official
+    return result
+
+def load_bahaiprayers(language=1):
     result=[]; pack=local_pack(language)
     for key in FEEDS:
         if pack is not None and key in pack:
@@ -393,7 +438,8 @@ def load_library(language=1):
             elif key=="ridvan":
                 year=row.get("Year",""); subgroup=f"{int(year)//10*10}s" if str(year).isdigit() else "Messages"
                 title=f"{year} · {row.get('Title') or 'Riḍván message'}"
-            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, match=align(key,row), citation=", ".join(filter(None,(citation(key,row),book)))))
+            author=PRAYER_AUTHORS.get(row.get("AuthorId")) if key=="prayers" else BOOK_AUTHORS.get(key)
+            result.append(dict(id=("" if language==1 else f"{language}:")+f"{key}:{row['Id']}", author=author, section=shelf, tags=tags, title=title, text=text, subgroup=subgroup, word_count=word_count(text), references=references, match=align(key,row), citation=", ".join(filter(None,(citation(key,row),book)))))
     return result
 
 OBLIGATORY_PRAYERS=("Short Obligatory Prayer","Medium Obligatory Prayer","Long Obligatory Prayer")
@@ -423,6 +469,18 @@ def obligatory(items):
 
 # Paragraphs of an obligatory prayer that tell when and how to say it, or comment on it, rather than words to be said.
 DIRECTION=re.compile(r'To be recited|God hath exempted|"The daily obligatory|\(|\d+\. ')
+
+# How the styled spans of a bahai.org text are drawn: italics, bold, underlining (transliteration such as Ma<u>sh</u>riq),
+# quotations set in from the margin, and the headings of letters and chapters.
+SPAN_STYLES={"i":dict(style=Pango.Style.ITALIC),"b":dict(weight=Pango.Weight.BOLD),"u":dict(underline=Pango.Underline.SINGLE),
+             "quote":dict(left_margin=36,right_margin=24),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
+
+def apply_spans(buffer,item,offset=0):
+    table=buffer.get_tag_table(); length=len(item["text"])
+    for start,end,kind in item.get("spans",()):
+        if kind not in SPAN_STYLES or not (isinstance(start,int) and isinstance(end,int) and 0<=start<end<=length): continue
+        tag=table.lookup("span-"+kind) or buffer.create_tag("span-"+kind,**SPAN_STYLES[kind])
+        buffer.apply_tag(tag,buffer.get_iter_at_offset(offset+start),buffer.get_iter_at_offset(offset+end))
 
 def directions(item):
     """Character spans of an obligatory prayer's directions, shown in italics so the prayer itself stands out."""
@@ -679,6 +737,11 @@ class Reader(Gtk.Application):
         for title,key in [("Today","today"),("Prayers","prayers"),("Obligatory prayers","obligatory"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
             b=self.button(title, lambda _,k=key: self.navigate(k)); self.sidebar.append(b)
         self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); self.sidebar.append(self.manage)
+        self.grouping=Choice()
+        for key,label in WRITINGS_GROUPINGS.items(): self.grouping.append(key,label)
+        self.grouping.set_active_id(self.prefs.get("writings_by","book")); self.grouping.set_visible(False)
+        self.grouping.set_tooltip_text("List the Writings by book, or by author and then book")
+        self.grouping.connect("changed",self.change_grouping); self.sidebar.append(self.grouping)
         self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); self.sidebar.append(self.search)
         into_list=Gtk.EventControllerKey(); into_list.connect("key-pressed", self.search_key); self.search.add_controller(into_list)
         self.count=Gtk.Label(xalign=0); self.count.add_css_class("dim-label"); self.sidebar.append(self.count)
@@ -719,7 +782,7 @@ class Reader(Gtk.Application):
         self.position=Gtk.Label(); self.position.add_css_class("dim-label"); nav.append(self.position)
         self.next=self.button("Next →", lambda *_: self.step(1)); nav.append(self.next); right.append(nav)
         self.name_widget(self.previous,"Previous passage"); self.name_widget(self.next,"Next passage")
-        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); right.append(self.status)
+        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); right.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         # New installs open on Today; everyone else keeps the section they were in.
         self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.theme_tick)
@@ -929,6 +992,7 @@ class Reader(Gtk.Application):
     def rebuild(self):
         """Build the contents tree for the section once; searching only hides rows."""
         if not hasattr(self,"toc"): return
+        self.grouping.set_visible(self.section=="writings")
         saved=self.prefs.get("saved",[])
         self.section_items=[i for i in self.items if (i["id"] in saved if self.section=="saved" else i["section"]==self.section)]
         while child:=self.toc.get_first_child(): self.toc.remove(child)
@@ -948,28 +1012,51 @@ class Reader(Gtk.Application):
             groups=self.filed(); self.section_items=[i for g in groups.values() for i in g]
         if self.section=="obligatory":
             row=self.button("Alláh-u-Abhá counter",self.show_counter); row.add_css_class("toc-passage"); row.get_child().set_xalign(0); self.toc.append(row); self.counter_row=row
-        for tag,items in (groups.items() if self.section in ("obligatory","saved") else sorted(groups.items())):
-            path=f"{self.section}/{tag}"
-            container=self.branch(self.toc,tag,path,items)
-            subgroups={}
-            for item in items: subgroups.setdefault(item["subgroup"] if self.section!="saved" else None,[]).append(item)
-            for subgroup,entries in subgroups.items():
-                parent=self.branch(container,subgroup,path+"/"+subgroup,entries) if subgroup else container
-                for item in entries:
-                    self.groups.setdefault(item["id"],entries)
-                    button=self.button("",lambda _,i=item,g=entries:self.open_from_list(i,g))
-                    label=Gtk.Label(label=item["title"],xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
-                    content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
-                    content.append(label)
-                    if item["section"]=="prayers":
-                        count_label=Gtk.Label(label=word_label(item), xalign=0)
-                        count_label.add_css_class("dim-label"); content.append(count_label)
-                    button.set_child(content)
-                    button.set_tooltip_text(item["title"]+(" — "+word_label(item) if item["section"]=="prayers" else ""))
-                    button.add_css_class("toc-passage")
-                    parent.append(button); self.passage_buttons.append((item,button))
+        ordered=list(groups.items()) if self.section in ("obligatory","saved") else sorted(groups.items())
+        if self.section=="writings" and self.prefs.get("writings_by")=="author":
+            # Author, then book, then the book's own parts.
+            authors={}
+            for tag,items in ordered: authors.setdefault(items[0].get("author") or "Other",[]).append((tag,items))
+            rank=lambda a:AUTHOR_ORDER.index(a) if a in AUTHOR_ORDER else len(AUTHOR_ORDER)
+            for author in sorted(authors,key=lambda a:(rank(a),a)):
+                path=f"writings/by-author/{author}"
+                container=self.branch(self.toc,author,path,[i for _,items in authors[author] for i in items])
+                for tag,items in authors[author]: self.add_entries(self.branch(container,tag,f"{path}/{tag}",items),f"{path}/{tag}",items)
+        else:
+            for tag,items in ordered:
+                path=f"{self.section}/{tag}"
+                self.add_entries(self.branch(self.toc,tag,path,items),path,items)
         self.no_match=Gtk.Label(wrap=True,xalign=0,visible=False); self.no_match.add_css_class("dim-label"); self.toc.append(self.no_match)
         self.query=None; self.filter(); self.show_second()
+    def add_entries(self,container,path,items):
+        """A group's passages, under their subgroups (parts, chapters, decades) where they have them."""
+        # Named subgroups gather their passages; passages outside any (a foreword, a closing chapter) stay where they come.
+        subgroups={}; loose=0
+        for item in items:
+            name=item["subgroup"] if self.section!="saved" else None
+            if not name and (not subgroups or list(subgroups)[-1]!=(None,loose)): loose+=1
+            subgroups.setdefault(name or (None,loose),[]).append(item)
+        for key,entries in subgroups.items():
+            subgroup=key if isinstance(key,str) else None
+            parent=self.branch(container,subgroup,path+"/"+subgroup,entries) if subgroup else container
+            for item in entries:
+                self.groups.setdefault(item["id"],entries)
+                button=self.button("",lambda _,i=item,g=entries:self.open_from_list(i,g))
+                label=Gtk.Label(label=item["title"],xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
+                content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+                content.append(label)
+                if item["section"]=="prayers":
+                    count_label=Gtk.Label(label=word_label(item), xalign=0)
+                    count_label.add_css_class("dim-label"); content.append(count_label)
+                button.set_child(content)
+                button.set_tooltip_text(item["title"]+(" — "+word_label(item) if item["section"]=="prayers" else ""))
+                button.add_css_class("toc-passage")
+                parent.append(button); self.passage_buttons.append((item,button))
+    def change_grouping(self,choice):
+        value=choice.get_active_id()
+        if value and value!=self.prefs.get("writings_by","book"):
+            self.prefs["writings_by"]=value; self.save()
+            if self.section=="writings": self.rebuild()
     def filter(self,*_):
         if not hasattr(self,"section_items"): return
         query=fold(self.search.get_text().strip())
@@ -1102,6 +1189,7 @@ class Reader(Gtk.Application):
         for start,end in directions(item):
             tag=buffer.get_tag_table().lookup("direction") or buffer.create_tag("direction",style=Pango.Style.ITALIC)
             buffer.apply_tag(tag,buffer.get_iter_at_offset(start),buffer.get_iter_at_offset(end))
+        apply_spans(buffer,item)
         if item["citation"]:
             tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
             buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],tag)
@@ -1737,7 +1825,7 @@ textview text selection {{ background: {selection}; }}
         buffer.insert_with_tags(buffer.get_end_iter(),info["Name"].upper()+"\n",label)
         if item:
             self.second.set_direction(Gtk.TextDirection.LTR if info.get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
-            buffer.insert(buffer.get_end_iter(),item["text"])
+            start=buffer.get_char_count(); buffer.insert(buffer.get_end_iter(),item["text"]); apply_spans(buffer,item,start)
             if item["citation"]: buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],cite)
         else:
             self.second.set_direction(Gtk.TextDirection.LTR)
@@ -1755,7 +1843,7 @@ textview text selection {{ background: {selection}; }}
         language=self.language if language is None else language
         return next((r for r in self.languages["prayers"] if r["Id"]==language), {"Name":str(language)})
     def update_status(self):
-        self.status.set_text(f"{self.language_info()['Name']} · Available offline · Texts: BahaiPrayers.net")
+        self.status.set_text(f"{self.language_info()['Name']} · Available offline · Texts: BahaiPrayers.net"+(", bahai.org" if self.language==1 else ""))
     def use_language(self,language):
         items=load_library(language)
         if not items: raise ValueError("Download this language before switching")
@@ -1821,6 +1909,7 @@ textview text selection {{ background: {selection}; }}
         row("Created",text(CREATED))
         row("License",actions(f"{LICENSE_NAME}, {COPYRIGHT}",("Read it",toggle_license)))
         row("Texts",text("From BahaiPrayers.net, which permits their use in apps. The texts and translations are not covered by the MIT license, and no ownership is claimed (DATA-NOTICE.md). Not an official publication of a Bahá’í institution."))
+        row("bahai.org",text("Messages of the Universal House of Justice and works of Shoghi Effendi from the Bahá’í Reference Library, bahai.org. Copyright © Bahá’í International Community. Used under the terms at bahai.org/legal; not covered by the MIT license (DATA-NOTICE.md)."))
         row("Places",text("City data © GeoNames (geonames.org), trimmed, under the Creative Commons Attribution 4.0 license (creativecommons.org/licenses/by/4.0)."))
         row("Calendar",text("Badí‘ dates from the Bahá’í World Centre and the Universal House of Justice. Sun times use the public-domain NOAA solar calculation."))
         row("Support",actions(SUPPORT_EMAIL,("Email",email),("Copy",lambda *_: window.get_clipboard().set(SUPPORT_EMAIL))))

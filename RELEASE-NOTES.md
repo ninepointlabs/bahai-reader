@@ -1,5 +1,8 @@
 ## Unreleased
 
+- New: **Official texts from bahai.org** in Writings (English): 515 messages of the Universal House of Justice and seven works of Shoghi Effendi (The Advent of Divine Justice, Bahá’í Administration, Citadel of Faith, God Passes By, The Promised Day Is Come, The World Order of Bahá’u’lláh, This Decisive Hour). Footnotes, headings and underlined transliteration are kept; each passage carries “Copyright © Bahá’í International Community, bahai.org”. Bundled; the app does not connect to bahai.org.
+- Changed: **the Riḍván messages now show the official bahai.org text.** Saved passages keep working. Eight messages that bahai.org does not class as Riḍván messages (Naw-Rúz and other dates) moved to Messages of the Universal House of Justice, under their bahai.org dates.
+- New: **Group by book or by author** in Writings, from the list above the search box.
 - New: **Narrow windows**: below 700 px the contents list and the right pane take turns, and the window can shrink to 320 px.
 - New: **Passage headings and position**: “Arabic no. 1”, “Paragraph 4”, and “1 of 71” between Previous and Next.
 - Fixed: neither pane can be dragged below its minimum width, so neither can disappear.

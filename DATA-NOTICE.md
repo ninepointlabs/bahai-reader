@@ -1,6 +1,7 @@
 # Content attribution
 
-The JSON collections in data/ are supplied by BahaiPrayers.net:
+The prayer and writings collections in data/ are supplied by BahaiPrayers.net, except the bahai.org
+texts and the other files listed below:
 https://bahaiprayers.net/Developer
 
 Its developer page expressly permits consuming these feeds in apps and websites.
@@ -12,6 +13,35 @@ For content corrections, contact the provider through https://bahaiprayers.net/.
 
 This is an independent community project, not an official publication of a Bahá’í
 institution or of Omarchy. Downloaded translations come from the same provider.
+
+# Bahá’í Reference Library (bahai.org)
+
+data/uhj-messages.json (messages of the Universal House of Justice) and data/shoghi-effendi.json
+(works of Shoghi Effendi) are taken from the Bahá’í Reference Library, https://www.bahai.org/library/.
+Copyright © Bahá’í International Community. Each passage names its author (the Universal House of
+Justice or Shoghi Effendi), and its citation in the app and on copied text ends with
+"Copyright © Bahá’í International Community, bahai.org".
+
+They are used under the terms of use at https://www.bahai.org/legal (last updated 5 September 2022),
+which ask that the content not be used in a way that misrepresents the intent of the original source,
+that it carry the notice "Copyright © Bahá’í International Community" with attribution to the source
+and the individual author, and that any use for a commercial purpose have permission before use; the
+Bahá’í International Community may withdraw permission at any time. These texts are not covered by this
+project's MIT software license, no ownership is claimed, and no permission beyond those published terms
+has been sought or obtained. This app is free and is not sold. Should permission be withdrawn, the two
+files can be deleted and the app works without them.
+
+The texts are copied as published: words, punctuation, diacritics, headings, dates and footnotes are
+not changed, shortened or summarised. Only the presentation is converted for the native reader:
+paragraphs become plain paragraphs; italics, bold, underlined transliteration (Ma<u>sh</u>riq) and
+indented quotations are kept as styling; footnote markers are shown as superscript numbers with the
+notes after the passage that cites them; numbered list items keep their numbers; table cells are
+separated by tabs. Where bahai.org publishes a text the app also had from BahaiPrayers.net (the 73
+Riḍván messages), the official bahai.org text is shown instead, under the same id so saved
+passages keep working; each match is recorded in data/uhj-messages.json under "replacements".
+
+Each passage records its source URL, the SHA-256 of the downloaded file and the download date.
+scripts/import-bahai-library.py downloads and rebuilds them by hand; the app never connects to bahai.org.
 
 # Badí‘ calendar dates
 
