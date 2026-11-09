@@ -968,7 +968,7 @@ UNORDERED={"prayers"}
 NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
 
 # Collections switched to the official text so far, one at a time.
-BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days","prayers","prayers+additional-abdul-baha","prayers+additional-bahaullah","prayers+additional-tablets","prayers+children","prayers+days","prayers+meditations","prayers+selections-abdul-baha","prayers+marriage","prayers+bab",)
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days","prayers","prayers+additional-abdul-baha","prayers+additional-bahaullah","prayers+additional-tablets","prayers+children","prayers+days","prayers+meditations","prayers+selections-abdul-baha","prayers+marriage","prayers+bab","prayers+gleanings",)
 
 OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
