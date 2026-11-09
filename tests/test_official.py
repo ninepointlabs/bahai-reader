@@ -352,6 +352,22 @@ class OfficialBooksTests(unittest.TestCase):
         # Prayers keep their categories and word counts follow the new text.
         self.assertEqual(self.items["prayers:391"]["tags"],["Short Obligatory Prayer"])
 
+    def test_prayers_from_other_books(self):
+        # Prayers bahai.org prints outside its prayer books, found where it prints them, with the book named in the citation.
+        expected={"prayers+marriage":11,"prayers+bab":3,"prayers+gleanings":3,"prayers+tablets":4,"prayers+epistle":2,
+                  "prayers+light-of-the-world":2,"prayers+promulgation":3,"prayers+obligatory-prayer-fasting":2,"prayers+mashriqul-adhkar":1}
+        self.assertEqual({k:self.books[k]["replaced"] for k in expected},expected)
+        families=self.items["prayers:6344"]
+        self.assertTrue(families["text"].startswith("Thou seest, O Lord, our suppliant hands"))
+        self.assertTrue(families["citation"].startswith("Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh. Copyright"))
+        # The app's closing line naming the printed source (with a page) is not kept, and the book's title page is not pulled in.
+        for ident in ("prayers:6344","prayers:6809","prayers:6789","prayers:6802"):
+            last=self.items[ident]["text"].rstrip().split("\n")[-1]
+            self.assertNotRegex(last,r"(Gleanings|Selections from the Writings|Epistle to the Son|Promulgation)",ident)
+        self.assertTrue(self.items["prayers:6809"]["text"].rstrip().endswith("communion with Thee."))
+        # Seventeen prayers keep BahaiPrayers.net's text; each is reported.
+        self.assertEqual(sum(1 for i in self.items.values() if i["section"]=="prayers" and not i.get("official_id") and i["id"]!="prayers:13691"),17)
+
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""
     def test_existing_ids_are_unchanged(self):

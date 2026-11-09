@@ -45,13 +45,18 @@ Where bahai.org publishes a text the app also had from BahaiPrayers.net, the off
 instead, under the same id, place and numbering, so saved passages keep working: the 73 Riḍván
 messages (recorded in data/uhj-messages.json under "replacements"), and the Hidden Words, Gleanings,
 Prayers and Meditations, Tablets of Bahá’u’lláh, the Kitáb-i-Íqán, the Kitáb-i-Aqdas, the Epistle to
-the Son of the Wolf, Some Answered Questions, Days of Remembrance and 424 of the 472 prayers
+the Son of the Wolf, Some Answered Questions, Days of Remembrance and 455 of the 472 prayers
 (data/bahai-org-books.json, which records each book's source, what was matched, what bahai.org has
 revised, and what was kept and why). Passages are matched by their words; where the app's copy joins
 pieces bahai.org prints apart (an obligatory prayer with the guidance printed before the prayers),
 bahai.org's pieces are shown in the app's arrangement. Text bahai.org prints in a book but the app
 never had (introductions, glossaries, a book's title page) is not added; short official lines the
-app's copy lacked (a part's opening invocation) are.
+app's copy lacked (a part's opening invocation) are. Prayers are looked for in Bahá’í Prayers, then in
+further bahai.org books that print them (other prayer books, Gleanings, Tablets of Bahá’u’lláh, the
+Epistle, Selections from the Writings of the Báb, Light of the World, The Promulgation of Universal
+Peace and three compilations); a prayer's citation names the book its text was taken from. The app's
+closing line naming a prayer's printed source ("Gleanings, CXXXVIII", with a page) is not kept, as the
+official text has no such line and no page numbers.
 
 Each passage records its source URL, the SHA-256 of the downloaded file and the download date.
 scripts/import-bahai-library.py downloads and rebuilds them by hand; the app never connects to bahai.org.
