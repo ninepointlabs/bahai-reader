@@ -64,6 +64,16 @@ BOOK_SOURCES={
     "prayers+days":("bahaullah","days-remembrance"),
     "prayers+meditations":("bahaullah","prayers-meditations"),
     "prayers+selections-abdul-baha":("abdul-baha","selections-writings-abdul-baha"),
+    # Prayers the app takes from other bahai.org books, where they appear as passages of those books.
+    "prayers+marriage":("compilations","set-world-order"),
+    "prayers+bab":("the-bab","selections-writings-bab"),
+    "prayers+gleanings":("bahaullah","gleanings-writings-bahaullah"),
+    "prayers+tablets":("bahaullah","tablets-bahaullah"),
+    "prayers+epistle":("bahaullah","epistle-son-wolf"),
+    "prayers+light-of-the-world":("abdul-baha","light-of-the-world"),
+    "prayers+promulgation":("abdul-baha","promulgation-universal-peace"),
+    "prayers+obligatory-prayer-fasting":("compilations","importance-obligatory-prayer-fasting"),
+    "prayers+mashriqul-adhkar":("compilations","institution-mashriqul-adhkar"),
 }
 
 # ---------------------------------------------------------------- fetching
@@ -619,6 +629,16 @@ def app_rows(key):
     if key=="prayers": return [(i["id"],i["text"]) for i in items if i["id"].startswith("prayers:") and i["id"]!="prayers:13691"]
     return [(i["id"],i["text"]) for i in items if i["id"].startswith(key+":")]
 
+def without_reference(text,title):
+    """A prayer without the app's closing line naming the book it comes from ("Gleanings, CXXXVIII", "Tablets, p. 268-269"):
+    the official book has no such line, and the line would otherwise match the book's title page."""
+    paragraphs=re.split(r"\n\s*\n",text.strip())
+    if len(paragraphs)<2: return text
+    named={w for w in words(title) if len(w)>3}
+    rest=[w for w in words(paragraphs[-1]) if not re.fullmatch(r"\d+|p|pg|pp|[ivxlc]+",w)]
+    if 0<len(rest)<15 and set(rest)<=set(words(title)) and set(rest)&named: return "\n\n".join(paragraphs[:-1])
+    return text
+
 def block_text(block): return "".join(r[0] for r in clean_runs(block.runs))
 
 def match_text(block):
@@ -891,6 +911,7 @@ def build_books(folder,log):
         reader=Reader(raw.decode("utf-8")); blocks=lines([b for b in reader.blocks if clean_runs(b.runs)])
         base=key.split("+")[0]
         rows=[row for row in app_rows(base) if row[0] not in replacements]  # a further source only sees what is still unmatched
+        if base in UNORDERED: rows=[(ident,without_reference(text,reader.title)) for ident,text in rows]
         if base in UNORDERED:
             elsewhere=set().union(*(shingles(row["text"],5) for row in replacements.values())) if replacements else set()
             matched,report=match_unordered(rows,blocks,notes=reader.notes,elsewhere=elsewhere)
@@ -917,7 +938,7 @@ def build_books(folder,log):
                 if len(first.text)>=120: break
             numbers=[(a,b) for a,b,k in first.spans if k=="num"]
             opening="".join(c for i,c in enumerate(first.text) if not any(a<=i<b for a,b in numbers))
-            replacements[ident]=dict(book=key,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),
+            replacements[ident]=dict(book=key,source=" ".join(reader.title.split()),text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),
                                      opening=" ".join(opening.split())[:120],anchor=next((blocks[b].anchor for b in chosen if blocks[b].anchor),None))
         # The app keeps a book's footnotes as one passage; it gets bahai.org's notes, by the part they belong to.
         if key in NOTES_ROWS:

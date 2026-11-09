@@ -307,8 +307,8 @@ def clipping(item,excerpt=None):
     text=(excerpt or item["text"]).strip(); cite=item["citation"]
     # A selection that runs into (or is only) the citation line under the passage.
     if cite: text=text.split("— "+cite)[0].strip() or item["text"]
-    # Prayers carry only an author; the category is the nearest thing to a reference.
-    if item["section"]=="prayers" and item["tags"]:
+    # Prayers carry only an author; the category is the nearest thing to a reference (an official prayer names its book instead).
+    if item["section"]=="prayers" and item["tags"] and not item.get("official_book"):
         notice=". "+BAHAI_ORG_NOTICE; official=cite.endswith(notice)
         cite=", ".join(filter(None,(cite.removesuffix(notice),"Prayers",item["tags"][0])))+(notice if official else "")
     return f"{text}\n\n— {cite}" if cite else text
@@ -399,8 +399,12 @@ def use_official(item,row):
     if item["section"]=="prayers": title=new[:90]
     elif title.endswith(old[:72]): title=title[:len(title)-len(old[:72])]+new[:72]
     spans=[tuple(s) for s in row.get("spans",[]) if isinstance(s,list) and len(s)==3]
+    citation=item["citation"]
+    # A prayer's citation names the bahai.org book its text was taken from.
+    book=row.get("source") if item["section"]=="prayers" and isinstance(row.get("source"),str) else None
+    if book: citation=", ".join(filter(None,(citation,book))); item["official_book"]=book
     item.update(text=row["text"],title=title,spans=spans,word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),
-                citation=(item["citation"]+". " if item["citation"] else "")+BAHAI_ORG_NOTICE,official_id=f"{row.get('book')}:{row.get('anchor')}")
+                citation=(citation+". " if citation else "")+BAHAI_ORG_NOTICE,official_id=f"{row.get('book')}:{row.get('anchor')}")
     item.pop("search",None)
 
 def load_library(language=1):

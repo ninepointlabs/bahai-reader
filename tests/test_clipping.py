@@ -21,10 +21,14 @@ class ClippingTests(unittest.TestCase):
         self.assertTrue(reader.clipping(aqdas).endswith("— Bahá’u’lláh, The Kitáb-i-Aqdas, ¶6"+notice(aqdas)))
         self.assertTrue(reader.clipping(gleaning).endswith("— Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh, I"+notice(gleaning)))
 
-    def test_prayer_names_author_and_category(self):
-        item=self.items["prayers:391"]  # the short obligatory prayer
-        # The category comes before bahai.org's notice.
-        self.assertTrue(reader.clipping(item).endswith("— Bahá’u’lláh, Prayers, Short Obligatory Prayer. Copyright © Bahá’í International Community, bahai.org"))
+    def test_prayer_names_author_and_book(self):
+        # bahai.org's text names the book it was taken from, then bahai.org's notice.
+        self.assertTrue(reader.clipping(self.items["prayers:391"]).endswith("— Bahá’u’lláh, Bahá’í Prayers. Copyright © Bahá’í International Community, bahai.org"))
+        self.assertTrue(reader.clipping(self.items["prayers:6344"]).endswith("— Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh. Copyright © Bahá’í International Community, bahai.org"))
+
+    def test_prayer_without_official_text_names_author_and_category(self):
+        item=self.items["prayers:354"]  # keeps the BahaiPrayers.net copy
+        self.assertTrue(reader.clipping(item).endswith("\n\n— Bahá’u’lláh, Prayers, Unity"))
 
     def test_selection_keeps_the_citation_once(self):
         item=self.items["hidden:1"]

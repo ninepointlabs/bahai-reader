@@ -228,7 +228,9 @@ class OfficialBooksTests(unittest.TestCase):
             item,old=self.items[ident],self.before[ident]
             self.assertEqual(item["text"],row["text"])
             self.assertEqual((item["section"],item["tags"],item["subgroup"],item["match"],item["references"]),(old["section"],old["tags"],old["subgroup"],old["match"],old["references"]))
-            self.assertEqual(item["citation"],old["citation"]+". Copyright © Bahá’í International Community, bahai.org")
+            # A prayer's citation also names the bahai.org book its text was taken from.
+            book=", "+row["source"] if item["section"]=="prayers" else ""
+            self.assertEqual(item["citation"],", ".join(filter(None,(old["citation"],book[2:])))+". Copyright © Bahá’í International Community, bahai.org")
             self.assertEqual(item["word_count"],reader.word_count(item["text"]))
             self.assertNotRegex(item["title"],r"^(\d+) · \1 ")  # no doubled number from bahai.org's margin numbers
             for start,end,kind in row["spans"]: self.assertTrue(0<=start<end<=len(row["text"]))
