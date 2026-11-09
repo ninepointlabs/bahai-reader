@@ -269,7 +269,7 @@ def lines(blocks):
 class Reader:
     def __init__(self,document):
         self.styles=css_styles(document); self.sizes=css_sizes(document); self.hidden=css_hidden(document); self.lists=css_lists(document)
-        self.markers={}; self.open_items=[]; self.root=parse(document)
+        self.markers={}; self.open_items=[]; self.number=None; self.root=parse(document)
         self.body=next(e for e in self.root.iter() if local(e.tag)=="body")
         self.meta={m.get("name"):m.get("content") for m in self.root.iter() if local(m.tag)=="meta" and m.get("name")}
         self.title=next(("".join(e.itertext()).strip() for e in self.root.iter() if local(e.tag)=="title"),"")
@@ -321,8 +321,12 @@ class Reader:
             anchor=next((a.get("id") for a in element.iter() if local(a.tag)=="a" and "sf" in classes(a) and a.get("id")),None)
             block=Block(anchor,tag,classes(element)); block.quote=quoted; self.blocks.append(block)
             block.size=max([self.sizes.get(c,0) for c in block.cls]+[{"h1":3.6,"h2":2.8,"h3":2.3,"h4":2.1}.get(tag,0)])
+            if self.number:  # a margin number printed beside a list, before its first item
+                block.runs+=[(self.number,frozenset({"num"}),None),(" ",frozenset(),None)]; self.number=None
             self.take_marker(element,block)
             self.inline(element,block,inherited|self.style_of(element)); return
+        if block is None and tag=="a" and "td" in classes(element) and (element.text or "").strip().isdigit():
+            self.number=element.text.strip(); return
         if tag in ("ol","ul"): self.number_items(element)
         if tag=="hr": self.blocks.append(Block(None,"hr",classes(element))); self.blocks[-1].runs.append(("* * *",frozenset(),None)); return
         if element.text and element.text.strip() and block is None: raise ValueError(f"Loose text outside a paragraph: {element.text.strip()[:60]!r}")

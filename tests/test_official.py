@@ -71,6 +71,11 @@ class ParserTests(unittest.TestCase):
     def test_missing_note_is_an_error(self):
         with self.assertRaises(ValueError): passage(MESSAGE.replace('href="#n1"','href="#n9"'))
 
+    def test_margin_number_beside_a_list_opens_its_first_item(self):
+        _,result=passage(page('<p><a class="sf" id="1"></a>The names are:</p><div><a class="td">13</a><ol class="gc"><li class="mc"><a class="sf" id="2"></a>First</li><li class="mc"><a class="sf" id="3"></a>Second</li></ol></div>'))
+        self.assertEqual(result.text.split("\n\n")[1:],["13 1. First","2. Second"])
+        self.assertEqual(spans(result,"num"),["13"])
+
     def test_loose_text_is_an_error_not_dropped(self):
         with self.assertRaises(ValueError): passage(page('<div>stray words<p><a class="sf" id="1"></a>Text</p></div>'))
 
