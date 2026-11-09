@@ -53,12 +53,13 @@ class OfflineTests(unittest.TestCase):
         items=reader.load_library()
         epistle=next(i for i in items if i["id"]=="prayers:13691")
         self.assertEqual((epistle["section"],epistle["tags"],epistle["title"]),("writings",["Epistle to the Son of the Wolf"],"Epistle to the Son of the Wolf"))
-        self.assertEqual(epistle["citation"],"Bahá’u’lláh, Epistle to the Son of the Wolf")
+        self.assertEqual(epistle["citation"],"Bahá’u’lláh, Epistle to the Son of the Wolf. Copyright © Bahá’í International Community, bahai.org")
         self.assertEqual(sum(i["section"]=="prayers" for i in items),472)
         self.assertFalse(any("Epistle to the Son of the Wolf" in i["tags"] for i in items if i["section"]=="prayers"))
 
     def test_citations(self):
-        items={i["id"]:i for i in reader.load_library()}
+        # How BahaiPrayers.net passages are cited; bahai.org's text adds its notice (test_official).
+        items={i["id"]:i for i in reader.load_bahaiprayers(1)}
         self.assertTrue(all(i["citation"] for i in items.values() if not i["id"].startswith(("aqdas:Notes:","tablets:"))))
         self.assertEqual({i["citation"] for i in items.values() if i["section"]=="prayers"},set(reader.PRAYER_AUTHORS.values()))
         self.assertEqual(items["gleanings:1"]["citation"],"Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh, I")

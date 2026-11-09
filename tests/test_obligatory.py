@@ -11,7 +11,7 @@ class ObligatoryTests(unittest.TestCase):
     def test_short_medium_and_long_in_that_order(self):
         prayers=self.groups["The three prayers"]
         self.assertEqual([p["tags"] for p in prayers],[["Short Obligatory Prayer"],["Medium Obligatory Prayer"],["Long Obligatory Prayer"]])
-        self.assertTrue(all(p["section"]=="prayers" and p["citation"]=="Bahá’u’lláh" for p in prayers))
+        self.assertTrue(all(p["section"]=="prayers" and p["citation"].startswith("Bahá’u’lláh") for p in prayers))
 
     def test_guidance_is_the_prayer_paragraphs_with_their_linked_notes_and_answers(self):
         guidance=self.groups["Kitáb-i-Aqdas"]
@@ -32,9 +32,9 @@ class ObligatoryTests(unittest.TestCase):
         prayers={p["tags"][0]:p for p in self.groups["The three prayers"]}
         def marked(name):
             text=prayers[name]["text"]; return [text[a:b].strip() for a,b in reader.directions(prayers[name])]
+        # bahai.org's text sets the directions in italics itself; its "To be recited…" line is in capitals instead.
         short=marked("Short Obligatory Prayer")
-        self.assertEqual(len(short),3)
-        self.assertTrue(short[0].startswith("To be recited") and short[1].startswith("God hath exempted") and short[2].startswith('"The daily obligatory'))
+        self.assertEqual([m[:28] for m in short],["“The daily obligatory prayer","“By ‘morning,’ ‘noon’ and ‘e"])
         self.assertFalse(any("I bear witness, O my God" in m for m in short))
         medium=marked("Medium Obligatory Prayer")
         self.assertIn("Whoso wisheth to pray, let him wash his hands, and while he washeth, let him say:",medium)
@@ -42,7 +42,7 @@ class ObligatoryTests(unittest.TestCase):
         self.assertFalse(any(m.startswith("Strengthen my hand") for m in medium))
         long=marked("Long Obligatory Prayer")
         self.assertEqual(sum(m.endswith("say:") for m in long),15)
-        self.assertEqual(long[-1],"1. Alláh-u-Abhá")
+        self.assertTrue(long[0].startswith("Whoso wisheth to recite this prayer, let him stand up and turn unto God"))
         self.assertFalse(any(m.startswith("O Thou Who art the Lord of all names") for m in long))
         # The title stays as it is; other passages have no directions.
         self.assertTrue(all(a>0 for p in prayers.values() for a,_ in reader.directions(p)))

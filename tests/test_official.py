@@ -20,6 +20,7 @@ STYLE="""<style>@charset "UTF-8";
 .b .k, .b .l, .b h3.m { font-size: 2.3rem; }
 .b .s, .b .t, .b .u, .b .v, .b .w, .b h5.x { font-size: 1.9rem; }
 .b .hb, .b .ib { font-style: italic; }
+.gc li.mc { list-style-type: decimal; }
 .b .jb, .b .kb { font-weight: bold; }
 </style>"""
 
@@ -69,6 +70,11 @@ class ParserTests(unittest.TestCase):
 
     def test_missing_note_is_an_error(self):
         with self.assertRaises(ValueError): passage(MESSAGE.replace('href="#n1"','href="#n9"'))
+
+    def test_margin_number_beside_a_list_opens_its_first_item(self):
+        _,result=passage(page('<p><a class="sf" id="1"></a>The names are:</p><div><a class="td">13</a><ol class="gc"><li class="mc"><a class="sf" id="2"></a>First</li><li class="mc"><a class="sf" id="3"></a>Second</li></ol></div>'))
+        self.assertEqual(result.text.split("\n\n")[1:],["13 1. First","2. Second"])
+        self.assertEqual(spans(result,"num"),["13"])
 
     def test_loose_text_is_an_error_not_dropped(self):
         with self.assertRaises(ValueError): passage(page('<div>stray words<p><a class="sf" id="1"></a>Text</p></div>'))
@@ -136,7 +142,7 @@ class BundledDataTests(unittest.TestCase):
             self.assertEqual(text,text.strip()); self.assertNotIn("\n\n\n",text); self.assertNotIn("  ",text)
             self.assertEqual(row["words"],reader.word_count(text),row["id"])
             for start,end,kind in row["spans"]:
-                self.assertIn(kind,("i","b","u","quote","heading")); self.assertTrue(0<=start<end<=len(text),row["id"])
+                self.assertIn(kind,("i","b","u","num","quote","heading")); self.assertTrue(0<=start<end<=len(text),row["id"])
 
     def test_footnotes_are_complete(self):
         works={w["work"]:w for w in self.shoghi["works"]}
@@ -204,6 +210,168 @@ class DuplicateTests(unittest.TestCase):
         for row in new:
             grams=importer.shingles(row["text"])
             self.assertFalse(any(importer.overlap(grams,other)>=importer.DUPLICATE for other in bp),row["id"])
+
+class OfficialBooksTests(unittest.TestCase):
+    """The app's BahaiPrayers.net books, now in bahai.org's text where bahai.org has the same passage."""
+    @classmethod
+    def setUpClass(cls):
+        cls.data=data("bahai-org-books.json"); cls.books={b["key"]:b for b in cls.data["books"]}
+        cls.items={i["id"]:i for i in reader.load_library()}
+        cls.before={i["id"]:i for i in reader.load_bahaiprayers(1)}
+
+    def test_every_passage_is_replaced_or_reported(self):
+        for book in self.data["books"]:
+            kept=sum(len(book["kept"].get(k,[])) for k in ("unmatched","split","partial","extra","too_composite"))
+            self.assertEqual(book["replaced"]+kept,book["rows"],book["key"])
+            self.assertTrue(book["source_url"].startswith("https://www.bahai.org/library/authoritative-texts/"))
+            self.assertRegex(book["sha256"],r"^[0-9a-f]{64}$")
+        for ident,row in self.data["replacements"].items():
+            self.assertIn(ident,self.before); self.assertIn(row["book"],self.books)
+
+    def test_replaced_passages_keep_their_place_and_show_the_official_text(self):
+        for ident,row in self.data["replacements"].items():
+            item,old=self.items[ident],self.before[ident]
+            self.assertEqual(item["text"],row["text"])
+            self.assertEqual((item["section"],item["tags"],item["subgroup"],item["match"],item["references"]),(old["section"],old["tags"],old["subgroup"],old["match"],old["references"]))
+            # A prayer's citation also names the bahai.org book its text was taken from.
+            book=", "+row["source"] if item["section"]=="prayers" else ""
+            self.assertEqual(item["citation"],", ".join(filter(None,(old["citation"],book[2:])))+". Copyright © Bahá’í International Community, bahai.org")
+            self.assertEqual(item["word_count"],reader.word_count(item["text"]))
+            self.assertNotRegex(item["title"],r"^(\d+) · \1 ")  # no doubled number from bahai.org's margin numbers
+            for start,end,kind in row["spans"]: self.assertTrue(0<=start<end<=len(row["text"]))
+
+    def test_hidden_words(self):
+        book=self.books["hidden"]
+        self.assertEqual((book["rows"],book["replaced"]),(153,153))
+        first=self.items["hidden:1"]["text"]
+        # The opening invocation and prologue of Part One, which the earlier copy lacked, open Arabic no. 1.
+        self.assertTrue(first.startswith("HE IS THE GLORY OF GLORIES\n\nTHIS is that which hath descended from the realm of glory"))
+        self.assertIn("\n\n1 O SON OF SPIRIT!\nMy first counsel is this: Possess a pure, kindly and radiant heart",first)
+        start=first.index("\n\n1 ")+2; self.assertIn([start,start+1,"num"],self.data["replacements"]["hidden:1"]["spans"])
+        self.assertTrue(self.items["hidden:72"]["text"].startswith("In the Name of the Lord of Utterance, the Mighty.\n\n1 O YE PEOPLE THAT HAVE MINDS"))
+        self.assertIn("Sadratu’l-Muntahá",self.items["hidden:148"]["text"])  # the diacritic the earlier copy dropped
+        self.assertEqual(self.items["hidden:148"]["title"][:22],"77 · O SON OF JUSTICE!")
+        self.assertEqual(reader.heading(self.items["hidden:148"]),"Persian no. 77")
+
+    def test_gleanings(self):
+        book=self.books["gleanings"]
+        self.assertEqual((book["rows"],book["replaced"]),(166,166))
+        # bahai.org's edition capitalises the pronouns of the Manifestation in section XXXIX, where the earlier copy did not.
+        self.assertIn("My persecutors decapitated Me, and, carrying aloft My head",self.items["gleanings:39"]["text"])
+        self.assertTrue(self.items["gleanings:1"]["text"].startswith("LAUDED and glorified art Thou"))
+        self.assertEqual(self.items["gleanings:1"]["title"][:20],"I · LAUDED and glori")
+        self.assertEqual(reader.heading(self.items["gleanings:1"]),"I")
+        # The section numbers are the passage headings, not repeated in the text.
+        self.assertFalse(any("– I –" in i["text"] for k,i in self.items.items() if k.startswith("gleanings:")))
+
+    def test_prayers_and_meditations(self):
+        book=self.books["meditations"]
+        self.assertEqual((book["rows"],book["replaced"]),(184,184))
+        # Dotted letters the earlier copy lacked.
+        self.assertIn("Thy Friend (Muḥammad)",self.items["meditations:38"]["text"]); self.assertIn("the horizon of Ḥijáz",self.items["meditations:38"]["text"])
+        self.assertIn("(Riḍván)",self.items["meditations:2"]["text"])
+
+    def test_tablets(self):
+        book=self.books["tablets"]
+        self.assertEqual((book["rows"],book["replaced"]),(660,660))
+        # Lines the app keeps as passages of their own are placed on their own, not left behind or repeated.
+        self.assertEqual(self.items["tablets:442"]["text"],"HE IS THE ALL-KNOWING")
+        self.assertTrue(self.items["tablets:443"]["text"].startswith("O VAFÁ! Render thanks unto thy Lord"))
+        self.assertTrue(self.items["tablets:141"]["text"].startswith("The word of God which the Abhá Pen hath revealed and inscribed on the"))
+        self.assertNotIn("The word of God which",self.items["tablets:142"]["text"])
+        # Notes follow the passage that cites them, and the app's footnotes passage lists bahai.org's notes by tablet.
+        self.assertIn("the She-Serpent¹⁵ whose cruelty",self.items["tablets:506"]["text"])
+        self.assertIn("\n\nNotes\n\n¹⁵ The Imám-Jum’ih of Iṣfáhán",self.items["tablets:506"]["text"])
+        notes=self.items["tablets:660"]["text"]
+        self.assertTrue(notes.startswith("2. Lawḥ-i-Aqdas (The Most Holy Tablet)\n\n¹ Sometimes referred to as Tablet to the Christians."))
+        self.assertEqual(self.data["replacements"]["tablets:660"]["notes"],sum(1 for l in notes.split("\n\n") if re.match(r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+ ",l)))
+
+    def test_kitab_i_iqan(self):
+        book=self.books["iqan"]
+        self.assertEqual((book["rows"],book["replaced"]),(287,287))
+        self.assertIn("the dayspring of Baṭḥá³⁴ unto Yathrib,³⁵ He",self.items["iqan:54"]["text"])
+        self.assertIn("\n\nNotes\n\n³³ The direction toward which the face must be turned when praying.",self.items["iqan:54"]["text"])
+        self.assertTrue(self.items["iqan:287"]["text"].startswith("Part One\n\n¹ Qur’án 36:30.\n\n² Qur’án 40:5."))
+
+    def test_kitab_i_aqdas(self):
+        book=self.books["aqdas"]
+        self.assertEqual((book["rows"],book["replaced"]),(491,491))
+        # Passages bahai.org has revised are placed by position and listed for review.
+        self.assertEqual(sorted(r[0] for r in book["kept"]["revised"]),["aqdas:Notes:108","aqdas:Notes:113","aqdas:Notes:124","aqdas:Notes:140","aqdas:Notes:88","aqdas:QAs:49"])
+        self.assertIn("“…it is enjoined upon you to offer a feast…” Is this obligatory or not?",self.items["aqdas:QAs:49"]["text"])
+        # bahai.org's wording for cross-references, which the earlier copy had rewritten ("Q&A 66, Q&A 67").
+        self.assertIn("Questions and Answers, numbers 66, 67, 81, and 82.",self.items["aqdas:Notes:3"]["text"])
+        # The numbers the page draws before a list's items.
+        self.assertIn("in the case of intestacy are:\n\n1. If the deceased is a father",self.items["aqdas:Notes:38"]["text"])
+        # A note's closing remark stays with its note, not the next one.
+        self.assertTrue(self.items["aqdas:Notes:21"]["text"].endswith("Numbers 21, 58, 59, 60, and 61 in Questions and Answers amplify this provision."))
+        self.assertTrue(self.items["aqdas:Notes:22"]["text"].startswith("22. "))
+        # Footnotes of the Questions and Answers follow them.
+        self.assertIn("\n\nNotes\n\n¹ Bahá’u’lláh",self.items["aqdas:QAs:3"]["text"])
+        # The obligatory prayer guidance still finds its paragraphs, notes and answers.
+        groups=reader.obligatory(list(self.items.values()))
+        self.assertEqual([i["id"] for i in groups["Kitáb-i-Aqdas"][:2]],["aqdas:Paragraphs:6","aqdas:Paragraphs:8"])
+
+    def test_epistle_to_the_son_of_the_wolf(self):
+        book=self.books["epistle"]; epistle=self.items["prayers:13691"]
+        self.assertEqual((book["rows"],book["replaced"]),(1,1))
+        self.assertTrue(epistle["text"].startswith("IN THE NAME OF GOD, THE ONE, THE INCOMPARABLE, THE ALL-POWERFUL"))
+        self.assertIn("the greatest means for ensuring the tranquillity of",epistle["text"])
+        self.assertNotIn("Translated by Shoghi Effendi",epistle["text"][:300])  # the title page stays out
+        self.assertEqual((epistle["section"],epistle["tags"],epistle["title"]),("writings",["Epistle to the Son of the Wolf"],"Epistle to the Son of the Wolf"))
+
+    def test_some_answered_questions(self):
+        book=self.books["saq"]
+        self.assertEqual((book["rows"],book["replaced"]),(84,84))
+        nature=self.items["saq:1"]; text=nature["text"]
+        # bahai.org's 2014 revised edition, with its numbered paragraphs.
+        self.assertTrue(text.startswith("1 NATURE IS THAT condition or reality"))
+        self.assertIn([0,1,"num"],self.data["replacements"]["saq:1"]["spans"])
+        self.assertIn("in particular, man.\n\n4 Man is able",text)
+        self.assertEqual(nature["title"],self.before["saq:1"]["title"])  # the chapter's title, as before
+        self.assertTrue(self.items["saq:67"]["text"].endswith("¹⁵⁰ See Chapter 84 for a fuller discussion of this subject."))
+
+    def test_days_of_remembrance(self):
+        book=self.books["days"]
+        self.assertEqual((book["rows"],book["replaced"]),(45,45))
+        maiden=self.items["days:198"]["text"]
+        # The selection's number and title as bahai.org prints them, and its numbered verses with a space after each number.
+        self.assertTrue(maiden.startswith("12\n\nḤÚR-I-‘UJÁB\n\n(TABLET OF THE WONDROUS MAIDEN)\n\n1 The hallowed Beauty shone"),maiden[:120])
+        self.assertIn("how wondrous indeed!\n\n2 And, lo, the flame",maiden)
+        # Still where Today looks for each Holy Day's readings.
+        self.assertEqual(self.items["days:198"]["subgroup"],self.before["days:198"]["subgroup"])
+
+    def test_bahai_prayers(self):
+        book=self.books["prayers"]
+        self.assertEqual(book["replaced"],230)
+        # The obligatory prayers: bahai.org's text, in the app's arrangement (the prayer, then Shoghi Effendi's guidance,
+        # which the book prints once before them), listed for review as composite.
+        short=self.items["prayers:391"]["text"]
+        self.assertTrue(short.startswith("Short Obligatory Prayer\n\nTO BE RECITED ONCE IN TWENTY-FOUR HOURS, AT NOON\n\nI bear witness, O my God"))
+        self.assertLess(short.index("I bear witness"),short.index("“The daily obligatory prayers are three in number"))
+        self.assertIn("prayers:391",[r[0] for r in book["kept"]["repeats"]])  # its exemption paragraph is Aqdas ¶13, shown there
+        self.assertIn("prayers:393",[r[0] for r in book["kept"]["composite"]])
+        self.assertTrue(self.items["prayers:386"]["text"].startswith("Tablet of Aḥmad\n\n“These daily obligatory prayers"))
+        # A prayer whose copy carries the House of Justice's note on its authenticity keeps that copy.
+        self.assertNotIn("prayers:354",self.data["replacements"]); self.assertIn("Research Department",self.items["prayers:354"]["text"])
+        # Prayers keep their categories and word counts follow the new text.
+        self.assertEqual(self.items["prayers:391"]["tags"],["Short Obligatory Prayer"])
+
+    def test_prayers_from_other_books(self):
+        # Prayers bahai.org prints outside its prayer books, found where it prints them, with the book named in the citation.
+        expected={"prayers+marriage":11,"prayers+bab":3,"prayers+gleanings":3,"prayers+tablets":4,"prayers+epistle":2,
+                  "prayers+light-of-the-world":2,"prayers+promulgation":3,"prayers+obligatory-prayer-fasting":2,"prayers+mashriqul-adhkar":1}
+        self.assertEqual({k:self.books[k]["replaced"] for k in expected},expected)
+        families=self.items["prayers:6344"]
+        self.assertTrue(families["text"].startswith("Thou seest, O Lord, our suppliant hands"))
+        self.assertTrue(families["citation"].startswith("Bahá’u’lláh, Gleanings from the Writings of Bahá’u’lláh. Copyright"))
+        # The app's closing line naming the printed source (with a page) is not kept, and the book's title page is not pulled in.
+        for ident in ("prayers:6344","prayers:6809","prayers:6789","prayers:6802"):
+            last=self.items[ident]["text"].rstrip().split("\n")[-1]
+            self.assertNotRegex(last,r"(Gleanings|Selections from the Writings|Epistle to the Son|Promulgation)",ident)
+        self.assertTrue(self.items["prayers:6809"]["text"].rstrip().endswith("communion with Thee."))
+        # Seventeen prayers keep BahaiPrayers.net's text; each is reported.
+        self.assertEqual(sum(1 for i in self.items.values() if i["section"]=="prayers" and not i.get("official_id") and i["id"]!="prayers:13691"),17)
 
 class UserDataTests(unittest.TestCase):
     """Bookmarks, collections, the last passage and preferences keep pointing at the same passages."""

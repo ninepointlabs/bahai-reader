@@ -32,7 +32,8 @@ class CompareTests(unittest.TestCase):
         original=reader.LIBRARY; reader.LIBRARY=Path(temp.name); self.addCleanup(setattr,reader,"LIBRARY",original)
         write_pack(reader.LIBRARY)
         spanish={i["match"]:i for i in reader.load_library(4) if i["match"]}
-        english=next(i for i in self.items if i["id"]=="hidden:1")
+        # The stand-in pack is made from the BahaiPrayers.net data, so compare it with that.
+        english=next(i for i in reader.load_bahaiprayers(1) if i["id"]=="hidden:1")
         self.assertEqual(" ".join(spanish[english["match"]]["text"].split())," ".join(("[4] "+english["text"]).split()))
 
     def test_compare_setting(self):

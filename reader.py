@@ -307,8 +307,10 @@ def clipping(item,excerpt=None):
     text=(excerpt or item["text"]).strip(); cite=item["citation"]
     # A selection that runs into (or is only) the citation line under the passage.
     if cite: text=text.split("— "+cite)[0].strip() or item["text"]
-    # Prayers carry only an author; the category is the nearest thing to a reference.
-    if item["section"]=="prayers" and item["tags"]: cite=", ".join(filter(None,(cite,"Prayers",item["tags"][0])))
+    # Prayers carry only an author; the category is the nearest thing to a reference (an official prayer names its book instead).
+    if item["section"]=="prayers" and item["tags"] and not item.get("official_book"):
+        notice=". "+BAHAI_ORG_NOTICE; official=cite.endswith(notice)
+        cite=", ".join(filter(None,(cite.removesuffix(notice),"Prayers",item["tags"][0])))+(notice if official else "")
     return f"{text}\n\n— {cite}" if cite else text
 
 def luminance(color):
@@ -383,10 +385,35 @@ def official_items(name):
                            word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),references=[],match=None,citation=citation,spans=spans,source=row.get("page_url")))
     return result
 
+def official_replacements():
+    """{app id: official passage} from data/bahai-org-books.json: bahai.org's text for passages the app has from BahaiPrayers.net."""
+    try: data=json.loads((ROOT/"data"/"bahai-org-books.json").read_text())
+    except (OSError,ValueError): return {}
+    rows=data.get("replacements")
+    return {k:v for k,v in rows.items() if isinstance(v,dict) and isinstance(v.get("text"),str) and v["text"]} if isinstance(rows,dict) else {}
+
+def use_official(item,row):
+    """Puts bahai.org's text in a BahaiPrayers.net passage, keeping its id, place, numbering and links."""
+    old=" ".join(item["text"].split()); new=row.get("opening") if isinstance(row.get("opening"),str) and row["opening"] else " ".join(row["text"].split())
+    title=item["title"]
+    if item["section"]=="prayers": title=new[:90]
+    elif title.endswith(old[:72]): title=title[:len(title)-len(old[:72])]+new[:72]
+    spans=[tuple(s) for s in row.get("spans",[]) if isinstance(s,list) and len(s)==3]
+    citation=item["citation"]
+    # A prayer's citation names the bahai.org book its text was taken from.
+    book=row.get("source") if item["section"]=="prayers" and isinstance(row.get("source"),str) else None
+    if book: citation=", ".join(filter(None,(citation,book))); item["official_book"]=book
+    item.update(text=row["text"],title=title,spans=spans,word_count=row["words"] if isinstance(row.get("words"),int) else word_count(row["text"]),
+                citation=(citation+". " if citation else "")+BAHAI_ORG_NOTICE,official_id=f"{row.get('book')}:{row.get('anchor')}")
+    item.pop("search",None)
+
 def load_library(language=1):
     """The library for a language. In English, bahai.org's official text is used wherever it has the same text as BahaiPrayers.net."""
     result=load_bahaiprayers(language)
     if language==1:
+        books=official_replacements()
+        for item in result:
+            if item["id"] in books: use_official(item,books[item["id"]])
         official=[i for name in OFFICIAL for i in official_items(name)]
         replaced={i["id"] for i in official}
         result=[i for i in result if i["id"] not in replaced]+official
@@ -473,7 +500,16 @@ DIRECTION=re.compile(r'To be recited|God hath exempted|"The daily obligatory|\(|
 # How the styled spans of a bahai.org text are drawn: italics, bold, underlining (transliteration such as Ma<u>sh</u>riq),
 # quotations set in from the margin, and the headings of letters and chapters.
 SPAN_STYLES={"i":dict(style=Pango.Style.ITALIC),"b":dict(weight=Pango.Weight.BOLD),"u":dict(underline=Pango.Underline.SINGLE),
-             "quote":dict(left_margin=36,right_margin=24),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
+             "quote":dict(left_margin=36,right_margin=24),"num":dict(scale=0.75,weight=Pango.Weight.LIGHT),"heading":dict(weight=Pango.Weight.BOLD,scale=1.1)}
+
+def unnumbered(item):
+    """The text without bahai.org's margin numbers, for plain labels (the counter's verse, the passage of the day)."""
+    numbers=sorted((a,b) for a,b,k in item.get("spans",()) if k=="num")
+    if not numbers: return item["text"]
+    text=item["text"]; out=[]; at=0
+    for a,b in numbers:
+        out.append(text[at:a]); at=b+1 if text[b:b+1]==" " else b
+    return "".join(out)+text[at:]
 
 def apply_spans(buffer,item,offset=0):
     table=buffer.get_tag_table(); length=len(item["text"])
@@ -485,6 +521,10 @@ def apply_spans(buffer,item,offset=0):
 def directions(item):
     """Character spans of an obligatory prayer's directions, shown in italics so the prayer itself stands out."""
     if not set(OBLIGATORY_PRAYERS).intersection(item["tags"]): return []
+    if item.get("official_id"):
+        # bahai.org sets the directions in italics itself: whole paragraphs in italics.
+        text=item["text"]; starts={0}|{m.end() for m in re.finditer(r"\n\n",text)}
+        return [(a,b) for a,b,k in item.get("spans",()) if k=="i" and a in starts and (b==len(text) or text.startswith("\n\n",b))]
     spans=[]; start=0
     for paragraph in item["text"].split("\n\n"):
         text=paragraph.strip()
@@ -1412,7 +1452,7 @@ class Reader(Gtk.Application):
         self.show_view("counter")
         item=self.counter_verse_item()
         self.counter_verse.set_visible(bool(item)); self.counter_source.set_visible(bool(item))
-        if item: self.counter_verse.set_text(item["text"]); self.counter_source.set_text("— "+item["citation"])
+        if item: self.counter_verse.set_text(unnumbered(item)); self.counter_source.set_text("— "+item["citation"])
         self.counter_button.grab_focus()
     def leave_counter(self):
         self.show_view(self.counter_return)
@@ -1530,7 +1570,7 @@ class Reader(Gtk.Application):
         # Passage of the day
         passage=passage_of_the_day(self.items,moment.date())
         if passage:
-            opening=" ".join(passage["text"].split()); excerpt=opening if len(opening)<=240 else opening[:240].rsplit(" ",1)[0]+"…"
+            opening=" ".join(unnumbered(passage).split()); excerpt=opening if len(opening)<=240 else opening[:240].rsplit(" ",1)[0]+"…"
             rows=[("title","Passage of the day"),("reading",excerpt)]
             if passage["citation"]: rows.append(("dim","— "+passage["citation"]))
             rows.append(("button","Read the passage of the day",lambda *_:self.daily_passage()))
@@ -1909,7 +1949,7 @@ textview text selection {{ background: {selection}; }}
         row("Created",text(CREATED))
         row("License",actions(f"{LICENSE_NAME}, {COPYRIGHT}",("Read it",toggle_license)))
         row("Texts",text("From BahaiPrayers.net, which permits their use in apps. The texts and translations are not covered by the MIT license, and no ownership is claimed (DATA-NOTICE.md). Not an official publication of a Bahá’í institution."))
-        row("bahai.org",text("Messages of the Universal House of Justice and works of Shoghi Effendi from the Bahá’í Reference Library, bahai.org. Copyright © Bahá’í International Community. Used under the terms at bahai.org/legal; not covered by the MIT license (DATA-NOTICE.md)."))
+        row("bahai.org",text("In English, the official text from the Bahá’í Reference Library, bahai.org, wherever it has the passage: the books and most prayers, messages of the Universal House of Justice and works of Shoghi Effendi. Copyright © Bahá’í International Community. Used under the terms at bahai.org/legal; not covered by the MIT license (DATA-NOTICE.md)."))
         row("Places",text("City data © GeoNames (geonames.org), trimmed, under the Creative Commons Attribution 4.0 license (creativecommons.org/licenses/by/4.0)."))
         row("Calendar",text("Badí‘ dates from the Bahá’í World Centre and the Universal House of Justice. Sun times use the public-domain NOAA solar calculation."))
         row("Support",actions(SUPPORT_EMAIL,("Email",email),("Copy",lambda *_: window.get_clipboard().set(SUPPORT_EMAIL))))

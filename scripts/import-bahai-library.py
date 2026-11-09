@@ -18,11 +18,13 @@ draws as such. Footnotes follow the passage that cites them. See DATA-NOTICE.md 
 """
 import argparse
 import datetime
+import difflib
 import hashlib
 import html
 import json
 import re
 import sys
+import tempfile
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -40,6 +42,39 @@ UHJ = "The Universal House of Justice"
 SHOGHI = "Shoghi Effendi"
 UHJ_GROUP = "Messages of the Universal House of Justice"
 X = "{http://www.w3.org/1999/xhtml}"
+
+# The app's BahaiPrayers.net collections and their official bahai.org editions: collection key -> (category, slug).
+BOOK_SOURCES={
+    "hidden":("bahaullah","hidden-words"),
+    "gleanings":("bahaullah","gleanings-writings-bahaullah"),
+    "meditations":("bahaullah","prayers-meditations"),
+    "tablets":("bahaullah","tablets-bahaullah"),
+    "iqan":("bahaullah","kitab-i-iqan"),
+    "aqdas":("bahaullah","kitab-i-aqdas"),
+    "epistle":("bahaullah","epistle-son-wolf"),
+    "saq":("abdul-baha","some-answered-questions"),
+    "days":("bahaullah","days-remembrance"),
+    "prayers":("prayers","bahai-prayers"),
+    # Prayers not in Bahá’í Prayers, looked for in further bahai.org books (collection+source): only prayers still unmatched.
+    "prayers+additional-abdul-baha":("abdul-baha","additional-prayers-revealed-abdul-baha"),
+    "prayers+additional-bahaullah":("bahaullah","additional-prayers-revealed-bahaullah"),
+    "prayers+additional-tablets":("bahaullah","additional-tablets-extracts-from-tablets-revealed-bahaullah"),
+    "prayers+children":("prayers","bahai-prayers-tablets-children"),
+    # Days of Remembrance before Prayers and Meditations: it prints the holy-day prayers with their opening invocations.
+    "prayers+days":("bahaullah","days-remembrance"),
+    "prayers+meditations":("bahaullah","prayers-meditations"),
+    "prayers+selections-abdul-baha":("abdul-baha","selections-writings-abdul-baha"),
+    # Prayers the app takes from other bahai.org books, where they appear as passages of those books.
+    "prayers+marriage":("compilations","set-world-order"),
+    "prayers+bab":("the-bab","selections-writings-bab"),
+    "prayers+gleanings":("bahaullah","gleanings-writings-bahaullah"),
+    "prayers+tablets":("bahaullah","tablets-bahaullah"),
+    "prayers+epistle":("bahaullah","epistle-son-wolf"),
+    "prayers+light-of-the-world":("abdul-baha","light-of-the-world"),
+    "prayers+promulgation":("abdul-baha","promulgation-universal-peace"),
+    "prayers+obligatory-prayer-fasting":("compilations","importance-obligatory-prayer-fasting"),
+    "prayers+mashriqul-adhkar":("compilations","institution-mashriqul-adhkar"),
+}
 
 # ---------------------------------------------------------------- fetching
 
@@ -86,9 +121,9 @@ def message_rows(index_html):
 def work_slugs(index_html):
     return sorted(set(re.findall(r'href="/library/authoritative-texts/shoghi-effendi/([a-z0-9-]+)/"',index_html)))
 
-def xhtml_link(page,slug):
+def xhtml_link(page,slug,category="shoghi-effendi"):
     """The XHTML download on a work's page, with the edition marker bahai.org appends (?68416325)."""
-    match=re.search(rf'(/library/authoritative-texts/shoghi-effendi/{slug}/{slug}\.xhtml)(?:\?([0-9a-f]+))?',page)
+    match=re.search(rf'(/library/authoritative-texts/{category}/{slug}/{slug}\.xhtml)(?:\?([0-9a-f]+))?',page)
     if not match: raise ValueError(f"No XHTML download on the page for {slug}")
     return SITE+match.group(1),match.group(2)
 
@@ -109,6 +144,12 @@ def fetch(folder,refresh=False,delay=1.0,only=None):
             url,_=xhtml_link(page,slug)
             try: fetcher.get(url,f"se/{slug}.xhtml")
             except Exception as error: failures.append((url,str(error)))  # noqa: BLE001
+    if only in (None,"books"):
+        for key,(category,slug) in BOOK_SOURCES.items():
+            page=fetcher.get(f"{SITE}/library/authoritative-texts/{category}/{slug}/",f"books/{slug}.html").decode()
+            url,_=xhtml_link(page,slug,category)
+            try: fetcher.get(url,f"books/{slug}.xhtml")
+            except Exception as error: failures.append((url,str(error)))  # noqa: BLE001
     for url,error in failures: print("FAILED",url,error,file=sys.stderr)
     return not failures
 
@@ -123,11 +164,52 @@ def css_styles(document):
         kinds=set()
         if re.search(r"font-style:\s*italic",body): kinds.add("i")
         if re.search(r"font-weight:\s*bold",body): kinds.add("b")
+        if re.search(r"text-transform:\s*uppercase",body): kinds.add("upper")
         if not kinds: continue
         for selector in selectors.split(","):
             last=selector.strip().split()[-1] if selector.strip() else ""
             for name in re.findall(r"\.([A-Za-z0-9_-]+)",last): styles.setdefault(name,set()).update(kinds)
     return styles
+
+def css_hidden(document):
+    """Classes the page never shows (display: none on .X, .b .X or .ef .b .X; bahai.org's body has class ef), such as the
+    duplicate "1." line beside each numbered Hidden Word."""
+    hidden=set()
+    sheet=re.sub(r"/\*.*?\*/|@charset[^;]*;","","".join(re.findall(r"<style[^>]*>(.*?)</style>",document,re.S)),flags=re.S)
+    for selectors,body in re.findall(r"([^{}]*)\{([^{}]*)\}",sheet):
+        if not re.search(r"display:\s*none",body): continue
+        for selector in selectors.split(","):
+            match=re.fullmatch(r"(?:\.ef\s+)?(?:\.b\s+)?\.([A-Za-z0-9_-]+)"," ".join(selector.split()))
+            if match: hidden.add(match.group(1))
+    return hidden
+
+def css_lists(document):
+    """Class name -> list style (decimal, lower-alpha, none…) from the stylesheet inside the file."""
+    lists={}
+    sheet=re.sub(r"/\*.*?\*/|@charset[^;]*;","","".join(re.findall(r"<style[^>]*>(.*?)</style>",document,re.S)),flags=re.S)
+    for selectors,body in re.findall(r"([^{}]*)\{([^{}]*)\}",sheet):
+        found=re.search(r"list-style(?:-type)?:\s*([a-z-]+)",body)
+        if not found: continue
+        for selector in selectors.split(","):
+            parts=selector.split()
+            if not parts or ":" in selector or parts[0] not in (".b",".gc"): continue  # the reading area; .gc is the contents list
+            for name in re.findall(r"\.([A-Za-z0-9_-]+)",parts[-1]): lists[name]=found.group(1)
+    return lists
+
+def list_style(element,lists,inherited=None):
+    named=[lists[c] for c in classes(element) if c in lists]
+    if named: return named[-1]
+    return inherited or ("decimal" if local(element.tag)=="ol" else "disc")
+
+def list_marker(kind,number):
+    if kind=="decimal": return f"{number}. "
+    if kind=="upper-roman": return roman(number)+". "
+    if kind=="lower-roman": return roman(number).lower()+". "
+    if kind in ("upper-alpha","upper-latin"): return chr(64+number)+". " if number<=26 else f"{number}. "
+    if kind in ("lower-alpha","lower-latin"): return chr(96+number)+". " if number<=26 else f"{number}. "
+    if kind in ("disc","circle"): return "• "
+    if kind=="square": return "▪ "
+    return None
 
 def css_sizes(document):
     """Class name -> font size in rem, from the stylesheet inside the file: how bahai.org marks titles and headings."""
@@ -163,12 +245,31 @@ def roman(number):
 class Block:
     """One paragraph-like element: its anchor, element name, classes, and text runs [(text, styles, note target)]."""
     def __init__(self,anchor,tag,cls):
-        self.anchor=anchor; self.tag=tag; self.cls=cls; self.runs=[]; self.size=0; self.quote=False
+        self.anchor=anchor; self.tag=tag; self.cls=cls; self.runs=[]; self.size=0; self.quote=False; self.joined=None
     def text(self): return "".join(r[0] for r in self.runs)
+
+def lines(blocks):
+    """Each paragraph split at its line breaks, so that a line the app keeps as its own passage (a tablet's
+    "The word of God which the Supreme Pen hath recorded on the") can be placed on its own. Lines of one paragraph that
+    stay together are joined again by a line break (Block.joined)."""
+    out=[]
+    for block in blocks:
+        parts=[[]]
+        for run in block.runs:
+            if run[0]=="\n": parts.append([])
+            else: parts[-1].append(run)
+        if len(parts)==1: out.append(block); continue
+        previous=None
+        for n,runs in enumerate(parts):
+            line=Block(block.anchor if n==0 else None,block.tag,block.cls); line.runs=runs
+            line.size=block.size; line.quote=block.quote; line.joined=previous
+            if clean_runs(runs): out.append(line); previous=line
+    return out
 
 class Reader:
     def __init__(self,document):
-        self.styles=css_styles(document); self.sizes=css_sizes(document); self.root=parse(document)
+        self.styles=css_styles(document); self.sizes=css_sizes(document); self.hidden=css_hidden(document); self.lists=css_lists(document)
+        self.markers={}; self.open_items=[]; self.number=None; self.root=parse(document)
         self.body=next(e for e in self.root.iter() if local(e.tag)=="body")
         self.meta={m.get("name"):m.get("content") for m in self.root.iter() if local(m.tag)=="meta" and m.get("name")}
         self.title=next(("".join(e.itertext()).strip() for e in self.root.iter() if local(e.tag)=="title"),"")
@@ -195,29 +296,52 @@ class Reader:
         if not entries: return False
         inside={id(p) for d in entries for p in d.iter()}
         return all(id(p) in inside or not "".join(p.itertext()).strip() for p in element.iter() if local(p.tag) in ("p","blockquote","table"))
+    def number_items(self,element):
+        """The markers a browser draws before list items (1., a., iv., •), which are not in the text: kept in self.markers by
+        item, and put at the start of the item's first paragraph. bahai.org's own margin numbers (a.td) take their place."""
+        style=list_style(element,self.lists)
+        number=int(element.get("start") or 1)
+        for item in [c for c in element if local(c.tag)=="li"]:
+            if item.get("value") and item.get("value").isdigit(): number=int(item.get("value"))
+            kind=list_style(item,self.lists,style)
+            marker=list_marker(kind,number)
+            if marker and not any(local(a.tag)=="a" and "td" in classes(a) for a in item.iter()): self.markers[id(item)]=marker
+            number+=1
+    def take_marker(self,element,block):
+        """The pending list marker of this element, or of the list item it opens."""
+        for owner in [element]+[e for e in self.open_items]:
+            marker=self.markers.pop(id(owner),None)
+            if marker: block.runs.append((marker,frozenset(),None)); return
     def walk(self,element,block,inherited,quoted=False):
         tag=local(element.tag); quoted=quoted or tag=="blockquote"
         if tag=="nav": self.read_toc(element); return
-        if tag in ("script","style"): return
+        if tag in ("script","style") or self.hidden&classes(element): return
         if block is None and self.is_notes(element): self.read_notes(element); return
         if block is None and tag in BLOCKS and not any(local(d.tag) in CONTAINERS for d in element.iter() if d is not element):
             anchor=next((a.get("id") for a in element.iter() if local(a.tag)=="a" and "sf" in classes(a) and a.get("id")),None)
             block=Block(anchor,tag,classes(element)); block.quote=quoted; self.blocks.append(block)
             block.size=max([self.sizes.get(c,0) for c in block.cls]+[{"h1":3.6,"h2":2.8,"h3":2.3,"h4":2.1}.get(tag,0)])
-            if tag=="li" and element.get("value"):
-                marker={"mc":element.get("value")+". ","oc":roman(int(element.get("value")))+". "}
-                prefix=next((v for k,v in marker.items() if k in classes(element)),None)
-                if prefix: block.runs.append((prefix,frozenset(),None))
+            if self.number:  # a margin number printed beside a list, before its first item
+                block.runs+=[(self.number,frozenset({"num"}),None),(" ",frozenset(),None)]; self.number=None
+            self.take_marker(element,block)
             self.inline(element,block,inherited|self.style_of(element)); return
-        if tag=="li" and element.get("value") and {"mc","oc"}&classes(element): raise ValueError("A numbered list item holding paragraphs; its number would be lost")
+        if block is None and tag=="a" and "td" in classes(element) and (element.text or "").strip().isdigit():
+            self.number=element.text.strip(); return
+        if tag in ("ol","ul"): self.number_items(element)
         if tag=="hr": self.blocks.append(Block(None,"hr",classes(element))); self.blocks[-1].runs.append(("* * *",frozenset(),None)); return
         if element.text and element.text.strip() and block is None: raise ValueError(f"Loose text outside a paragraph: {element.text.strip()[:60]!r}")
+        if tag=="li": self.open_items.append(element)
         for child in element:
             self.walk(child,None,inherited|self.style_of(element),quoted)
             if child.tail and child.tail.strip(): raise ValueError(f"Loose text outside a paragraph: {child.tail.strip()[:60]!r}")
+        if tag=="li": self.open_items.remove(element)
     def inline(self,element,block,styles,note=None):
         tag=local(element.tag)
         if tag=="a" and "jc" in classes(element): return  # the ↩ link back from a note
+        if self.hidden&classes(element): return
+        if tag=="a" and "td" in classes(element) and (element.text or "").strip().isdigit():
+            # bahai.org's paragraph or item number, shown in the margin: kept, and marked as a number.
+            block.runs.append((element.text.strip(),frozenset(styles|{"num"}),None)); block.runs.append((" ",frozenset(styles),None)); return
         if tag=="br": block.runs.append(("\n",frozenset(styles),note))
         elif tag=="wbr": pass
         else:
@@ -282,19 +406,21 @@ SUPERSCRIPT=str.maketrans("0123456789","⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 class Passage:
     """Builds a passage's text and its styled spans; footnote markers become superscript digits pointing at notes."""
-    def __init__(self): self.text=""; self.spans=[]; self.cited=[]
+    def __init__(self): self.text=""; self.spans=[]; self.cited=[]; self.previous=None
     def add_block(self,block,notes):
         runs=clean_runs(block.runs)
         if not runs: return
-        if self.text: self.text+="\n\n"
+        if self.text: self.text+="\n" if block.joined is not None and block.joined is self.previous else "\n\n"
+        self.previous=block
         begin=len(self.text)
         for text,styles,note in runs:
             if note:
                 if note not in notes: raise ValueError(f"Footnote marker {text!r} points at missing note {note}")
                 text=text.translate(SUPERSCRIPT); self.cited.append(note); styles=styles-{"sup"}
+            if "upper" in styles: text=text.upper()  # text-transform: uppercase, as the page shows it
             start=len(self.text); self.text+=text
             for kind in sorted(styles):
-                if kind in ("i","b","u"): self.add_span(start,len(self.text),kind)
+                if kind in ("i","b","u","num"): self.add_span(start,len(self.text),kind)
         if block.quote: self.spans.append([begin,len(self.text),"quote"])
         if block.size>=HEADING: self.spans.append([begin,len(self.text),"heading"])
     def add_span(self,start,end,kind):
@@ -312,6 +438,7 @@ class Passage:
             for n,block in enumerate(note["blocks"]):
                 if n: self.text+="\n\n"
                 for text,styles,_ in clean_runs(block.runs):
+                    if "upper" in styles: text=text.upper()
                     start=len(self.text); self.text+=text
                     for kind in sorted(styles):
                         if kind in ("i","b","u"): self.add_span(start,len(self.text),kind)
@@ -484,7 +611,370 @@ def build_shoghi(folder,log):
                 source=dict(name="Bahá’í Reference Library",url=index_url,**provenance(log,index_url)),
                 parser_version=PARSER_VERSION,works=works,items=items)
 
-OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi}
+# ---------------------------------------------------------------- the app's other collections
+
+MATCH_BLOCK=0.6    # share of an official paragraph's word sequences found in an app passage, to place it there
+SMALL=1.7  # rem; body text is 1.7, credits and notes smaller
+MATCH_REPEATED=0.85  # coverage counting text the app already shows from another bahai.org book
+MAX_PIECES=4  # most separate pieces a passage is rebuilt from
+REVISED_WORDS=0.25  # least word-by-word similarity for a passage placed by position alone
+ATTACH_BLOCKS=3; ATTACH_CHARS=600  # what counts as a short official line the app lacks
+MATCH_WORDS=0.9    # or: word-by-word similarity of the two texts (difflib ratio)
+MATCH_PASSAGE=0.9  # share of an app passage's word sequences covered by the official paragraphs placed in it
+
+def app_rows(key):
+    """The app's own passages for a collection, from the bundled BahaiPrayers.net data only: [(id, text)] in order."""
+    if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
+    import reader  # noqa: E402 - the app's parser, so ids and texts are exactly what the app shows
+    with tempfile.TemporaryDirectory() as empty:
+        reader.CACHE=Path(empty)/"cache"; reader.LIBRARY=Path(empty)/"libraries"
+        items=reader.load_bahaiprayers(1)
+    if key=="epistle": return [(i["id"],i["text"]) for i in items if i["id"]=="prayers:13691"]
+    if key=="prayers": return [(i["id"],i["text"]) for i in items if i["id"].startswith("prayers:") and i["id"]!="prayers:13691"]
+    return [(i["id"],i["text"]) for i in items if i["id"].startswith(key+":")]
+
+def without_reference(text,title):
+    """A prayer without the app's closing line naming the book it comes from ("Gleanings, CXXXVIII", "Tablets, p. 268-269"):
+    the official book has no such line, and the line would otherwise match the book's title page."""
+    paragraphs=re.split(r"\n\s*\n",text.strip())
+    if len(paragraphs)<2: return text
+    named={w for w in words(title) if len(w)>3}
+    rest=[w for w in words(paragraphs[-1]) if not re.fullmatch(r"\d+|p|pg|pp|[ivxlc]+",w)]
+    if 0<len(rest)<15 and set(rest)<=set(words(title)) and set(rest)&named: return "\n\n".join(paragraphs[:-1])
+    return text
+
+def block_text(block): return "".join(r[0] for r in clean_runs(block.runs))
+
+def match_text(block):
+    """A paragraph's words for matching: without bahai.org's margin numbers, which the app's copy does not have."""
+    return "".join(r[0] for r in clean_runs([r for r in block.runs if "num" not in r[1]]))
+
+def match_rows(rows,blocks,size=5,notes=None,ordered=True):
+    """Places the official paragraphs in the app's passages. Returns ({row id: [block index]}, report)."""
+    grams=[shingles(text,size) for _,text in rows]
+    row_words=[words(text) for _,text in rows]
+    folded=[fold(text) for _,text in rows]
+    candidates=[]
+    for b,block in enumerate(blocks):
+        text=match_text(block)
+        if len(words(text))<size: continue
+        mine=shingles(text,size)
+        scores=[(len(mine&g)/len(mine),r) for r,g in enumerate(grams) if mine&g]
+        good=[(score,r) for score,r in scores if score>=MATCH_BLOCK]
+        if not good: continue
+        best=max(score for score,_ in good)
+        # Near-equal candidates (a repeated invocation, a quoted verse) are all kept for the ordering pass to choose from.
+        candidates+=[(b,r) for r in sorted({r for score,r in good if score>=best-0.05},reverse=True)]
+    if ordered: owner=dict(in_order(candidates))
+    else:
+        # The app's own order (prayers by its categories) is not the book's: each paragraph goes to its best passage.
+        best={}
+        for b,r in candidates: best.setdefault(b,r)  # candidates come best-first per paragraph, highest passage first
+        owner=best
+    # A line too short to place by itself ("O SON OF SPIRIT!") goes with the rest of its paragraph, when that passage has its words.
+    changed=True
+    while changed:
+        changed=False
+        for b,block in enumerate(blocks):
+            if b in owner: continue
+            mates=[x for x in (b-1,b+1) if 0<=x<len(blocks) and x in owner and (blocks[b].joined is blocks[x] or blocks[x].joined is blocks[b])]
+            for x in mates:
+                if contains(row_words[owner[x]],words(match_text(block))): owner[b]=owner[x]; changed=True; break
+    # A passage too short to place by word sequences ("He is the All-Knowing") takes an unplaced line with exactly its words,
+    # between its neighbours' paragraphs.
+    placed=set(owner.values())
+    for r,(ident,text) in enumerate(rows):
+        if r in placed: continue
+        lo=max((b for b,o in owner.items() if o<r),default=-1); hi=min((b for b,o in owner.items() if o>r),default=len(blocks))
+        same=[b for b in range(lo+1,hi) if b not in owner and words(match_text(blocks[b]))==row_words[r]]
+        if len(same)==1: owner[same[0]]=r
+    spans={}
+    for b,r in owner.items(): spans.setdefault(r,[]).append(b)
+    taken=set(owner); result={}; report=dict(unmatched=[],split=[],partial=[],extra=[])
+    for r,(ident,text) in enumerate(rows):
+        if r not in spans: report["unmatched"].append(ident); continue
+        first,last_=min(spans[r]),max(spans[r])
+        inside=range(first,last_+1)
+        if any(b in owner and owner[b]!=r for b in inside): report["split"].append(ident); continue
+        # Short lines next to the passage (a heading, "He is God!", "O Son of Spirit!") belong to it when its text has them.
+        def fits(b,opening=True):
+            if b in taken or not words(match_text(blocks[b])): return False
+            if title_page(blocks,b): return False
+            # A heading joins only a passage that opens with it; other lines when the passage has their words in sequence.
+            if blocks[b].size>=HEADING:
+                # A heading joins a passage that opens with it (several headings may: "– 12 –", a title, its translation).
+                # Never at a passage's end; short ones ("– IV –") only where the passage starts with them.
+                heading=fold(match_text(blocks[b]))
+                if not opening or not heading: return False
+                # It must come before the passage's first placed line in the app's text.
+                lead=fold(match_text(blocks[first]))[:40]; at=folded[r].find(lead) if lead else -1
+                return folded[r].startswith(heading) or (at>0 and heading in folded[r][:at])
+            return contains(row_words[r],words(match_text(blocks[b])))
+        while first>0 and fits(first-1): first-=1
+        while last_+1<len(blocks) and fits(last_+1,opening=False): last_+=1
+        # The title page (title, byline, the translator's credit under them) is never passage text.
+        chosen=[b for b in range(first,last_+1) if not title_page(blocks,b)]; taken.update(chosen)
+        # The official passage with the notes it cites, which follow it in the app as they do in some app copies (SAQ).
+        cited=dict.fromkeys(run[2] for b in chosen for run in blocks[b].runs if run[2] and notes and run[2] in notes)
+        # Compared with and without those notes, whichever fits the app's copy better.
+        body=[match_text(blocks[b]) for b in chosen]; extra=[match_text(x) for anchor in cited for x in notes[anchor]["blocks"]]
+        best=None
+        for joined in dict.fromkeys(["\n\n".join(body),"\n\n".join(body+extra)]):
+            official=shingles(joined,size)
+            # Both ways: the official text covers the app's, and holds nothing much the app's lacks.
+            score=(overlap_of(grams[r],official),overlap_of(official,grams[r]),joined)
+            if best is None or min(score[:2])>min(best[:2]): best=score
+        covered,within,joined=best
+        if min(covered,within)<MATCH_PASSAGE:
+            # Short passages lose many word sequences to one changed word ("lingers", "lingereth"); compare word by word too.
+            similar=difflib.SequenceMatcher(None,words(rows[r][1]),words(joined),autojunk=False).ratio()
+            if similar<MATCH_WORDS:
+                report["partial" if covered<within else "extra"].append((ident,round(min(covered,within),3),round(similar,3))); continue
+        result[ident]=chosen
+    # A passage bahai.org has revised (an Aqdas note rewritten) no longer matches by its words. When its neighbours are placed and
+    # the official paragraphs between them are unplaced, those paragraphs are that passage; it is reported as revised for review.
+    report["revised"]=[]
+    taken={b for chosen in result.values() for b in chosen}
+    for r,(ident,text) in enumerate(rows):
+        if not ordered or ident in result or r==0 or r==len(rows)-1: continue
+        before,after=rows[r-1][0],rows[r+1][0]
+        if before not in result or after not in result: continue
+        gap=list(range(max(result[before])+1,min(result[after])))
+        if not gap or any(b in taken or blocks[b].size>=HEADING for b in gap): continue
+        similar=difflib.SequenceMatcher(None,words(text),words("\n\n".join(match_text(blocks[b]) for b in gap)),autojunk=False).ratio()
+        if similar<REVISED_WORDS: continue
+        result[ident]=gap; taken.update(gap); report["revised"].append((ident,round(similar,3)))
+        for kind in ("unmatched","split","partial","extra"): report[kind]=[x for x in report[kind] if (x[0] if isinstance(x,tuple) else x)!=ident]
+    # Short official lines the app's copy lacks (a part's opening invocation, a line introducing the next passage) open the
+    # passage that follows them. Headings are structure the contents list already shows; long stretches are left out and reported.
+    starts=sorted((chosen[0],ident) for ident,chosen in result.items())
+    used={b for chosen in result.values() for b in chosen}; report["added"]=[]
+    for first,ident in starts:
+        b=first-1; lead=[]
+        # Small print (a translator's credit) does not open a passage.
+        while b>=0 and b not in used and blocks[b].size<HEADING and match_text(blocks[b]) and not FRONT.intersection(blocks[b].cls) and not 0<blocks[b].size<SMALL:
+            lead.insert(0,b); b-=1
+        while lead and blocks[lead[0]].tag=="hr": lead.pop(0)  # a separator does not open a passage
+        if not lead or len(lead)>ATTACH_BLOCKS or any(len(block_text(blocks[x]))>ATTACH_CHARS for x in lead): continue
+        before=lead[0]-1
+        if not (before<0 or before in used or blocks[before].size>=HEADING or blocks[before].tag=="hr" or not match_text(blocks[before])): continue
+        # The lines open the next passage after a heading or separator, or when they start with a number or end with a colon
+        # ("…in the fifth Tablet of Paradise, He saith:"); right after another passage they close that one (a note's last remark).
+        numbered=any("num" in run[1] for run in clean_runs(blocks[lead[0]].runs)[:1]) or re.match(r"\d+\.? ",block_text(blocks[lead[0]]))
+        if before>=0 and before in used and not numbered and not block_text(blocks[lead[-1]]).rstrip().endswith(":"):
+            previous=next(i for i,chosen in result.items() if before in chosen)
+            result[previous]=result[previous]+lead; used.update(lead); report["added"].append((previous,[block_text(blocks[x])[:60] for x in lead])); continue
+        result[ident]=lead+result[ident]; used.update(lead); report["added"].append((ident,[block_text(blocks[x])[:60] for x in lead]))
+    used={b for chosen in result.values() for b in chosen}
+    report["unused"]=[(b,match_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
+    return result,report
+
+def match_unordered(rows,blocks,size=5,notes=None,elsewhere=frozenset()):
+    """Matching for a collection the app orders its own way (prayers by category), where one app passage may gather pieces
+    the book prints apart (an obligatory prayer with the guidance quoted at the head of its section), and one piece may
+    belong to several passages. Each paragraph goes to every passage that holds it; a passage takes its paragraphs, in the
+    book's order, with the lines between two of them that no other passage holds, and short lines next to them that it has."""
+    grams=[shingles(text,size) for _,text in rows]; row_words=[words(text) for _,text in rows]
+    owners={}
+    for b,block in enumerate(blocks):
+        text=match_text(block)
+        if len(words(text))<size: continue
+        mine=shingles(text,size)
+        scores=[(len(mine&g)/len(mine),r) for r,g in enumerate(grams) if mine&g]
+        good=[(score,r) for score,r in scores if score>=MATCH_BLOCK]
+        if good: owners[b]={r for score,r in good}
+    claimed=set(owners)
+    result={}; report=dict(unmatched=[],split=[],partial=[],extra=[],added=[],revised=[])
+    for r,(ident,text) in enumerate(rows):
+        mine=sorted(b for b,o in owners.items() if r in o)
+        if not mine:
+            # A passage too short to place by word sequences takes a line with exactly its words that no other passage holds.
+            same=[b for b in range(len(blocks)) if b not in claimed and words(match_text(blocks[b]))==row_words[r]]
+            if len(same)==1: mine=same
+            else: report["unmatched"].append(ident); continue
+        chosen=set(mine)
+        for a,b in zip(mine,mine[1:]):
+            between=range(a+1,b)
+            if all(x not in claimed and contains(row_words[r],words(match_text(blocks[x]))) for x in between): chosen.update(between)
+        folded=fold(text)
+        def beside(x):
+            if x in claimed or x in chosen or not words(match_text(blocks[x])) or title_page(blocks,x): return False
+            if blocks[x].size>=HEADING: return folded.startswith(fold(match_text(blocks[x])))  # a title the passage opens with
+            return contains(row_words[r],words(match_text(blocks[x]))) and len(words(match_text(blocks[x])))<size
+        for b in list(chosen):  # short lines beside each piece (a title, "He is God!") that the passage has
+            for step in (-1,1):
+                x=b+step
+                while 0<=x<len(blocks) and beside(x): chosen.add(x); x+=step
+        chosen=sorted(chosen)
+        # Pieces the book prints apart are put in the order the app's passage has them (guidance after a prayer, say).
+        runs=[[chosen[0]]]
+        for b in chosen[1:]:
+            if b==runs[-1][-1]+1: runs[-1].append(b)
+            else: runs.append([b])
+        if len(runs)>1:
+            # The largest piece first; another only if it brings words the passage has and the pieces so far lack
+            # (a line the medium and long prayers share is not taken twice from the other prayer).
+            seen=set(); kept=[]
+            for run in sorted(runs,key=lambda run:-sum(len(words(match_text(blocks[b]))) for b in run)):
+                mine_=shingles("\n\n".join(match_text(blocks[b]) for b in run),size)&grams[r]
+                if not kept or len(mine_-seen)>=max(1,len(mine_)//2): kept.append(run); seen|=mine_
+            runs=kept
+        if len(runs)>1:
+            def place(run):
+                lead=next((fold(match_text(blocks[b]))[:40] for b in run if blocks[b].size<HEADING),"")  # its first paragraph
+                at=folded.find(lead) if lead else 0
+                return at if at>=0 else len(folded)
+            runs.sort(key=place); report.setdefault("composite",[]).append((ident,len(runs)))
+        chosen=[b for run in runs for b in run]
+        # Where the app's copy has the book's paragraphs in another order (guidance after the prayer rather than before it),
+        # the pieces follow the app: split wherever the app's order goes back, then sorted by where each piece is in the app.
+        pieces=[[]]; last=-1
+        for b in chosen:
+            key=fold(match_text(blocks[b]))[:30] if blocks[b].size<HEADING and len(words(match_text(blocks[b])))>=size else ""
+            # Looked for after the previous paragraph first, so a refrain ("Glorified be our Lord, the Most High!") stays in place.
+            at=folded.find(key,max(last,0)) if key else -1
+            if key and at<0:
+                at=folded.find(key)
+                if at>=0 and pieces[-1]:
+                    # Short lines just before (a tablet's title, "He is the Peerless!") go with the piece they open.
+                    moved=[]
+                    while pieces[-1] and len(words(match_text(blocks[pieces[-1][-1]])))<size: moved.insert(0,pieces[-1].pop())
+                    pieces.append(moved)
+            pieces[-1].append(b); last=max(last,at)
+        for i in range(len(pieces)-1):  # a heading belongs with what follows it
+            while pieces[i] and blocks[pieces[i][-1]].size>=HEADING: pieces[i+1].insert(0,pieces[i].pop())
+        pieces=[piece for piece in pieces if piece]
+        if len(pieces)>1:
+            def where(piece):
+                # Placed by its longest paragraph: short openings ("He is the Peerless!") recur in many tablets.
+                body=[b for b in piece if blocks[b].size<HEADING]
+                if not body: return 0
+                longest=max(body,key=lambda b:len(match_text(blocks[b])))
+                key=fold(match_text(blocks[longest]))[:60]; at=folded.find(key)
+                return at-sum(len(fold(match_text(blocks[b]))) for b in body[:body.index(longest)]) if at>=0 else len(folded)
+            if len(pieces)>MAX_PIECES:
+                # Rebuilding a passage from many pieces (the app's copy of a whole book) cannot be trusted to keep its order.
+                report.setdefault("too_composite",[]).append((ident,len(pieces))); continue
+            pieces.sort(key=where); chosen=[b for piece in pieces for b in piece]
+            if ident not in dict(report.get("composite",[])): report.setdefault("composite",[]).append((ident,len(pieces)))
+        cited=dict.fromkeys(run[2] for b in chosen for run in blocks[b].runs if run[2] and notes and run[2] in notes)
+        body=[match_text(blocks[b]) for b in chosen]; extra=[match_text(x) for anchor in cited for x in notes[anchor]["blocks"]]
+        best=None
+        for joined in dict.fromkeys(["\n\n".join(body),"\n\n".join(body+extra)]):
+            official=shingles(joined,size); score=(overlap_of(grams[r],official),overlap_of(official,grams[r]),joined)
+            if best is None or min(score[:2])>min(best[:2]): best=score
+        covered,within,joined=best
+        if min(covered,within)<MATCH_PASSAGE:
+            similar=difflib.SequenceMatcher(None,row_words[r],words(joined),autojunk=False).ratio()
+            # What the app's copy adds may be a passage of another book it already shows in bahai.org's text (the Aqdas
+            # paragraph on exemption the app's obligatory prayers repeat): that passage is not lost, so this one can be replaced.
+            repeated=overlap_of(grams[r],shingles(joined,size)|elsewhere)
+            if similar<MATCH_WORDS and not (covered>=0.5 and within>=MATCH_REPEATED and repeated>=MATCH_REPEATED):
+                report["partial" if covered<within else "extra"].append((ident,round(min(covered,within),3),round(similar,3))); continue
+            if similar<MATCH_WORDS: report.setdefault("repeats",[]).append((ident,round(covered,3),round(repeated,3)))
+        result[ident]=chosen
+    used={b for chosen in result.values() for b in chosen}
+    report["unused"]=[(b,match_text(blocks[b])[:100]) for b in range(len(blocks)) if b not in used]
+    return result,report
+
+def in_order(candidates):
+    """The longest chain of (paragraph, passage) pairs that keeps both in reading order, at most one passage per paragraph:
+    so a passage quoted elsewhere in the book (a note citing ¶189) does not pull that paragraph out of place."""
+    import bisect
+    keys=[]; ends=[]; back={}
+    for n,(b,r) in enumerate(candidates):
+        key=(r,b); i=bisect.bisect_left(keys,key)
+        back[n]=ends[i-1] if i else None
+        if i==len(keys): keys.append(key); ends.append(n)
+        else: keys[i]=key; ends[i]=n
+    chain=[]; n=ends[-1] if ends else None
+    while n is not None: chain.append(candidates[n]); n=back[n]
+    return chain[::-1]
+
+def title_page(blocks,b):
+    """The book's title, its byline, and the small print under them (a translator's credit): never passage text."""
+    byline=lambda x: blocks[x].tag=="h1" or "re" in blocks[x].cls
+    return byline(b) or (0<blocks[b].size<SMALL and b>0 and byline(b-1))
+
+def contains(haystack,needle):
+    """True when the word list needle appears as a run in haystack."""
+    n=len(needle)
+    return any(haystack[i:i+n]==needle for i in range(len(haystack)-n+1)) if n else False
+
+def overlap_of(target,found):
+    """Share of target's word sequences present in found."""
+    return len(target&found)/len(target) if target else 0.0
+
+def build_books(folder,log):
+    books=[]; replacements={}
+    for key,(category,slug) in BOOK_SOURCES.items():
+        if key not in BOOKS_DONE: continue
+        page=(folder/f"books/{slug}.html").read_text(); url,edition=xhtml_link(page,slug,category)
+        raw=(folder/f"books/{slug}.xhtml").read_bytes()
+        if sha256(raw)!=log[url]["sha256"]: raise ValueError(f"{slug}.xhtml does not match fetch-log.json")
+        reader=Reader(raw.decode("utf-8")); blocks=lines([b for b in reader.blocks if clean_runs(b.runs)])
+        base=key.split("+")[0]
+        rows=[row for row in app_rows(base) if row[0] not in replacements]  # a further source only sees what is still unmatched
+        if base in UNORDERED: rows=[(ident,without_reference(text,reader.title)) for ident,text in rows]
+        if base in UNORDERED:
+            elsewhere=set().union(*(shingles(row["text"],5) for row in replacements.values())) if replacements else set()
+            matched,report=match_unordered(rows,blocks,notes=reader.notes,elsewhere=elsewhere)
+        else: matched,report=match_rows(rows,blocks,notes=reader.notes)
+        if key in UNORDERED:
+            # A prayer the app lists twice (under two categories) gets the official text in both places.
+            texts=dict(rows)
+            for ident in list(report["unmatched"]):
+                twin=next((m for m in matched if difflib.SequenceMatcher(None,words(texts[ident]),words(texts[m]),autojunk=False).ratio()>=0.98),None)
+                if twin:
+                    matched[ident]=matched[twin]; report["unmatched"].remove(ident); report.setdefault("twins",[]).append((ident,twin))
+        lead={ident:len(lines) for ident,lines in report["added"]}
+        for ident,chosen in matched.items():
+            passage=Passage()
+            for b in chosen: passage.add_block(blocks[b],reader.notes)
+            passage.add_notes(reader.notes)
+            # The opening the contents list shows: from the app's own first paragraph, without bahai.org's margin numbers.
+            first=Passage(); start=lead.get(ident,0)
+            # An added line from the same paragraph as the first matched one (a title the app spells differently) is part of the opening.
+            while start>0 and blocks[chosen[start]].joined is blocks[chosen[start-1]]: start-=1
+            for b in chosen[start:]:
+                if blocks[b].size>=HEADING and any(blocks[x].size<HEADING for x in chosen[start:]): continue  # the number and title headings
+                first.add_block(blocks[b],reader.notes)
+                if len(first.text)>=120: break
+            numbers=[(a,b) for a,b,k in first.spans if k=="num"]
+            opening="".join(c for i,c in enumerate(first.text) if not any(a<=i<b for a,b in numbers))
+            replacements[ident]=dict(book=key,source=" ".join(reader.title.split()),text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(set(passage.cited)),
+                                     opening=" ".join(opening.split())[:120],anchor=next((blocks[b].anchor for b in chosen if blocks[b].anchor),None))
+        # The app keeps a book's footnotes as one passage; it gets bahai.org's notes, by the part they belong to.
+        if key in NOTES_ROWS:
+            ident=NOTES_ROWS[key]; passage=Passage(); group=None
+            for anchor,note in reader.notes.items():
+                if note["group"]!=group:
+                    group=note["group"]; heading=Block(None,"p",set()); heading.runs=[(group or "",frozenset(),None)]; heading.size=HEADING
+                    passage.add_block(heading,{})
+                for n,block in enumerate(note["blocks"]):
+                    line=Block(None,"note",set())
+                    line.runs=([(note["number"].translate(SUPERSCRIPT)+" ",frozenset(),None)] if n==0 else [])+block.runs
+                    passage.add_block(line,{})
+            replacements[ident]=dict(book=key,text=passage.text,words=word_count(passage.text),spans=passage.spans,notes=len(reader.notes),
+                                     opening=" ".join(passage.text.split())[:120],anchor=None)
+            for kind in ("unmatched","split","partial","extra"):
+                report[kind]=[x for x in report[kind] if (x[0] if isinstance(x,tuple) else x)!=ident]
+            matched[ident]=[]
+        books.append(dict(key=key,slug=slug,title=reader.title.strip(),author=reader.meta.get("author"),document_id=reader.meta.get("document-id"),edition=edition,
+                          rows=len(rows),replaced=len(matched),kept={k:v for k,v in report.items()},
+                          **provenance(log,url,dict(page_url=f"{SITE}/library/authoritative-texts/{category}/{slug}/"))))
+    return dict(collection="bahai-org-books",copyright=COPYRIGHT,terms=TERMS,parser_version=PARSER_VERSION,books=books,replacements=replacements)
+
+# Collections whose passages the app orders its own way (prayers by category), so matching does not follow the book's order.
+UNORDERED={"prayers"}
+
+# Collections whose footnotes the app keeps as one passage of their own.
+NOTES_ROWS={"tablets":"tablets:660","iqan":"iqan:287"}
+
+# Collections switched to the official text so far, one at a time.
+BOOKS_DONE=("hidden","gleanings","meditations","tablets","iqan","aqdas","epistle","saq","days","prayers","prayers+additional-abdul-baha","prayers+additional-bahaullah","prayers+additional-tablets","prayers+children","prayers+days","prayers+meditations","prayers+selections-abdul-baha","prayers+marriage","prayers+bab","prayers+gleanings","prayers+tablets","prayers+epistle","prayers+light-of-the-world","prayers+promulgation","prayers+obligatory-prayer-fasting","prayers+mashriqul-adhkar",)
+
+OUTPUTS={"uhj-messages.json":build_messages,"shoghi-effendi.json":build_shoghi,"bahai-org-books.json":build_books}
 
 def render(data): return json.dumps(data,ensure_ascii=False,indent=0,separators=(",",":"))+"\n"
 
@@ -503,7 +993,7 @@ def main(argv=None):
     parser.add_argument("sources",help="folder for the raw downloads")
     parser.add_argument("--refresh",action="store_true",help="download again even when a copy exists")
     parser.add_argument("--delay",type=float,default=1.0,help="seconds between requests (default 1)")
-    parser.add_argument("--only",choices=("uhj","se"))
+    parser.add_argument("--only",choices=("uhj","se","books"))
     args=parser.parse_args(argv)
     if args.command=="fetch": return 0 if fetch(args.sources,args.refresh,args.delay,args.only) else 1
     changed=build(args.sources,write=args.command=="build")

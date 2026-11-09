@@ -43,6 +43,8 @@ class VerseTests(unittest.TestCase):
     def test_paragraph_18_is_the_verse_on_ninety_five_times(self):
         item=next(i for i in reader.load_library() if i["id"]=="aqdas:Paragraphs:18")
         self.assertIn("Alláh-u-Abhá",item["text"]); self.assertIn("ninety-five times",item["text"])
-        self.assertEqual(item["citation"],"Bahá’u’lláh, The Kitáb-i-Aqdas, ¶18")
+        self.assertEqual(item["citation"],"Bahá’u’lláh, The Kitáb-i-Aqdas, ¶18. Copyright © Bahá’í International Community, bahai.org")
+        # The counter shows the verse without bahai.org's margin number.
+        self.assertTrue(reader.unnumbered(item).startswith("It hath been ordained that every believer in God"))
 
 if __name__=="__main__": unittest.main()

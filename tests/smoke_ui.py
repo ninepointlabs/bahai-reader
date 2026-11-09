@@ -118,7 +118,8 @@ with tempfile.TemporaryDirectory() as temp:
             assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Prayer"
             # Its directions are in italics, the words of the prayer are not.
             buffer=app.reader.get_buffer(); direction=buffer.get_tag_table().lookup("direction")
-            start=app.current["text"].index("To be recited"); words=app.current["text"].index("I bear witness")
+            # bahai.org's text: its italic paragraphs are the directions (its "To be recited" line is in capitals instead).
+            start=app.current["text"].index("“The daily obligatory prayers"); words=app.current["text"].index("I bear witness")
             assert buffer.get_iter_at_offset(start).has_tag(direction) and not buffer.get_iter_at_offset(words).has_tag(direction)
             app.step(1); assert app.current["tags"]==["Medium Obligatory Prayer"]
             app.step(1); app.step(1); assert app.current["tags"]==["Long Obligatory Prayer"]
@@ -243,7 +244,9 @@ with tempfile.TemporaryDirectory() as temp:
             app.navigate("hidden"); first=next(i for i in app.section_items if i["id"]=="hidden:1"); app.show_passage(first,app.groups[first["id"]])
             second=app.second.get_buffer(); text=lambda: second.get_text(second.get_start_iter(),second.get_end_iter(),False)
             assert app.secondscroll.get_visible() and app.current["match"]=="hidden:True:1", app.current["match"]
-            assert text().split("\n")[1].startswith("[4] ") and app.current["text"][:40] in text(), text()[:120]
+            # The stand-in second language is made from the BahaiPrayers.net text; English now shows bahai.org's.
+            source=next(i for i in reader.load_bahaiprayers(1) if i["id"]=="hidden:1")
+            assert text().split("\n")[1].startswith("[4] ") and source["text"][:40] in text(), text()[:120]
             app.navigate("prayers")
             assert app.secondscroll.get_visible() and "cannot be shown side by side" in text()
             app.navigate("writings"); gleaning=next(i for i in app.section_items if i["id"]=="gleanings:1"); app.show_passage(gleaning,app.groups[gleaning["id"]])
