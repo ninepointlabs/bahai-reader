@@ -108,7 +108,11 @@ Approved by Tim: **no** (not yet).
 
 ## CI
 
-GitHub Actions on #42, #43 and #44 (2026-11-11, about 15:10–15:30 UTC): the Flatpak job **passed** on #42 and #43 (it builds the bundle and starts the app in the sandbox; on #43 that covers the new `bahai_reader` package). The `build` job hung at its first step, `sudo apt-get update && sudo apt-get install …`, before any test ran, on all three PRs. The same day a local `ubuntu:24.04` container could not resolve `security.ubuntu.com` either, so this looks like an Ubuntu mirror problem, not the code. The runs need re-running once the mirrors answer; until then CI is **not green**, and the local results above are what has been verified.
+GitHub Actions on #42, #43 and #44, 2026-11-11 (UTC):
+
+- **Flatpak job: passed on all three** (it builds the bundle and starts the app in the GNOME 51 sandbox; on #43 and #44 that includes the new `bahai_reader` package).
+- **`build` job: never got past its first step**, `sudo apt-get update && sudo apt-get install …`, so no test ran there. First runs started 15:10–15:28 and were still on that step at 15:30, past the workflow's own 20-minute timeout. I cancelled them and re-ran them at 15:30; at 15:40 they were stuck on the same step again. The same day a local `ubuntu:24.04` container could not resolve `security.ubuntu.com`, so this looks like an Ubuntu mirror problem, not the code. The package install jobs (Debian 12, Fedora 43, Arch) depend on `build`, so they have not run on GitHub either.
+- **So CI is not green yet.** What has been verified is the local results above, which cover the same tests (the unit tests, all UI tests, and package installs in `debian:12`, `fedora:43` and `archlinux:base` containers). To do: re-run the `build` job once Ubuntu's mirrors answer (`gh run rerun <id>` on each PR's latest run).
 
 ## Accessibility / Orca
 
