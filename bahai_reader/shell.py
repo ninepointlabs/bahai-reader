@@ -4,14 +4,15 @@ so the views work unchanged in either; only the frame around them differs. Debia
 import os
 import shutil
 import sys
+import time
 import gi
-from gi.repository import Gtk, Gio, GLib, Pango
+from gi.repository import Gtk, Gdk, Gio, GLib, Pango
 
 from .config import APP_NAME
 from .labels import heading
 from .library import HIDDEN_WORDS, book_of, book_progress, book_summary, books
 from .settings import AUTHOR_ORDER
-from .ui import NARROW_WIDTH
+from .ui import NARROW_WIDTH, SHORTCUT_GROUPS
 
 ADWAITA_MINIMUM=(1,4)  # AdwNavigationSplitView, AdwToolbarView and AdwBreakpoint
 # The sidebar: key, label, symbolic icon.
@@ -35,6 +36,26 @@ def adwaita():
     if Adw and (Adw.get_major_version(),Adw.get_minor_version())>=ADWAITA_MINIMUM: return Adw
     if wanted=="adwaita": print("bahai-reader: libadwaita 1.4 or newer is needed for that window; using the classic one.",file=sys.stderr)
     return None
+
+OPENING=0.45  # seconds an AdwDialog takes to animate open
+
+def present_dialog(Adw,dialog,parent):
+    dialog.shown_at=time.monotonic(); Adw.Dialog.present(dialog,parent)
+
+def close_dialog(Adw,dialog):
+    """Closes an AdwDialog. libadwaita 1.5 (Ubuntu 24.04) leaves a dialog on screen for good if it is closed while still
+    animating open, so there a close that comes too early waits until the dialog is fully open; and one that is somehow
+    still attached afterwards is closed without its animation."""
+    if (Adw.get_major_version(),Adw.get_minor_version())>=(1,6): return Adw.Dialog.close(dialog)
+    def rescue():
+        if dialog.get_parent() is not None and dialog.get_can_close(): dialog.force_close()
+        return False
+    def close():
+        Adw.Dialog.close(dialog); GLib.timeout_add(600,rescue); return False
+    early=OPENING-(time.monotonic()-getattr(dialog,"shown_at",0))
+    if early>0: GLib.timeout_add(int(early*1000)+50,close)
+    else: close()
+    return True
 
 def author_rank(author):
     return (AUTHOR_ORDER.index(author) if author in AUTHOR_ORDER else len(AUTHOR_ORDER),author or "")
@@ -87,11 +108,15 @@ class ShellMixin:
         self.panel_button=panel; self.content_bar.pack_start(panel)
         more=Gtk.MenuButton(icon_name="view-more-symbolic",tooltip_text="Menu"); self.name_widget(more,"Menu"); self.app_menu=more; self.content_bar.pack_end(more)
         self.make_menu(more)
-        for widget in self.make_actions(): self.content_bar.pack_end(widget)
+        actions=self.make_actions()
+        # Save and Copy as icon buttons, made without a label so the name given to screen readers is the one they hear.
+        self.star=Gtk.Button(icon_name="non-starred-symbolic",tooltip_text=self.star.get_tooltip_text()); self.star.connect("clicked",self.bookmark)
+        self.copy=Gtk.Button(icon_name="edit-copy-symbolic",tooltip_text=self.copy.get_tooltip_text()); self.copy.connect("clicked",self.copy_passage)
+        self.name_widget(self.star,"Save"); self.name_widget(self.copy,"Copy with citation"); self.wide_header=(self.copy,)
+        for widget in (self.star,self.copy,actions[2]): self.content_bar.pack_end(widget)
         search=Gtk.Button(icon_name="system-search-symbolic",tooltip_text="Search the texts (Ctrl+K)"); search.connect("clicked",self.open_finder); self.name_widget(search,"Search the texts")
         self.content_bar.pack_end(search); self.content_search=search
-        self.star.set_child(None); self.star.set_icon_name("non-starred-symbolic"); self.copy.set_icon_name("edit-copy-symbolic")
-        self.name_widget(self.copy,"Copy"); self.text_menu.set_tooltip_text("Text and appearance")
+        self.text_menu.set_tooltip_text("Text and appearance"); self.name_widget(self.text_menu,"Text and appearance")
         content.add_top_bar(self.content_bar)
         self.make_views(); self.build_home(); self.build_library_view(); self.build_reader_place()
         content.set_content(self.views)
@@ -345,6 +370,68 @@ class ShellMixin:
                 if kind=="reading": label.set_lines(4); label.set_ellipsize(Pango.EllipsizeMode.END)
             card.append(label)
         return card
+
+    # ----- settings windows and the shortcuts dialog -----
+    def settings_window(self,attribute,title,icon,width=520,spacing=12):
+        """In the libadwaita window, a settings window (Location & reminders, Languages, Collections) is an AdwPreferencesDialog
+        (libadwaita 1.5+; AdwPreferencesWindow on 1.4) holding the same content as before. It keeps the small window's
+        interface (present, close, close-request, add_controller), so the code that fills and closes it is shared."""
+        Adw=self.Adw; app=self
+        def forget(*_):
+            if getattr(self,attribute,None) is window: setattr(self,attribute,None)
+            return False
+        if hasattr(Adw,"PreferencesDialog"):
+            class SettingsDialog(Adw.PreferencesDialog):
+                def present(self): present_dialog(Adw,self,app.window)
+                def close(self):
+                    # A dialog closes with an animation and says "closed" afterwards; forget it now, so opening it again at once
+                    # builds a fresh one instead of showing the one on its way out.
+                    if self.get_can_close(): forget()
+                    return close_dialog(Adw,self)
+                def connect(self,signal,callback,*args):
+                    if signal!="close-request": return super().connect(signal,callback,*args)
+                    # A small window's close-request may keep it open (Languages, while downloading) by returning True.
+                    self.set_can_close(False)
+                    def attempt(dialog):
+                        if not callback(dialog): forget(); dialog.force_close()
+                    return super().connect("close-attempt",attempt)
+            window=SettingsDialog(title=title,content_width=width,search_enabled=False)
+        else:
+            window=Adw.PreferencesWindow(title=title,transient_for=self.window,modal=True,default_width=width,search_enabled=False)
+        setattr(self,attribute,window)
+        # Closed, it is forgotten, so the next opening builds it afresh (as the small windows do).
+        if isinstance(window,Gtk.Window): window.connect("close-request",forget)
+        else: window.connect("closed",forget)
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
+        if not isinstance(window,Gtk.Window):
+            # Esc through the same close as the Close button (see close_dialog).
+            escape=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE)
+            escape.connect("key-pressed",lambda _c,key,*_:(window.close(),True)[1] if key==Gdk.KEY_Escape else False); window.add_controller(escape)
+        page=Adw.PreferencesPage(title=title,icon_name=icon); group=Adw.PreferencesGroup(); page.add(group); window.add(page)
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=spacing); group.add(box)
+        return window,box
+    def adwaita_shortcuts(self):
+        """The shortcuts in libadwaita's own dialog (1.8+), else GTK's shortcuts window; both list them by group, with the keys drawn."""
+        Adw=self.Adw
+        if hasattr(Adw,"ShortcutsDialog"):
+            dialog=Adw.ShortcutsDialog()
+            for title,items in SHORTCUT_GROUPS:
+                section=Adw.ShortcutsSection(title=title)
+                for name,keys in items: section.add(Adw.ShortcutsItem(title=name,accelerator=keys))
+                dialog.add(section)
+            dialog.connect("closed",lambda *_:setattr(self,"shortcuts_window",None))
+            self.shortcuts_window=dialog; dialog.present(self.window); return dialog
+        xml=['<interface><object class="GtkShortcutsWindow" id="window"><property name="modal">1</property><child><object class="GtkShortcutsSection"><property name="section-name">all</property>']
+        for title,items in SHORTCUT_GROUPS:
+            xml.append(f'<child><object class="GtkShortcutsGroup"><property name="title">{GLib.markup_escape_text(title)}</property>')
+            for name,keys in items:
+                xml.append(f'<child><object class="GtkShortcutsShortcut"><property name="title">{GLib.markup_escape_text(name)}</property><property name="accelerator">{GLib.markup_escape_text(keys)}</property></object></child>')
+            xml.append('</object></child>')
+        xml.append('</object></child></object></interface>')
+        window=Gtk.Builder.new_from_string("".join(xml),-1).get_object("window")
+        window.set_transient_for(self.window)
+        window.connect("close-request",lambda *_:(setattr(self,"shortcuts_window",None),False)[1])
+        self.shortcuts_window=window; window.present(); return window
 
     # ----- notices -----
     def shell_notice(self,text):

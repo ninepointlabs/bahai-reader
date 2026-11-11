@@ -205,8 +205,9 @@ class HighlightsMixin:
         """The Highlights & notes row at the top of Saved's contents."""
         row=getattr(self,"marks_row",None)
         if row is None or row.get_parent() is not self.toc: return
-        count=len(self.highlights()); row.label.set_text(f"Highlights & notes · {count}" if count else "Highlights & notes")
+        count=len(self.highlights()); text=f"Highlights & notes · {count}" if count else "Highlights & notes"
+        row.label.set_text(text); self.name_widget(row,text.replace(" · ",", "))
     def add_marks_row(self):
-        row=self.button("",self.show_marks); row.add_css_class("toc-passage"); row.set_tooltip_text("Every highlight and note")
+        row=self.row_button(self.show_marks); row.add_css_class("toc-passage"); row.set_tooltip_text("Every highlight and note")
         line=Gtk.Box(spacing=8); row.label=Gtk.Label(xalign=0,hexpand=True); line.append(row.label); line.append(Gtk.Image(icon_name="go-next-symbolic")); row.set_child(line)
         self.toc.prepend(row); self.marks_row=row; self.rebuild_marks_row()

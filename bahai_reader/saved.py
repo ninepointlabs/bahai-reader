@@ -73,13 +73,15 @@ class SavedMixin:
     def collections_dialog(self,*_):
         if getattr(self,"collections_window",None):
             self.collections_window.present(); return
-        window=Gtk.Window(title="Collections",transient_for=self.window,modal=True,default_width=460)
-        self.collections_window=window
-        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
-        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",lambda _c,key,*_: key==Gdk.KEY_Escape and (window.close() or True)); window.add_controller(keys)
-        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12)
-        for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
-        window.set_child(box)
+        if self.adwaita: window,box=self.settings_window("collections_window","Collections","folder-symbolic",width=460)
+        else:
+            window=Gtk.Window(title="Collections",transient_for=self.window,modal=True,default_width=460)
+            self.collections_window=window
+            keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
+            keys=Gtk.EventControllerKey(); keys.connect("key-pressed",lambda _c,key,*_: key==Gdk.KEY_Escape and (window.close() or True)); window.add_controller(keys)
+            box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12)
+            for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
+            window.set_child(box)
         box.append(Gtk.Label(label=f"Group saved passages into collections. Deleting a collection keeps its passages saved, under {UNSORTED}.",wrap=True,xalign=0,max_width_chars=52))
         rows=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8); box.append(rows)
         message=Gtk.Label(wrap=True,xalign=0,max_width_chars=52); message.add_css_class("dim-label"); box.append(message)

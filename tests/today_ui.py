@@ -22,6 +22,19 @@ def texts(app,card):
         child=child.get_next_sibling()
     return found
 
+def close_dialog(app,name):
+    """Closes a settings window and waits until it is gone. In the libadwaita window it is a dialog inside the main window,
+    which closes with an animation and holds the window's focus (and its close request) until then."""
+    import time as _time
+    from gi.repository import GLib as _GLib
+    window=getattr(app,name)
+    if window is not None: window.close()
+    if not hasattr(app.window,"get_visible_dialog"): return  # the classic window: small windows close at once
+    end=_time.monotonic()+4
+    # Until no dialog shows in the window at all (one closed earlier in the same step may still be on its way out).
+    while app.window.get_visible_dialog() is not None and _time.monotonic()<end:
+        _GLib.MainContext.default().iteration(False); _time.sleep(0.01)  # the closing animation needs real frame time
+
 with tempfile.TemporaryDirectory() as temp:
     reader.STATE=Path(temp)/"settings.json"; reader.LIBRARY=Path(temp)/"libraries"; reader.CACHE=Path(temp)/"cache"
     app=reader.Reader(); app.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
@@ -183,6 +196,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert reader.badi.UNPUBLISHED in texts(app,"date") and reader.badi.UNPUBLISHED in texts(app,"events") and not app.section_items, texts(app,"date")
             assert any("20 March 2065" in t for t in texts(app,"date"))
             # The keyboard: Ctrl+T lands on Today's first action, and Tab walks the cards from top to bottom.
+            close_dialog(app,"location_window")  # still open from the clock times above
             app.navigate("hidden"); assert app.key_pressed(None,Gdk.KEY_t,0,Gdk.ModifierType.CONTROL_MASK) and app.views.get_visible_child_name()=="today"
             first=app.window.get_focus(); assert isinstance(first,Gtk.Button) and first.is_ancestor(app.today_cards["sun"]), first
             app.location_dialog(); app.location_window.close()

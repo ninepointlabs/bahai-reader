@@ -10,6 +10,8 @@ On systems with libadwaita 1.4 or newer (Debian 13, Ubuntu 24.04, Fedora 43, Arc
 - **Writings** is the library. Opening a book turns the sidebar into that book’s contents (parts, chapters, passages), with **Back** to the library. The Hidden Words is one of the books.
 - **Prayers** lists the prayer categories, with **Obligatory prayers** (the three prayers, their guidance in the Kitáb-i-Aqdas, and the Alláh-u-Abhá counter) first.
 - **Saved** holds your collections.
+- **Location & reminders**, **Languages & offline libraries** and **Collections** open as libadwaita preferences dialogs, and **Keyboard shortcuts** (⋮ or Ctrl+?) as libadwaita’s shortcuts dialog, grouped and with the keys drawn.
+- Every control has a name for screen readers; an AT-SPI audit and a headless Orca run are in `scripts/accessibility/`.
 - The colours follow the Omarchy theme (or the chosen palette) through libadwaita’s own colour names, so every control matches. Notices appear as dismissable messages at the bottom of the window. Below 700 px the sidebar and the reader take turns. **F11** is focus mode: only the text.
 
 Where libadwaita is older than 1.4 (Debian 12 has 1.2), the app opens in the **classic window** described in the rest of this README, with the same texts, search, saved passages, Today and reminders. To choose the window yourself, start the app with `BAHAI_READER_SHELL=classic` or `BAHAI_READER_SHELL=adwaita` in its environment.
@@ -144,6 +146,7 @@ Square, undecorated window lets Hyprland supply themed borders. The interface us
 | Ctrl+D | Save or unsave the current passage |
 | Ctrl+H | Highlight the selected words (in the last colour used) and open its colour and note |
 | Ctrl+Shift+C | Copy the passage (or the selected words) with its citation |
+| Ctrl+? | Keyboard shortcuts (in the libadwaita window, its shortcuts dialog) |
 | F1 | About Bahá’í Reader |
 | F11 | Focus mode (libadwaita window): only the text; F11 or Escape brings the sidebar and header back |
 | Ctrl+Q | Quit (also from the small windows). While reminders keep running, it closes the window instead |

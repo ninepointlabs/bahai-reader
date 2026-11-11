@@ -57,6 +57,20 @@ def launch(*args):
 
 app=reader.Reader(background=True); app.register(None); assert not app.get_is_remote(), "another instance on this private bus"
 errors=[]; passed=[]; steps=[]; UTC=datetime.timezone.utc
+def close_dialog(app,name):
+    """Closes a settings window and waits until it is gone. In the libadwaita window it is a dialog inside the main window,
+    which closes with an animation and holds the window's focus (and its close request) until then."""
+    import time as _time
+    from gi.repository import GLib as _GLib
+    window=getattr(app,name)
+    if window is not None: window.close()
+    if not hasattr(app.window,"get_visible_dialog"): return  # the classic window: small windows close at once
+    end=_time.monotonic()+4
+    # Until no dialog shows in the window at all (one closed earlier in the same step may still be on its way out).
+    while app.window.get_visible_dialog() is not None and _time.monotonic()<end:
+        _GLib.MainContext.default().iteration(False); _time.sleep(0.01)  # the closing animation needs real frame time
+
+
 def wait(condition,seconds=60,what=""):
     """Runs the main loop until a condition holds."""
     end=time.monotonic()+seconds; context=GLib.MainContext.default()
@@ -82,7 +96,7 @@ def exercise():
         app.location_dialog(); app.keep_running_check.set_active(True)
         assert reader.AUTOSTART.exists() and "--background" in reader.AUTOSTART.read_text() and app.prefs["keep_running"] is True and app.held
         assert json.loads(reader.STATE.read_text())["keep_running"] is True and app.keep_running_status.get_text()=="Starts when you log in."
-        app.location_window.close()
+        close_dialog(app,"location_window")
         app.window.close(); wait(lambda:not app.window.get_visible(),what="window hidden")
         assert app.window is not None and not app.window.get_visible()
         reopen=launch(); wait(lambda:app.window.get_visible() and reopen.poll() is not None,what="reopen"); assert len(windows())==1
@@ -126,7 +140,7 @@ def exercise():
         app.keep_running_check.set_active(True); wait(lambda:app.keep_running_status.get_text()=="Starts when you log in.",what="portal response")
         assert portal_calls[-1]["autostart"] is True and portal_calls[-1]["commandline"]==["bahai-reader","--background"] and not reader.AUTOSTART.exists(), portal_calls[-1]
         reader.in_flatpak=saved; app.keep_running_check.set_active(False); assert not reader.AUTOSTART.exists() and not app.prefs["keep_running"] and not app.held
-        app.location_window.close()
+        close_dialog(app,"location_window")
         # The option off: closing the window ends the process, exactly as before.
         app.window.close(); passed.append("closing"); 
     except Exception as exc:

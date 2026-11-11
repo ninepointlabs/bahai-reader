@@ -91,8 +91,10 @@ class AboutMixin:
             self.about_window=None; return False
         window.connect("close-request",closed); window.present(); close.grab_focus()
 
-    def small_window(self,attribute,title,width=520,height=-1):
-        """A small window like Languages & offline libraries: Esc closes it, Ctrl+Q still quits, and it scrolls on a small screen."""
+    def small_window(self,attribute,title,width=520,height=-1,icon="preferences-system-symbolic"):
+        """A small window like Languages & offline libraries: Esc closes it, Ctrl+Q still quits, and it scrolls on a small screen.
+        In the libadwaita window it is a preferences dialog instead (see settings_window)."""
+        if self.adwaita: return self.settings_window(attribute,title,icon,width)
         window=Gtk.Window(title=title,transient_for=self.window,modal=True,default_width=width,default_height=height)
         setattr(self,attribute,window)
         keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
@@ -108,7 +110,8 @@ class AboutMixin:
 
     def shortcuts_dialog(self,*_):
         if getattr(self,"shortcuts_window",None):
-            self.shortcuts_window.present(); return
+            self.shortcuts_window.present() if isinstance(self.shortcuts_window,Gtk.Window) else self.shortcuts_window.present(self.window); return
+        if self.adwaita: return self.adwaita_shortcuts()
         window,box=self.small_window("shortcuts_window","Keyboard shortcuts",width=560)
         grid=Gtk.Grid(column_spacing=18,row_spacing=8); box.append(grid)
         for index,(keys,action) in enumerate(SHORTCUTS):
