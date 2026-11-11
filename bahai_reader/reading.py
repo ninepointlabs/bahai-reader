@@ -93,6 +93,7 @@ class ReadingMixin:
         self.star.set_sensitive(True); self.update_star()
         self.copy.set_sensitive(True)
         self.show_filing(); self.show_said()
+        self.paint_highlights()
         self.highlight()
         if self.adwaita: self.shell_titles()
 
@@ -130,6 +131,9 @@ class ReadingMixin:
         buffer=self.reader.get_buffer(); bounds=buffer.get_selection_bounds()
         excerpt=buffer.get_text(*bounds,False).strip() if bounds else None
         text=clipping(self.current,excerpt or None); self.window.get_clipboard().set(text)
+        if self.adwaita:
+            # The Copy button is an icon here; a short message says it worked.
+            self.toasts.add_toast(self.Adw.Toast(title="Copied with its citation",timeout=2)); return text
         self.copy.set_label("Copied")
         if getattr(self,"copy_reset",None): GLib.source_remove(self.copy_reset)
         def reset():

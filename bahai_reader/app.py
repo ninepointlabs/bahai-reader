@@ -16,6 +16,7 @@ from .location import LocationMixin
 from .reading import ReadingMixin
 from .reminders import RemindersMixin
 from .finder import FinderMixin
+from .highlights import HighlightsMixin
 from .saved import SavedMixin
 from .shell import ShellMixin, adwaita
 from .settings import CHROME_FONTS, WRITINGS_GROUPINGS, load_settings
@@ -24,7 +25,7 @@ from .today import TodayMixin
 from .ui import CONTENT_MIN_WIDTH, FADE_HEIGHT, NARROW_WIDTH, SECTION_ROWS
 from .widgets import Choice
 
-class Reader(ShellMixin, FinderMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMixin, TodayMixin, ThemeMixin, AboutMixin, LocationMixin, LanguagesMixin, Gtk.Application):
+class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMixin, TodayMixin, ThemeMixin, AboutMixin, LocationMixin, LanguagesMixin, Gtk.Application):
     def __init__(self,background=False):
         super().__init__(application_id="org.bahai.Reader")
         self.window=None; self.notices=[]; self.save_failed=False; self.background_launch=background; self.ticking=False; self.held=False
@@ -240,6 +241,7 @@ class Reader(ShellMixin, FinderMixin, ContentsMixin, ReadingMixin, SavedMixin, R
         self.next=self.button("Next →", lambda *_: self.step(1)); self.next.add_css_class("primary"); nav.append(self.next); footer.append(nav); right.append(footer)
         self.name_widget(self.previous,"Previous passage"); self.name_widget(self.next,"Next passage")
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); footer.append(self.status)
+        self.build_highlights()
     def finish_build(self):
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         # New installs open on Today; everyone else keeps the section they were in.
@@ -334,6 +336,7 @@ class Reader(ShellMixin, FinderMixin, ContentsMixin, ReadingMixin, SavedMixin, R
             if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.show_list(); self.search.grab_focus(); return True
             if key==Gdk.KEY_k: self.open_finder(); return True
+            if key==Gdk.KEY_h and self.selected_span(): self.highlight_selection(edit=True); return True
             if key==Gdk.KEY_q: self.quit_app(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
             if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True
