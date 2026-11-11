@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as temp:
         app.navigate("today")
     def exercise():
         try:
-            assert reader.json.loads(reader.STATE.read_text())["section"]=="today", "a new install opens on Today"
+            assert reader.json.loads(reader.STATE.read_text())["section"]==app.first_section(), "a new install opens on Today (Home in the libadwaita window)"
             # No location: one quiet line and a button; the date follows the calendar day.
             at(2026,11,11,20,0)
             assert texts(app,"date")[0]=="8 Qudrat 183 B.E.", texts(app,"date")

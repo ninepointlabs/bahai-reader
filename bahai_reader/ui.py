@@ -18,5 +18,5 @@ CLOCK_ASSEMBLY="Where days and nights vary greatly, prayer and fasting may follo
 SHORTCUTS=(("Ctrl+F","Show the contents panel and search this section"),("Alt+Right or Ctrl+Page Down","Next passage"),("Alt+Left or Ctrl+Page Up","Previous passage"),
            ("Ctrl+D","Save or unsave the current passage"),("Ctrl+Shift+C","Copy the passage (or the selected words) with its citation"),("Ctrl+T","Today"),("Ctrl+R","Random passage"),("Ctrl+Shift+A","Alláh-u-Abhá counter"),
            ("Space or Enter","In the counter: count one"),("Backspace","In the counter: undo one"),("Ctrl+0","In the counter: start over"),("Escape","In the counter: back to where you were"),
-           ("F1","About Bahá’í Reader"),("Ctrl+Q","Quit"),("Escape","Show the contents panel again if it is hidden; in a narrow window, switch back; closes the small windows"),
+           ("F1","About Bahá’í Reader"),("F11","Focus mode: only the text (libadwaita window); F11 or Escape again brings the sidebar and header back"),("Ctrl+Q","Quit"),("Escape","Show the contents panel again if it is hidden; in a narrow window, switch back; closes the small windows"),
            ("Tab / Shift+Tab","Move between search, the contents list and the reading pane"),("Page Up / Page Down","Scroll the passage"))

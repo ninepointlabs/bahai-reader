@@ -7,8 +7,9 @@ from gi.repository import Gtk, Gdk, GLib, Pango
 from . import config
 from .citations import clipping
 from .labels import heading, subtitle
-from .library import directions, load_library, passage_of_the_day, reflections
+from .library import book_of, directions, load_library, passage_of_the_day, reflections
 from .rendering import apply_spans
+from .settings import RECENT_BOOKS
 from .ui import CITATION_GAP
 
 class ReadingMixin:
@@ -55,7 +56,13 @@ class ReadingMixin:
         return True
 
     def show_passage(self,item,group):
-        self.current=item; self.active_group=group; self.prefs["last"]=item["id"]; self.save(); self.show_view("reading")
+        self.current=item; self.active_group=group; self.prefs["last"]=item["id"]
+        book=book_of(item)
+        if book:
+            # Continue reading: where each book was left, most recent first.
+            self.prefs.setdefault("positions",{})[book]=item["id"]
+            self.prefs["recent"]=[book]+[b for b in self.prefs.get("recent",[]) if b!=book][:RECENT_BOOKS-1]
+        self.save(); self.show_view("reading")
         self.position.set_text(f"{group.index(item)+1} of {len(group)}" if item in group and len(group)>1 else "")
         # The category it was opened in: the one tag its whole group shares.
         context=next((t for t in item["tags"] if all(t in g["tags"] for g in group)),None) if item in group else None
@@ -87,6 +94,7 @@ class ReadingMixin:
         self.copy.set_sensitive(True)
         self.show_filing(); self.show_said()
         self.highlight()
+        if self.adwaita: self.shell_titles()
 
     def on_passage(self):
         """Copy, Save and Previous/Next act on the passage on show, not one behind the counter."""
@@ -94,9 +102,11 @@ class ReadingMixin:
 
     def update_star(self):
         saved=bool(self.current) and self.current["id"] in self.prefs.get("saved",[])
+        self.name_widget(self.star,"Saved" if saved else "Save")
+        if self.adwaita:
+            self.star.set_icon_name("starred-symbolic" if saved else "non-starred-symbolic"); self.update_counts(); return
         # Narrow windows show only the star; the tooltip keeps the words.
         self.star.set_label(("★" if saved else "☆")+("" if self.narrow else (" Saved" if saved else " Save")))
-        self.name_widget(self.star,"Saved" if saved else "Save")
 
     def step(self,delta):
         if self.on_passage() and self.current in self.active_group:
@@ -140,7 +150,7 @@ class ReadingMixin:
 
     def open_passage(self,item,label):
         """Shows a passage from any section, in its place in that section's contents."""
-        if self.section!=item["section"]: self.navigate(item["section"])
+        if self.section!=item["section"] or (self.adwaita and item["section"]=="writings" and self.book!=book_of(item)): self.navigate(item["section"],book=book_of(item))
         elif self.search.get_text(): self.search.set_text(""); self.filter()
         self.show_passage(item,self.groups[item["id"]]); self.show_content()
         self.subtitle.set_text(label+" · "+self.subtitle.get_text())

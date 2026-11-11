@@ -1,4 +1,6 @@
 """Run with xvfb-run -a /usr/bin/python3 tests/smoke_ui.py [installed|flatpak]."""
+import os
+os.environ["BAHAI_READER_SHELL"]="classic"  # the classic window in depth; shell_ui.py covers the libadwaita window
 import sys
 import tempfile
 from pathlib import Path

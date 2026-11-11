@@ -29,6 +29,7 @@ class RemindersMixin:
         if getattr(self,"today_day",None)!=badi.observed_date(self.now(),self.place()) and self.section=="today":
             self.rebuild()
         if self.views.get_visible_child_name()=="today": self.refresh_today()
+        if self.views.get_visible_child_name()=="home": self.refresh_home()
         self.show_said()
         return True
 

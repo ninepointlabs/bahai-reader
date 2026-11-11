@@ -1,5 +1,7 @@
 """Narrow and wide windows keep the text, Today, the counter and Previous/Next on screen.
 Run with xvfb-run -a /usr/bin/python3 tests/layout_ui.py [installed|flatpak]; each size runs in its own process."""
+import os
+os.environ["BAHAI_READER_SHELL"]="classic"  # the classic window's layout (the libadwaita window's is tested in shell_ui.py)
 import json
 import subprocess
 import sys

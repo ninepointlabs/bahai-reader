@@ -8,6 +8,9 @@ import badi
 
 from .config import short_path
 SECTIONS=("today","prayers","obligatory","hidden","writings","saved")
+# The libadwaita window adds a Home page; the classic window opens Today in its place.
+SHELL_SECTIONS=SECTIONS+("home",)
+RECENT_BOOKS=6  # how many books Continue reading remembers
 
 # "Monospace" is the look before 0.2, the fontconfig monospace family (Omarchy's configured font).
 CHROME_FONTS={"System":None,"Monospace":"monospace"}
@@ -36,7 +39,15 @@ def clean_settings(data):
     if not (isinstance(prefs.get("language"),int) and not isinstance(prefs.get("language"),bool)): prefs.pop("language",None)
     if not (isinstance(prefs.get("compare"),int) and not isinstance(prefs.get("compare"),bool)): prefs.pop("compare",None)
     if prefs.get("section")=="gleanings": prefs["section"]="writings"
-    if prefs.get("section") not in SECTIONS: prefs.pop("section",None)
+    if prefs.get("section") not in SHELL_SECTIONS: prefs.pop("section",None)
+    if not isinstance(prefs.get("book"),str): prefs.pop("book",None)
+    # Continue reading: the last passage read in each book, and the books in the order they were last read.
+    if "positions" in prefs:
+        positions=prefs["positions"] if isinstance(prefs["positions"],dict) else {}
+        prefs["positions"]={k:v for k,v in positions.items() if isinstance(k,str) and isinstance(v,str)}
+    if "recent" in prefs:
+        recent=prefs["recent"] if isinstance(prefs["recent"],list) else []
+        prefs["recent"]=list(dict.fromkeys(b for b in recent if isinstance(b,str)))[:RECENT_BOOKS]
     if prefs.get("theme") not in THEMES: prefs.pop("theme",None)
     if prefs.get("chrome_font") not in CHROME_FONTS: prefs.pop("chrome_font",None)
     if prefs.get("writings_by") not in WRITINGS_GROUPINGS: prefs.pop("writings_by",None)
