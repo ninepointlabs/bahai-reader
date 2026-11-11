@@ -4,6 +4,8 @@ Brief: UX Phases 1 and 2, Python + GTK 4 + libadwaita (approved by Tim 2026-11-1
 Source review: “Bahá’í Reader UX and Stack Review” (read 2026-11-11).
 Nothing here is merged, tagged or released. Nothing was pushed to `main`.
 
+**Where things stand (2026-11-11): all Phase 1 and Phase 2 work in the brief is in open PRs #42–#48, none merged.** Left for Tim: review and merge in order, the 0.2.0 release decision (no version bump, tag or release made), and re-running CI once Ubuntu's mirrors answer (see “CI”).
+
 **Mockups approved 2026-11-11** (“Go with those and continue”, relayed by Hermes). Phase 2 shell work is under way in stacked PRs; nothing is merged.
 
 Decisions taken with that approval (the defaults I recommended; say if any is wrong):
@@ -19,12 +21,12 @@ Decisions taken with that approval (the defaults I recommended; say if any is wr
 | Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | open, not merged |
 | Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | open, not merged |
 | Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, approved, not merged |
-| Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | see below once opened | open, not merged |
-| Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | see below once opened | open, not merged |
-| Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | see below once opened | open, not merged |
-| Phase 2, step 3/6 (rest): settings windows as AdwPreferencesDialog, shortcuts dialog, accessibility pass with Orca | `feat/prefs-shortcuts-a11y` (base: `feat/highlights-notes`, **stacked on #47**) | see below once opened | open, not merged |
+| Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | https://github.com/ninepointlabs/bahai-reader/pull/45 | open, not merged |
+| Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | https://github.com/ninepointlabs/bahai-reader/pull/46 | open, not merged |
+| Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | https://github.com/ninepointlabs/bahai-reader/pull/47 | open, not merged |
+| Phase 2, step 3/6 (rest): settings windows as AdwPreferencesDialog, shortcuts dialog, accessibility pass with Orca | `feat/prefs-shortcuts-a11y` (base: `feat/highlights-notes`, **stacked on #47**) | https://github.com/ninepointlabs/bahai-reader/pull/48 | open, not merged |
 
-Merge order: #42, then #43, then #44. Each one's base is the previous branch; GitHub retargets it when the one below merges.
+Merge order: #42 → #43 → #44 → #45 → #46 → #47 → #48. Each PR's base is the branch before it; GitHub retargets it when the one below merges. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
 ### Phase 1 (one PR)
 
@@ -198,11 +200,11 @@ Approved by Tim: **yes**, 2026-11-11 (“Go with those and continue”, relayed 
 
 ## CI
 
-GitHub Actions on #42, #43 and #44, 2026-11-11 (UTC):
+GitHub Actions, 2026-11-11 (UTC), on every PR #42–#48:
 
-- **Flatpak job: passed on all three** (it builds the bundle and starts the app in the GNOME 51 sandbox; on #43 and #44 that includes the new `bahai_reader` package).
-- **`build` job: never got past its first step**, `sudo apt-get update && sudo apt-get install …`, so no test ran there. First runs started 15:10–15:28 and were still on that step at 15:30, past the workflow's own 20-minute timeout. I cancelled them and re-ran them at 15:30; at 15:40 they were stuck on the same step again. The same day a local `ubuntu:24.04` container could not resolve `security.ubuntu.com`, so this looks like an Ubuntu mirror problem, not the code. The package install jobs (Debian 12, Fedora 43, Arch) depend on `build`, so they have not run on GitHub either.
-- **So CI is not green yet.** What has been verified is the local results above, which cover the same tests (the unit tests, all UI tests, and package installs in `debian:12`, `fedora:43` and `archlinux:base` containers). To do: re-run the `build` job once Ubuntu's mirrors answer (`gh run rerun <id>` on each PR's latest run).
+- **Flatpak job: passed** on each PR that got that far (#42–#46 so far; it builds the bundle and starts the app in the GNOME 51 sandbox, which from #45 is the libadwaita window).
+- **`build` job: never got past `sudo apt-get update && sudo apt-get install …`** on any PR: it hangs until the 20-minute job timeout (cancelled). I cancelled and re-ran the first three once at 15:30; same result. A local `ubuntu:24.04` container could not resolve `security.ubuntu.com` the same day, so this looks like an Ubuntu mirror problem, not the code. The package install jobs (Debian 12, Fedora 43, Arch) depend on `build`, so they have not run on GitHub either.
+- **So CI is not green.** What has been verified is the local results above, which cover the same tests (unit tests, every UI test in both windows, package installs in `debian:12`, `fedora:43` and `archlinux:base`). To do: re-run each PR's latest run once Ubuntu's mirrors answer (`gh run rerun <run id>`).
 
 ## Open questions and blocked gates
 
@@ -210,5 +212,7 @@ Answered 2026-11-11 by “Go with those and continue” (as I read it; correct m
 
 Still open:
 1. **CI** cannot run its `build` job while Ubuntu's mirrors are failing (see “CI”); re-run when they answer.
+4. **Not done (optional or out of scope in the brief):** gettext/translation set-up (optional; not started), the About window is still the app's own (not `AdwAboutDialog`), the Aa popover stays a popover (it is not a settings window), and highlights are not shown in the side-by-side second language.
+5. **0.2.0 release prep** (VERSION, RELEASE-NOTES.md, the metainfo `<release>`, the website's download links, the autonomix-cli install line) is not done: it belongs with the release, which needs Tim's OK.
 2. **Ubuntu 24.04's libadwaita version** is still unconfirmed here (believed 1.5, which would get the new window; otherwise it falls back to classic, which is safe either way).
 3. **Release 0.2.0** is the intended end; no version bump, tag or release without Tim's OK.
