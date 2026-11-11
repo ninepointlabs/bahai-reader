@@ -12,10 +12,10 @@ Nothing here is merged, tagged or released. Nothing was pushed to `main`.
 | --- | --- | --- | --- |
 | Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | open, not merged |
 | Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | open, not merged |
-| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | see the mockups PR (below once opened) | open, **waiting for Tim’s approval** |
+| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, **waiting for Tim’s approval** |
 | Phase 2, steps 3–6: new shell and the rest | — | — | **blocked on mockup approval** |
 
-Merge order: #42, then #43, then the mockups PR. Each one's base is the previous branch; GitHub retargets it when the one below merges.
+Merge order: #42, then #43, then #44. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
 ### Phase 1 (one PR)
 
@@ -100,11 +100,15 @@ On Hidden Words Arabic no. 1, the official 0.1.9 text opens with “HE IS THE GL
 
 ## Mockups
 
-**Made; waiting for Tim’s approval.** In the repo at [`design/mockups/phase2/`](design/mockups/phase2/README.md) on the `design/phase2-mockups` branch (mockups PR below). Ten stills: Home/library, Reader (with a highlight and a note), Reader for a long work with contents, Today, Saved (collections, highlights and notes), Ctrl+K search, Focus mode, Narrow Home, Narrow Reader, and the Reader in Dark. The README lists the eleven design decisions to confirm (for example: Today folds into Home, Obligatory prayers move under Prayers, the Hidden Words becomes a library book, F11 for focus mode).
+**Made; waiting for Tim’s approval.** In the repo at [`design/mockups/phase2/`](design/mockups/phase2/README.md) on the `design/phase2-mockups` branch, PR https://github.com/ninepointlabs/bahai-reader/pull/44. Ten stills: Home/library, Reader (with a highlight and a note), Reader for a long work with contents, Today, Saved (collections, highlights and notes), Ctrl+K search, Focus mode, Narrow Home, Narrow Reader, and the Reader in Dark. The README lists the eleven design decisions to confirm (for example: Today folds into Home, Obligatory prayers move under Prayers, the Hidden Words becomes a library book, F11 for focus mode).
 
 They are HTML drawn in libadwaita’s layout and rendered in headless Chrome, not running code. All quoted text, titles and counts come from the bundled library through `extract.py` (quotations were checked against the texts: for example “Free thyself from the fetters of this world” is Persian no. 40). Day-to-day content (passage of the day, reading positions, highlights, notes) is example data.
 
 Approved by Tim: **no** (not yet).
+
+## CI
+
+GitHub Actions on #42, #43 and #44 (2026-11-11, about 15:10–15:30 UTC): the Flatpak job **passed** on #42 and #43 (it builds the bundle and starts the app in the sandbox; on #43 that covers the new `bahai_reader` package). The `build` job hung at its first step, `sudo apt-get update && sudo apt-get install …`, before any test ran, on all three PRs. The same day a local `ubuntu:24.04` container could not resolve `security.ubuntu.com` either, so this looks like an Ubuntu mirror problem, not the code. The runs need re-running once the mirrors answer; until then CI is **not green**, and the local results above are what has been verified.
 
 ## Accessibility / Orca
 
