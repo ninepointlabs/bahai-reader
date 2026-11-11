@@ -23,7 +23,8 @@ jobs:
       # The window this runner's libadwaita gives (the libadwaita one from 1.4), then the same tests in the classic window,
       # which Debian 12 and any system without libadwaita 1.4 get. layout, chrome and smoke always test the classic window.
       - run: xvfb-run -a /usr/bin/python3 tests/shell_ui.py
-      - run: for t in navigation today robustness dropdown; do BAHAI_READER_SHELL=classic xvfb-run -a /usr/bin/python3 tests/${t}_ui.py || exit 1; done
+      - run: xvfb-run -a /usr/bin/python3 tests/finder_ui.py
+      - run: for t in navigation today robustness dropdown finder; do BAHAI_READER_SHELL=classic xvfb-run -a /usr/bin/python3 tests/${t}_ui.py || exit 1; done
       - run: BAHAI_READER_SHELL=classic xvfb-run -a dbus-run-session -- /usr/bin/python3 tests/background_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/navigation_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/chrome_ui.py

@@ -60,7 +60,7 @@ class ShellMixin:
         self.book_back=Gtk.Button(icon_name="go-previous-symbolic",visible=False,tooltip_text="Back"); self.book_back.connect("clicked",lambda *_:self.leave_book())
         bar.pack_start(self.book_back)
         self.side_title=Adw.WindowTitle(title=APP_NAME); bar.set_title_widget(self.side_title)
-        find=Gtk.Button(icon_name="system-search-symbolic",tooltip_text="Search the contents (Ctrl+F)"); find.connect("clicked",lambda *_:self.find_in_contents()); bar.pack_end(find); self.find_button=find
+        find=Gtk.Button(icon_name="system-search-symbolic",tooltip_text="Search the texts (Ctrl+K)"); find.connect("clicked",self.open_finder); self.name_widget(find,"Search the texts"); bar.pack_end(find); self.find_button=find
         side.add_top_bar(bar)
         self.sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.switcher=Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE); self.switcher.add_css_class("navigation-sidebar"); self.switcher_rows={}; self.nav_counts={}
@@ -88,10 +88,12 @@ class ShellMixin:
         more=Gtk.MenuButton(icon_name="view-more-symbolic",tooltip_text="Menu"); self.name_widget(more,"Menu"); self.app_menu=more; self.content_bar.pack_end(more)
         self.make_menu(more)
         for widget in self.make_actions(): self.content_bar.pack_end(widget)
+        search=Gtk.Button(icon_name="system-search-symbolic",tooltip_text="Search the texts (Ctrl+K)"); search.connect("clicked",self.open_finder); self.name_widget(search,"Search the texts")
+        self.content_bar.pack_end(search); self.content_search=search
         self.star.set_child(None); self.star.set_icon_name("non-starred-symbolic"); self.copy.set_icon_name("edit-copy-symbolic")
         self.name_widget(self.copy,"Copy"); self.text_menu.set_tooltip_text("Text and appearance")
         content.add_top_bar(self.content_bar)
-        self.make_views(); self.build_home(); self.build_library_view()
+        self.make_views(); self.build_home(); self.build_library_view(); self.build_reader_place()
         content.set_content(self.views)
         self.content_page=Adw.NavigationPage(title=APP_NAME,child=content,tag="content")
         self.splitview.set_content(self.content_page)
@@ -186,6 +188,7 @@ class ShellMixin:
             sub=self.heading.get_text()
         else: title,sub={"saved":("Saved",""),"prayers":("Prayers","")}.get(self.section,(APP_NAME,""))
         self.content_title.set_title(title); self.content_title.set_subtitle(sub or "")
+        if view=="reading": self.shell_progress()
         self.content_page.set_title(title)
     def update_counts(self):
         saved=len(self.prefs.get("saved",[]))
@@ -198,6 +201,45 @@ class ShellMixin:
         if book==HIDDEN_WORDS: self.navigate("hidden")
         else: self.navigate("writings",book=book)
         self.show_content()
+
+    # ----- the reader: where the passage is, and how far through the book -----
+    def build_reader_place(self):
+        """Above the text, the book and part as a small line, then the heading, then the passage's place and reading time.
+        In the footer, progress through the whole book in place of “1 of 71”."""
+        right=self.heading.get_parent()
+        right.reorder_child_after(self.subtitle,None); self.subtitle.add_css_class("eyebrow"); self.subtitle.remove_css_class("dim-label")
+        self.reading_meta=Gtk.Label(wrap=True,justify=Gtk.Justification.CENTER); self.reading_meta.add_css_class("dim-label"); self.reading_meta.add_css_class("count")
+        right.insert_child_after(self.reading_meta,self.heading)
+        nav=self.position.get_parent(); nav.set_halign(Gtk.Align.FILL); nav.set_margin_start(18); nav.set_margin_end(18)
+        progress=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6,hexpand=True,valign=Gtk.Align.CENTER)
+        labels=Gtk.Box(spacing=12); self.progress_where=Gtk.Label(xalign=0,hexpand=True,ellipsize=Pango.EllipsizeMode.END); self.progress_percent=Gtk.Label(xalign=1)
+        for label in (self.progress_where,self.progress_percent): label.add_css_class("dim-label"); label.add_css_class("count"); labels.append(label)
+        progress.append(labels); self.book_bar=Gtk.ProgressBar(); progress.append(self.book_bar); self.progress_box=progress
+        nav.insert_child_after(progress,self.previous); self.position.set_visible(False)
+        self.next.remove_css_class("primary"); self.next.add_css_class("suggested-action"); self.next.add_css_class("pill")
+        self.shelf_cache=(None,{})
+    def shelf(self):
+        if self.shelf_cache[0] is not self.items: self.shelf_cache=(self.items,books(self.items))
+        return self.shelf_cache[1]
+    def shell_progress(self):
+        item=self.current
+        if not item:
+            self.reading_meta.set_text(""); self.progress_box.set_visible(False); return
+        book=book_of(item); passages=self.shelf().get(book) if book else None
+        if passages:
+            index=next((n for n,i in enumerate(passages) if i is item or i["id"]==item["id"]),0)
+            before,total=book_progress(passages,item); minutes=max(1,round(item["word_count"]/230))
+            self.reading_meta.set_text(f"Passage {index+1} of {len(passages)} · about {minutes} minute{'s' if minutes!=1 else ''}")
+            fraction=before/total if total else 0
+            self.progress_where.set_text(f"{book} · {index+1} of {len(passages)}"); self.progress_percent.set_text(f"{round(100*fraction)}% of the book")
+            self.book_bar.set_fraction(fraction); self.book_bar.set_visible(True); self.progress_box.set_visible(True)
+            self.name_widget(self.book_bar,f"{round(100*fraction)}% through {book}")
+        else:
+            group=self.active_group if item in self.active_group else [item]; index=group.index(item)
+            self.reading_meta.set_text("")
+            self.progress_where.set_text(f"{index+1} of {len(group)}" if len(group)>1 else ""); self.progress_percent.set_text("")
+            self.book_bar.set_fraction(index/(len(group)-1) if len(group)>1 else 0); self.book_bar.set_visible(len(group)>1)
+            self.progress_box.set_visible(len(group)>1)
 
     # ----- Home and the library -----
     def build_home(self):

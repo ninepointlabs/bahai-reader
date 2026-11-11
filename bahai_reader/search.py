@@ -9,6 +9,49 @@ def fold(text):
     text="".join(c for c in unicodedata.normalize("NFKD",text) if not unicodedata.combining(c)).casefold()
     return re.sub(r"[’‘ʼʻ'`´\-‐‑]","",text)
 
+PUNCTUATION=re.compile(r"[’‘ʼʻ'`´\-‐‑]")
+
+def fold_map(text):
+    """fold(text), and for each of its characters the index in text it came from, so a match can be shown in the original."""
+    out=[]; where=[]
+    for i,c in enumerate(text):
+        for d in unicodedata.normalize("NFKD",c):
+            if unicodedata.combining(d): continue
+            for e in d.casefold():
+                if not PUNCTUATION.fullmatch(e): out.append(e); where.append(i)
+    return "".join(out),where
+
+def find(text,query):
+    """Where query (already folded) first occurs in text, as (start, end) in text, or None."""
+    folded,where=fold_map(text)
+    at=folded.find(query)
+    if at<0 or not query: return None
+    return where[at],where[at+len(query)-1]+1
+
+def search_passages(items,query):
+    """Passages matching query anywhere in their title, text or categories, in library order. Matching uses each passage's
+    folded text, made once and kept; where the match is in the text is worked out only for the results shown (find)."""
+    query=fold(query.strip())
+    if not query: return []
+    found=[]
+    for item in items:
+        if "search" not in item: item["search"]=fold(item["title"]+" "+item["text"]+" "+" ".join(item["tags"]))
+        if query in item["search"]: found.append(item)
+    return found
+
+def snippet(text,span,width=150):
+    """(before, match, after) around span, cut at word boundaries, with … where text was left out."""
+    if not span:
+        flat=" ".join(text.split()); cut=flat[:width].rsplit(" ",1)[0] if len(flat)>width else flat
+        return (cut+("…" if len(flat)>width else ""),"","")
+    start,end=span; left=max(0,start-width//2); right=min(len(text),end+width//2)
+    if left: left=text.find(" ",left)+1 or left
+    if right<len(text): right=text.rfind(" ",end,right) if text.rfind(" ",end,right)>end else right
+    clean=lambda t:" ".join(t.split())
+    before=("…" if left else "")+clean(text[left:start])+(" " if text[left:start][-1:].isspace() else "")
+    after=(" " if text[end:right][:1].isspace() else "")+clean(text[end:right])+("…" if right<len(text) else "")
+    return before,text[start:end],after
+
 def load_cities(path=None):
     """The bundled city list, largest first, as (name, ASCII name, label, latitude, longitude, zone); loaded when first searched."""
     if path is None and CITIES: return CITIES
