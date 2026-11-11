@@ -59,6 +59,7 @@ class ContentsMixin:
                 path=f"{self.section}/{tag}"
                 self.add_entries(self.branch(self.toc,tag,path,items),path,items)
         self.no_match=Gtk.Label(wrap=True,xalign=0,visible=False); self.no_match.add_css_class("dim-label"); self.toc.append(self.no_match)
+        if self.section=="saved": self.add_marks_row()
         self.query=None; self.filter(); self.show_second()
 
     def add_entries(self,container,path,items):

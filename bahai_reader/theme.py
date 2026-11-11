@@ -150,6 +150,31 @@ button.current-passage {{ background: alpha({fg},0.1); font-weight: bold; }}
 .tag {{ font-size: 11px; font-weight: bold; letter-spacing: 1px; color: {accent_text}; }}'''
 
 
+# Highlight colours: the theme's own yellow, green, blue and magenta where it has them (Omarchy themes do), else these.
+HIGHLIGHT_DEFAULTS={"yellow":"#d0a215","green":"#879a39","blue":"#3f7fc4","magenta":"#ce5d97"}
+
+def highlight_colors(background,omarchy=None):
+    """{colour name: "rgba(…)"} for highlighting text on this background: translucent, so the text keeps its own colour."""
+    omarchy=omarchy or {}; dark=luminance(background)<0.4
+    result={}
+    for name,default in HIGHLIGHT_DEFAULTS.items():
+        value=omarchy.get(name) if HEX.fullmatch(str(omarchy.get(name,""))) else default
+        r,g,b=(int(value[i:i+2],16) for i in (1,3,5))
+        result[name]=f"rgba({r},{g},{b},{0.40 if dark else 0.32})"
+    return result
+
+def marks_stylesheet(colors,foreground,interface_font="sans-serif"):
+    """The colour swatches in the highlight bar, in the same colours as the highlights, and the note editor (in the interface
+    font, not the reading font every text view otherwise gets)."""
+    css="".join(f".swatch-{name} {{ background: {value}; }}\n" for name,value in colors.items())
+    return css+f"""button.swatch {{ min-width: 24px; min-height: 24px; border-radius: 99px; padding: 0; margin: 0; border: 2px solid transparent; box-shadow: none; }}
+textview.note-editor, textview.note-editor text {{ font-family: {interface_font}; font-size: 14px; }}
+.swatch.chosen {{ border-color: {foreground}; }}
+.mark-card {{ padding: 12px 14px; }}
+.mark-bar {{ min-width: 4px; border-radius: 2px; }}
+"""
+
+
 class ThemeMixin:
     """Reader methods: palettes, contrast checks and the stylesheet; the live Omarchy theme follow."""
     def theme_tick(self):
@@ -190,6 +215,11 @@ class ThemeMixin:
             self.Adw.StyleManager.get_default().set_color_scheme(self.Adw.ColorScheme.FORCE_DARK if luminance(bg)<0.4 else self.Adw.ColorScheme.FORCE_LIGHT)
             self.provider.load_from_data(adwaita_stylesheet(self.colors,self.prefs,colors if mode=="Omarchy" else None,variables=self.css_variables).encode())
         else: self.provider.load_from_data(stylesheet(self.colors,self.prefs).encode())
+        self.highlight_rgba=highlight_colors(bg,colors if mode=="Omarchy" else None)
+        if getattr(self,"marks_provider",None):
+            # The desktop's interface font, as "Adwaita Sans 11" in GTK's settings.
+            family=(self.window.get_settings().get_property("gtk-font-name") or "sans-serif").rsplit(" ",1)[0].replace('"','')
+            self.marks_provider.load_from_data(marks_stylesheet(self.highlight_rgba,fg,f'"{family}", sans-serif').encode()); self.recolor_highlights()
         for view in (self.reader,self.second):
             view.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); view.set_pixels_below_lines(14)
         self.fit_margins()

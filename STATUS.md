@@ -21,7 +21,8 @@ Decisions taken with that approval (the defaults I recommended; say if any is wr
 | Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, approved, not merged |
 | Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | see below once opened | open, not merged |
 | Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | see below once opened | open, not merged |
-| Phase 2, rest: highlights and notes, preferences and shortcuts dialogs, Orca pass | — | — | to do, in that order |
+| Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | see below once opened | open, not merged |
+| Phase 2, rest: preferences and shortcuts dialogs, accessibility/Orca pass | — | — | to do |
 
 Merge order: #42, then #43, then #44. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
@@ -66,9 +67,26 @@ Packaging: `.deb`/`.rpm`/Arch (nfpm), the AppImage and the Flatpak now also inst
 - The libadwaita reader: the book and part as a small line above the heading; “Passage 3 of 27 · about 33 minutes” below it; the footer shows “God Passes By · 3 of 27”, a progress bar through the whole book by words, and “5% of the book” (a prayer shows its place in its category instead). Next is the one suggested (primary) button.
 - Tests: `tests/test_finder.py` (8), `tests/finder_ui.py` (in either window; CI runs it in both). README: features and Ctrl+K in the shortcuts table.
 
+### Phase 2: highlights and notes (`feat/highlights-notes`)
+
+- Select words: after the selection settles, a small bar offers four colours (the theme's yellow, green, blue and magenta; defaults where a palette has none), **Note…** and Copy. Ctrl+H highlights the selection in the last colour and opens its note. Clicking a highlight opens its colour, note and Remove. Words with a note are underlined. Both windows have it.
+- Stored in `settings.json` as `highlights`: passage id, character offsets into the passage text, the highlighted words, colour, note, date. Never written into the texts; Copy still copies the official text with its citation. If an update moves the text, a highlight finds its words again (the nearest place they occur); if the words are gone it is kept and listed but not drawn. `clean_settings` drops malformed records.
+- **Saved → Highlights & notes** (the first row of Saved's contents) lists every highlight, newest first, with its place and note; each opens its passage scrolled to the highlight.
+- Also fixed: in the libadwaita window, Copy no longer replaces its icon with the word “Copied”; a short toast says it instead.
+- Tests: `tests/test_marks.py` (9), `tests/highlights_ui.py` (in either window; CI runs it in both). README: feature and Ctrl+H (not bound by Omarchy/Hyprland).
+
 ## Tests actually run
 
 All on 2026-11-11.
+
+Highlights and notes (`feat/highlights-notes`):
+
+| Where | What | Result |
+| --- | --- | --- |
+| TUF | unit tests | 256 OK (1 skipped) |
+| Arch container, libadwaita window | all 11 UI tests (`shell`, `finder`, `highlights` + the 8 existing) | all passed |
+| Arch container, classic window | `finder`, `highlights`, `navigation`, `robustness`, `today`, `dropdown`, `background` | all passed |
+| `debian:12` (classic window) | unit tests, `highlights_ui`, `finder_ui`, `smoke_ui`, `navigation_ui` | all passed |
 
 Ctrl+K search and book progress (`feat/search-progress`):
 

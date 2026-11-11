@@ -116,6 +116,7 @@ class FinderMixin:
         if span:
             buffer=self.reader.get_buffer()
             start,end=buffer.get_iter_at_offset(span[0]),buffer.get_iter_at_offset(span[1])
+            self.quiet_selection=tuple(span)  # a found word is selected to show it, not to offer a highlight
             buffer.select_range(start,end)
             mark=buffer.create_mark(None,start,True)
             def scroll():

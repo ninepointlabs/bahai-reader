@@ -7,6 +7,7 @@ import sys
 import badi
 
 from .config import short_path
+from .marks import COLORS, clean_highlights
 SECTIONS=("today","prayers","obligatory","hidden","writings","saved")
 # The libadwaita window adds a Home page; the classic window opens Today in its place.
 SHELL_SECTIONS=SECTIONS+("home",)
@@ -80,6 +81,8 @@ def clean_settings(data):
         prefs["reminders_sent"]=[k for k in sent if isinstance(k,str) and DAY_KEY.match(k)]
     if not isinstance(prefs.get("keep_records"),bool): prefs.pop("keep_records",None)
     if "records" in prefs: prefs["records"]=clean_records(prefs["records"])
+    if "highlights" in prefs: prefs["highlights"]=clean_highlights(prefs["highlights"])
+    if prefs.get("highlight_color") not in COLORS: prefs.pop("highlight_color",None)
     expanded=prefs.get("expanded")
     if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
     return prefs
