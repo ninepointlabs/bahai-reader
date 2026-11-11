@@ -25,17 +25,19 @@ class LanguagesMixin:
     def language_dialog(self,*_):
         if hasattr(self,"language_window") and self.language_window:
             self.language_window.present(); return
-        window=Gtk.Window(title="Languages & offline libraries",transient_for=self.window,modal=True,default_width=490)
-        self.language_window=window
-        keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
-        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14)
-        for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
-        window.set_child(box)
+        if self.adwaita: window,box=self.settings_window("language_window","Languages & offline libraries","preferences-desktop-locale-symbolic",width=490,spacing=14)
+        else:
+            window=Gtk.Window(title="Languages & offline libraries",transient_for=self.window,modal=True,default_width=490)
+            self.language_window=window
+            keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
+            box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14)
+            for edge in ("top","bottom","start","end"): getattr(box,"set_margin_"+edge)(20)
+            window.set_child(box)
         intro=Gtk.Label(label="English is included. Download another language once to read it offline. Your choice is remembered.",wrap=True,xalign=0,max_width_chars=52); box.append(intro)
         choice=Choice(search=True); box.append(choice)
         info=Gtk.Label(wrap=True,xalign=0,max_width_chars=52); box.append(info)
         progress=Gtk.Label(wrap=True,xalign=0,max_width_chars=52); box.append(progress)
-        action=self.button("",lambda *_: start(False)); box.append(action)
+        action=self.row_button(lambda *_: start(False)); box.append(action)
         refresh=self.button("Update downloaded content",lambda *_: start(True)); box.append(refresh)
         update_catalog=self.button("Check available languages",lambda *_: check_catalog()); box.append(update_catalog)
         def populate(selected):

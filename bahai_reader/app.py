@@ -76,6 +76,15 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
         return texts
     def button(self, text, callback):
         b=Gtk.Button(label=text); b.connect("clicked", callback); return b
+    def arrow_button(self, text, callback):
+        """Previous and Next: the arrows are drawn, but a screen reader hears the name given (“Next passage”), which a button's own
+        label would override. get_label/set_label act on the visible text."""
+        label=Gtk.Label(label=text); b=Gtk.Button(child=label); b.connect("clicked", callback)
+        b.get_label=label.get_label; b.set_label=label.set_label; return b
+    def row_button(self, callback):
+        """A button that gets its own content (a box of labels). Made without a label: GTK keeps a button's label, even an
+        empty one, as the name screen readers announce, over the name given with name_widget."""
+        b=Gtk.Button(); b.connect("clicked", callback); return b
     def name_widget(self,widget,text):
         """The name a screen reader announces. PyGObject before 3.44 (Debian 12) may not pass it; the visible text still applies."""
         try: widget.update_property([Gtk.AccessibleProperty.LABEL],[text])
@@ -148,10 +157,10 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
         for edge in ("top","bottom","start","end"): getattr(entries,"set_margin_"+edge)(6)
         more_pop=Gtk.Popover(); more_pop.set_child(entries); more.set_popover(more_pop); more_pop.add_css_class("menu")
         def menu_entry(label,action,shortcut=None):
-            entry=self.button("",lambda _,a=action:(more_pop.popdown(),a())); entry.add_css_class("flat")
+            entry=self.row_button(lambda _,a=action:(more_pop.popdown(),a())); entry.add_css_class("flat")
             row=Gtk.Box(spacing=24); row.append(Gtk.Label(label=label,xalign=0,hexpand=True))
             if shortcut: keys=Gtk.Label(label=shortcut); keys.add_css_class("dim-label"); row.append(keys)
-            entry.set_child(row); entry.get_label=lambda:label; entries.append(entry); return entry
+            entry.set_child(row); entry.get_label=lambda:label; self.name_widget(entry,label.rstrip("…")); entries.append(entry); return entry
         self.search_entry=menu_entry("Search the texts…",self.open_finder,"Ctrl+K")
         self.random_entry=menu_entry("Random passage",self.random_passage,"Ctrl+R")
         # In a narrow window the header's Copy rests here.
@@ -195,6 +204,7 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
         self.grouping.set_tooltip_text("List the Writings by book, or by author and then book")
         self.grouping.connect("changed",self.change_grouping); box.append(self.grouping)
         self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); box.append(self.search)
+        self.name_widget(self.search,"Search this section")
         into_list=Gtk.EventControllerKey(); into_list.connect("key-pressed", self.search_key); self.search.add_controller(into_list)
         self.count=Gtk.Label(xalign=0); self.count.add_css_class("dim-label"); box.append(self.count)
         scroll=Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.EXTERNAL); box.append(scroll)
@@ -236,9 +246,9 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
         self.collection.connect("changed",self.file_current); self.filling=False
         self.filing.append(self.button("Manage…",self.collections_dialog))
         footer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12); footer.add_css_class("reading-footer"); self.footer=footer
-        nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); self.previous=self.button("← Previous", lambda *_: self.step(-1)); nav.append(self.previous)
+        nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); self.previous=self.arrow_button("← Previous", lambda *_: self.step(-1)); nav.append(self.previous)
         self.position=Gtk.Label(); self.position.add_css_class("dim-label"); self.position.add_css_class("count"); nav.append(self.position)
-        self.next=self.button("Next →", lambda *_: self.step(1)); self.next.add_css_class("primary"); nav.append(self.next); footer.append(nav); right.append(footer)
+        self.next=self.arrow_button("Next →", lambda *_: self.step(1)); self.next.add_css_class("primary"); nav.append(self.next); footer.append(nav); right.append(footer)
         self.name_widget(self.previous,"Previous passage"); self.name_widget(self.next,"Next passage")
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); footer.append(self.status)
         self.build_highlights()
@@ -336,6 +346,7 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
             if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.show_list(); self.search.grab_focus(); return True
             if key==Gdk.KEY_k: self.open_finder(); return True
+            if key==Gdk.KEY_question: self.shortcuts_dialog(); return True
             if key==Gdk.KEY_h and self.selected_span(): self.highlight_selection(edit=True); return True
             if key==Gdk.KEY_q: self.quit_app(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True

@@ -67,6 +67,7 @@ class ReadingMixin:
         # The category it was opened in: the one tag its whole group shares.
         context=next((t for t in item["tags"] if all(t in g["tags"] for g in group)),None) if item in group else None
         self.heading.set_text(heading(item,context))
+        self.name_widget(self.reader,heading(item,context))  # what a screen reader says on entering the text
         self.subtitle.set_text(subtitle(item,context))
         self.reader.set_direction(Gtk.TextDirection.LTR if self.language_info().get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
         self.stop_scroll()

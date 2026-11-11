@@ -82,6 +82,23 @@ with tempfile.TemporaryDirectory() as temp:
         assert app.key_pressed(None,Gdk.KEY_F11,0,0) and app.focus_mode and not bars.get_reveal_top_bars() and app.splitview.get_collapsed()
         yield
         assert app.key_pressed(None,Gdk.KEY_Escape,0,0) and not app.focus_mode and bars.get_reveal_top_bars() and not app.splitview.get_collapsed()
+        # Settings windows are libadwaita preferences dialogs; closing them clears them as before.
+        Adw=app.Adw; kind=Adw.PreferencesDialog if hasattr(Adw,"PreferencesDialog") else Adw.PreferencesWindow
+        for opener,name in ((app.location_dialog,"location_window"),(app.language_dialog,"language_window"),(app.collections_dialog,"collections_window")):
+            opener(); yield
+            window=getattr(app,name); assert isinstance(window,kind), (name,type(window))
+            window.close(); yield
+            assert getattr(app,name) is None, name
+        # The location window's content works inside it: the city search finds Haifa.
+        app.location_dialog(); yield
+        app.location_search.set_text("Haifa"); yield; yield
+        assert app.location_results.get_first_child() is not None
+        app.location_window.close(); yield
+        # Keyboard shortcuts: libadwaita's dialog (1.8+) or GTK's shortcuts window, from Ctrl+?.
+        assert app.key_pressed(None,Gdk.KEY_question,0,Gdk.ModifierType.CONTROL_MASK|Gdk.ModifierType.SHIFT_MASK); yield
+        assert app.shortcuts_window is not None and type(app.shortcuts_window).__name__ in ("ShortcutsDialog","ShortcutsWindow"), type(app.shortcuts_window)
+        app.shortcuts_window.close(); yield
+        assert app.shortcuts_window is None
         # Notices are toasts.
         app.notice("A test notice."); assert app.notice_texts()[-1]=="A test notice."
         # The palette reaches libadwaita through its named colours.

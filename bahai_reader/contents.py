@@ -36,8 +36,9 @@ class ContentsMixin:
             groups=self.filed(); self.section_items=[i for g in groups.values() for i in g]
         if self.section=="prayers" and self.adwaita:
             # In the libadwaita window the obligatory prayers are the first group of Prayers.
-            row=self.button("",lambda *_:self.navigate("obligatory")); row.add_css_class("toc-passage"); row.set_tooltip_text("The three obligatory prayers, their guidance, and the Alláh-u-Abhá counter")
+            row=self.row_button(lambda *_:self.navigate("obligatory")); row.add_css_class("toc-passage"); row.set_tooltip_text("The three obligatory prayers, their guidance, and the Alláh-u-Abhá counter")
             line=Gtk.Box(spacing=8); line.append(Gtk.Label(label="Obligatory prayers",xalign=0,hexpand=True)); line.append(Gtk.Image(icon_name="go-next-symbolic")); row.set_child(line)
+            self.name_widget(row,"Obligatory prayers")
             self.toc.append(row); self.obligatory_row=row
         if self.section=="obligatory":
             row=self.button("Alláh-u-Abhá counter",self.show_counter); row.add_css_class("toc-passage"); row.get_child().set_xalign(0); self.toc.append(row); self.counter_row=row
@@ -75,7 +76,7 @@ class ContentsMixin:
             parent=self.branch(container,subgroup,path+"/"+subgroup,entries) if subgroup else container
             for item in entries:
                 self.groups.setdefault(item["id"],entries)
-                button=self.button("",lambda _,i=item,g=entries:self.open_from_list(i,g))
+                button=self.row_button(lambda _,i=item,g=entries:self.open_from_list(i,g))
                 label=Gtk.Label(label=list_title(item),xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
                 content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 content.append(label)
@@ -86,6 +87,8 @@ class ContentsMixin:
                 # The whole title, which the row may cut off.
                 button.set_tooltip_text(item["title"]+(" — "+word_label(item) if item["section"]=="prayers" else ""))
                 button.add_css_class("toc-passage")
+                # GTK names a button from a plain label, not from a box of labels; a screen reader needs it said.
+                self.name_widget(button,list_title(item)+(", "+word_label(item) if item["section"]=="prayers" else ""))
                 parent.append(button); button.container=parent; self.passage_buttons.append((item,button))
 
     def change_grouping(self,choice):
@@ -147,7 +150,7 @@ class ContentsMixin:
         total=Gtk.Label(label=self.unit_label(len(items))); total.add_css_class("dim-label"); total.add_css_class("count")
         heading.append(total)
         expander.set_label_widget(heading)
-        expander.set_tooltip_text(title)
+        expander.set_tooltip_text(title); self.name_widget(expander,f"{title}, {self.unit_label(len(items))}")
         box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3,margin_start=14,margin_top=6,margin_bottom=6)
         box.expander=expander; expander.container=parent
         expander.set_child(box); parent.append(expander); self.branches[path]=expander; self.branch_rows.append((expander,total,path,items))
@@ -188,6 +191,7 @@ class ContentsMixin:
                 if entry["opens"]:
                     # Only a date with readings or prayers is a button; the rest are plain text, not stops for the keyboard.
                     widget=Gtk.Button(child=content); widget.connect("clicked",lambda _,o=entry["opens"]:o()); widget.add_css_class("toc-passage")
+                    self.name_widget(widget,f"{entry['title']}. {entry['detail']}")
                 else:
                     widget=content; widget.add_css_class("toc-date")
                 widget.set_tooltip_text(entry["title"]); parent.append(widget); self.passage_buttons.append((entry,widget))

@@ -32,7 +32,7 @@ class LocationMixin:
     def location_dialog(self,*_):
         if getattr(self,"location_window",None):
             self.location_window.present(); return
-        window,box=self.small_window("location_window","Location & reminders",height=640)
+        window,box=self.small_window("location_window","Location & reminders",height=640,icon="find-location-symbolic")
         title=Gtk.Label(label="Location",xalign=0); title.add_css_class("heading"); box.append(title)
         box.append(Gtk.Label(label="Used to work out sunrise, noon and sunset. It stays on this computer and is never sent anywhere.",wrap=True,xalign=0,max_width_chars=56))
         summary=Gtk.Label(wrap=True,xalign=0,max_width_chars=56,selectable=False); box.append(summary); self.location_summary=summary

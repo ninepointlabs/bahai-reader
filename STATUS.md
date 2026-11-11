@@ -22,7 +22,7 @@ Decisions taken with that approval (the defaults I recommended; say if any is wr
 | Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | see below once opened | open, not merged |
 | Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | see below once opened | open, not merged |
 | Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | see below once opened | open, not merged |
-| Phase 2, rest: preferences and shortcuts dialogs, accessibility/Orca pass | — | — | to do |
+| Phase 2, step 3/6 (rest): settings windows as AdwPreferencesDialog, shortcuts dialog, accessibility pass with Orca | `feat/prefs-shortcuts-a11y` (base: `feat/highlights-notes`, **stacked on #47**) | see below once opened | open, not merged |
 
 Merge order: #42, then #43, then #44. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
@@ -75,9 +75,34 @@ Packaging: `.deb`/`.rpm`/Arch (nfpm), the AppImage and the Flatpak now also inst
 - Also fixed: in the libadwaita window, Copy no longer replaces its icon with the word “Copied”; a short toast says it instead.
 - Tests: `tests/test_marks.py` (9), `tests/highlights_ui.py` (in either window; CI runs it in both). README: feature and Ctrl+H (not bound by Omarchy/Hyprland).
 
+### Phase 2: preferences, shortcuts and accessibility (`feat/prefs-shortcuts-a11y`)
+
+- In the libadwaita window, Location & reminders, Languages & offline libraries and Collections are `AdwPreferencesDialog`s (`AdwPreferencesWindow` on libadwaita 1.4), holding the same content as before. A small adapter keeps the old window interface (present, close, close-request), so their code and tests are unchanged; the classic window keeps its small windows.
+- Keyboard shortcuts: `AdwShortcutsDialog` (libadwaita 1.8+), else GTK's `ShortcutsWindow` built from XML (works on GTK 4.8); four groups with the keys drawn. Ctrl+? opens it (also ⋮). The classic window keeps its list. README table updated.
+- Accessibility fixes found by the audit (both windows unless noted): contents rows, branch headers, calendar dates, the Obligatory prayers and Highlights & notes rows, and ⋮ menu entries had **no name** for screen readers (GTK names a button from a plain label only, and a button made with a label, even an empty one, keeps that label as its name over the one given); the contents search had no name; Previous/Next were heard as "Next →" (now "Next passage"/"Previous passage"); Save and Copy in the libadwaita header (now icon buttons named "Save", "Copy with citation"); the reading text is now named by the passage's heading ("Arabic no. 1 read only text"); search results are said once, not with the opening words twice.
+
+## Accessibility / Orca results
+
+Run 2026-11-11 in a throwaway Arch container (`scripts/accessibility/`, reproducible): Xvfb, the AT-SPI bus, **Orca 51.1** with speech-dispatcher 0.12.1 (no audio device; what Orca speaks is read from its debug log), at-spi2-core 2.62.1, libadwaita 1.10, GTK 4.24. The app was walked through 15 screens (Home, a library card, the library, a book, its contents, the text, Save, Prayers, Obligatory prayers, the counter, Today, Ctrl+K search and a result, the ⋮ menu, Highlights & notes), moving focus as a user would.
+
+- **AT-SPI audit: 0 unnamed controls on all 15 screens** (25 to 123 controls each). Before the fixes: up to 50 unnamed per screen (every contents row).
+- **Orca spoke 34 distinct utterances**; all are in `scripts/accessibility/orca-2026-11-11.txt`. Examples: "Next passage button", "Arabic no. 1 read only text", "Said today toggle button not pressed", "Sections List with 4 items", "Search dialog … 893 passages; the first 60 are listed", "Results List with 60 items", "Highlights & notes button".
+- **Not covered:** a person using Orca with real key presses and audio (focus was moved by the test, not by Tab/arrow keys), Braille, the classic window under Orca (it shares the naming fixes), and Orca on TUF (not installed; no sudo). Worth one session with a screen-reader user before 0.2.0.
+
 ## Tests actually run
 
 All on 2026-11-11.
+
+Preferences, shortcuts and accessibility (`feat/prefs-shortcuts-a11y`):
+
+| Where | What | Result |
+| --- | --- | --- |
+| TUF | unit tests | 256 OK (1 skipped) |
+| Arch container, libadwaita window | all 11 UI tests (`shell_ui` now also opens the three preferences dialogs, searches a city inside one, and opens the shortcuts dialog with Ctrl+?) | all passed |
+| Arch container, classic window | `finder`, `highlights`, `navigation`, `robustness`, `today`, `dropdown`, `background` | all passed |
+| `debian:12` (classic window) | unit tests, `highlights_ui`, `finder_ui`, `smoke_ui`, `navigation_ui`, `layout_ui` | all passed |
+| `debian:12` | `dropdown_ui` | **fails, and fails the same way on `main`**: it asserts the language list is searchable, which PyGObject 3.42 (Debian 12) cannot do (known since the October QA). CI never runs it on Debian 12. Not a regression. |
+| Accessibility container | AT-SPI audit + Orca 51.1 | 0 unnamed controls on 15 screens; transcript saved |
 
 Highlights and notes (`feat/highlights-notes`):
 
@@ -178,10 +203,6 @@ GitHub Actions on #42, #43 and #44, 2026-11-11 (UTC):
 - **Flatpak job: passed on all three** (it builds the bundle and starts the app in the GNOME 51 sandbox; on #43 and #44 that includes the new `bahai_reader` package).
 - **`build` job: never got past its first step**, `sudo apt-get update && sudo apt-get install …`, so no test ran there. First runs started 15:10–15:28 and were still on that step at 15:30, past the workflow's own 20-minute timeout. I cancelled them and re-ran them at 15:30; at 15:40 they were stuck on the same step again. The same day a local `ubuntu:24.04` container could not resolve `security.ubuntu.com`, so this looks like an Ubuntu mirror problem, not the code. The package install jobs (Debian 12, Fedora 43, Arch) depend on `build`, so they have not run on GitHub either.
 - **So CI is not green yet.** What has been verified is the local results above, which cover the same tests (the unit tests, all UI tests, and package installs in `debian:12`, `fedora:43` and `archlinux:base` containers). To do: re-run the `build` job once Ubuntu's mirrors answer (`gh run rerun <id>` on each PR's latest run).
-
-## Accessibility / Orca
-
-Not started (Phase 2, step 6). Orca is not installed on TUF.
 
 ## Open questions and blocked gates
 

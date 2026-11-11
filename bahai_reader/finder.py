@@ -102,7 +102,9 @@ class FinderMixin:
             title=Gtk.Label(xalign=0,ellipsize=Pango.EllipsizeMode.END); title.set_markup(f"<b>{GLib.markup_escape_text(name)}</b>"); lines.append(title)
             body=Gtk.Label(xalign=0,wrap=True,lines=2,ellipsize=Pango.EllipsizeMode.END,max_width_chars=80); body.add_css_class("dim-label")
             body.set_markup(GLib.markup_escape_text(before)+"<b>"+GLib.markup_escape_text(match)+"</b>"+GLib.markup_escape_text(after)); lines.append(body)
-            row.set_child(lines); self.name_widget(row,f"{row.place}, {name}: {before}{match}{after}")
+            # Said once: the place, the passage's name (a prayer's opening words are the snippet already), then the words found.
+            spoken=f"{row.place}: {before}{match}{after}" if item["section"]=="prayers" else f"{row.place}, {name}: {before}{match}{after}"
+            row.set_child(lines); self.name_widget(row,spoken.replace("…"," "))
             self.finder_results.append(row)
         shown=min(len(found),SHOWN)
         self.finder_status.set_text(f"No passages match “{text}”." if not found else
