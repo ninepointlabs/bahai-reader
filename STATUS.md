@@ -10,9 +10,12 @@ Nothing here is merged, tagged or released. Nothing was pushed to `main`.
 
 | Step | Branch | PR | State |
 | --- | --- | --- | --- |
-| Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | see PR list below | open, not merged |
+| Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | open, not merged |
+| Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | see the split PR (linked in its description and below once opened) | open, not merged |
+| Phase 2, step 2: mockups | — | — | not started |
+| Phase 2, steps 3–6: new shell and the rest | — | — | **blocked on mockup approval** |
 
-PR links are filled in below as each PR is opened.
+Merge order: #42 first; the split PR's base is #42's branch and GitHub retargets it to `main` when #42 merges.
 
 ### Phase 1 (one PR)
 
@@ -25,9 +28,34 @@ PR links are filled in below as each PR is opened.
 
 Also: the said-today toggle under an obligatory prayer has a tooltip explaining what it does. README features, the Aa/⋮ description and the interface-font note are updated; the keyboard shortcuts are unchanged.
 
+### Phase 2, step 1: the split (no visible change)
+
+`reader.py` (2,377 lines after Phase 1) is now a 73-line launcher; the app is the `bahai_reader` package, 21 modules:
+
+- Below the views, no GTK: `config` (paths, app facts), `settings` (settings.json cleaning), `library` (feeds, packs, bahai.org texts, grouping), `search` (folding, cities), `citations`, `labels` (headings, list names), `theme` (contrast, stylesheet, Omarchy palette follow), `ui` (layout constants, shortcut list). `rendering` (styled spans, Pango), `desktop` (autostart, Flatpak, clocks, GLib) and `widgets` (`Choice`) are small shared helpers.
+- The window: `app` (the `Reader` application: header, panes, keys, navigation) plus one mixin per view or window: `contents`, `reading`, `saved`, `today`, `counter`, `reminders`, `about`, `location`, `languages`, and `theme`’s `ThemeMixin`.
+
+How it was done: an AST script moved every top-level statement and every `Reader` method verbatim into its module; imports were then filled in from pyflakes’ undefined-name reports. Only two things are not verbatim: `roman()` moved next to `citation()` (to avoid an import cycle), and code that reads a path the tests change (`STATE`, `CACHE`, `LIBRARY`, `ROOT`, `AUTOSTART`, `in_flatpak`) now reads it from its module at call time (`config.STATE`). `reader.py` re-exports every name, and setting a name on `reader` (as the tests and `scripts/import-bahai-library.py` do) sets it wherever the package holds that object, so **no existing test changed**.
+
+Packaging: `.deb`/`.rpm`/Arch (nfpm), the AppImage and the Flatpak now also install `bahai_reader/*.py` beside `reader.py`. Launchers are unchanged.
+
 ## Tests actually run
 
-All on 2026-11-11, on the Phase 1 branch.
+All on 2026-11-11.
+
+Phase 2 split branch:
+
+| Where | What | Result |
+| --- | --- | --- |
+| TUF | unit tests | 226 OK (1 skipped): Phase 1’s 214 plus 12 in `tests/test_modules.py` (every pre-split name and method still there, no method hidden inside a function, data modules free of GTK, path and function patches on `reader` reach the package, packaging lists the package) |
+| Arch container + Xvfb | all 8 UI tests | all passed |
+| Packages built with the pinned nFPM 2.47.0, installed in `debian:12`, `fedora:43`, `archlinux:base` (the CI’s install jobs) | `smoke_ui installed` and `chrome_ui installed` (plus `navigation_ui` on Debian 12) | all passed; `bahai-reader --version` works on Debian 12 |
+| No visible change | the 9 Phase 1 screenshots in Light and in Dark, rendered again from the split | 17 of 18 byte-identical; the 18th differs only in the search field’s blinking caret, and two renders of the same split code differ in the same place |
+| pyflakes | `bahai_reader/` | clean |
+
+Not run locally: the AppImage and Flatpak builds (no appimagetool / GNOME 51 SDK on TUF). The PR’s CI builds both and starts the Flatpak.
+
+Phase 1 branch:
 
 | Where | What | Result |
 | --- | --- | --- |

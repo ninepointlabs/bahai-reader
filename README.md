@@ -174,4 +174,6 @@ xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
 
 The pinned nFPM builder creates all three packages and SHA256SUMS in `dist/`. GitHub Actions tests the source and package installation/GTK startup in Debian 12, Fedora 43, and Arch containers. Tagged releases publish only after checks pass. Update VERSION, RELEASE-NOTES.md, and the website's versioned download links before tagging `vX.Y.Z`.
 
+**Code layout.** `reader.py` starts the app; the app itself is the `bahai_reader` package beside it (see its `__init__.py` for the map): data and settings modules (`config`, `settings`, `library`, `search`, `citations`, `labels`, `theme`) that need no display, and the window and its views (`app`, `contents`, `reading`, `saved`, `today`, `counter`, `reminders`, `about`, `location`, `languages`), each view a mixin of the one `Reader` application class. `import reader` still exposes every name, and setting a path on it (`reader.STATE=…`) applies to the whole app, as the tests expect. `badi.py` is the Badí‘ calendar. Packages install `reader.py`, `badi.py` and `bahai_reader/*.py` under `/usr/share/bahai-reader`.
+
 The static website is in `docs/` and deploys through GitHub Pages. Application code and original artwork are MIT licensed; bundled texts have separate attribution in DATA-NOTICE.md.
