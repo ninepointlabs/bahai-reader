@@ -20,6 +20,9 @@ contents:
     dst: /usr/share/bahai-reader/reader.py
   - src: badi.py
     dst: /usr/share/bahai-reader/badi.py
+  # The app itself; reader.py above only starts it.
+  - src: bahai_reader/*.py
+    dst: /usr/share/bahai-reader/bahai_reader/
   - src: data/*.json
     dst: /usr/share/bahai-reader/data/
   - src: packaging/bahai-reader

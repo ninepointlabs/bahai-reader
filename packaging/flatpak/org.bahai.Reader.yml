@@ -23,6 +23,7 @@ modules:
     buildsystem: simple
     build-commands:
       - install -Dm644 -t /app/share/bahai-reader reader.py badi.py VERSION
+      - install -Dm644 -t /app/share/bahai-reader/bahai_reader bahai_reader/*.py
       - install -Dm644 -t /app/share/bahai-reader/data data/*.json
       - install -Dm755 bahai-reader.sh /app/bin/bahai-reader
       - install -Dm644 -t /app/share/applications org.bahai.Reader.desktop
@@ -35,6 +36,9 @@ modules:
         path: ../../reader.py
       - type: file
         path: ../../badi.py
+      - type: dir
+        path: ../../bahai_reader
+        dest: bahai_reader
       - type: file
         path: ../../VERSION
       - type: dir
