@@ -66,6 +66,13 @@ def version():
     return path.read_text().strip() if path else "unknown"
 
 SECTIONS=("today","prayers","obligatory","hidden","writings","saved")
+# The section switcher: key, label, symbolic icon (the label is always shown, so a missing icon costs nothing).
+SECTION_ROWS=(("today","Today","x-office-calendar-symbolic"),("prayers","Prayers","emoji-nature-symbolic"),("obligatory","Obligatory prayers","alarm-symbolic"),
+              ("hidden","The Hidden Words","text-x-generic-symbolic"),("writings","Writings","accessories-dictionary-symbolic"),("saved","Saved passages","starred-symbolic"))
+# The interface font. The reading font is separate and unaffected. "System" is the desktop's interface font (proportional);
+# "Monospace" is the look before 0.2, the fontconfig monospace family (Omarchy's configured font).
+CHROME_FONTS={"System":None,"Monospace":"monospace"}
+FADE_HEIGHT=28
 # Writings are listed by book (the standard contents), or by author, then book.
 WRITINGS_GROUPINGS={"book":"Group by book","author":"Group by author"}
 AUTHOR_ORDER=("The Báb","Bahá’u’lláh","‘Abdu’l‑Bahá","Shoghi Effendi","The Universal House of Justice")
@@ -95,6 +102,7 @@ def clean_settings(data):
     if prefs.get("section")=="gleanings": prefs["section"]="writings"
     if prefs.get("section") not in SECTIONS: prefs.pop("section",None)
     if prefs.get("theme") not in THEMES: prefs.pop("theme",None)
+    if prefs.get("chrome_font") not in CHROME_FONTS: prefs.pop("chrome_font",None)
     if prefs.get("writings_by") not in WRITINGS_GROUPINGS: prefs.pop("writings_by",None)
     for key in ("font","last"):
         if not isinstance(prefs.get(key),str): prefs.pop(key,None)
@@ -129,6 +137,8 @@ def clean_settings(data):
     if expanded is not None: prefs["expanded"]={k:v for k,v in expanded.items() if isinstance(v,bool)} if isinstance(expanded,dict) else {}
     return prefs
 
+# The citation follows the text closely: one line break and this much space, not an empty paragraph.
+CITATION_GAP=10
 NARROW_WIDTH=700  # below this the contents list and the right pane take turns
 CONTENT_MIN_WIDTH=320
 UNSORTED="Unsorted"
@@ -327,6 +337,66 @@ def readable(background,*candidates,minimum=4.5):
     # First candidate that meets the minimum on this background, else the strongest one.
     return next((c for c in candidates if contrast(c,background)>=minimum),max(candidates,key=lambda c:contrast(c,background)))
 
+def stylesheet(colors,prefs):
+    """The app's CSS for a palette and the reading settings. Plain text, so it can be checked without a display."""
+    bg,fg,accent,selection=[colors[k] for k in ("background","foreground","accent","selection")]
+    # Some themes (White) use an accent too close to the selection for text on it.
+    current=readable(selection,accent,fg); focus=readable(bg,accent,fg,minimum=3); accent_text=readable(bg,accent,fg); current_focus=readable(selection,fg,accent,minimum=3)
+    on_accent=readable(accent,bg,fg,"#ffffff","#000000")
+    font=str(prefs.get("font","DejaVu Serif")).replace('"','').replace('\\','')
+    size=int(prefs.get("size",22))
+    chrome=CHROME_FONTS.get(prefs.get("chrome_font","System"))
+    # The interface follows the desktop's own (proportional) font unless monospace is asked for; the reading font is set on its own below.
+    chrome_rule=f"window, popover, tooltip {{ font-family: {chrome}; }}\n" if chrome else ""
+    return chrome_rule+f'''window, textview, textview text {{ background: {bg}; color: {fg}; }}
+headerbar, popover contents, list, row, entry, button, combobox {{ background: {bg}; color: {fg}; }}
+/* The GTK theme paints .sidebar itself; keep the contents list on the reading palette. */
+.sidebar, .sidebar scrolledwindow, .sidebar viewport, .sidebar expander {{ background: {bg}; color: {fg}; }}
+/* Soft, quiet controls: small radii, a light fill instead of a box, and one primary style. */
+button {{ border: 1px solid transparent; border-radius: 6px; padding: 6px 12px; background: alpha({fg},0.07); box-shadow: none; }}
+button:hover {{ background: alpha({fg},0.13); }}
+headerbar button, button.flat, .toc-passage {{ background: transparent; }}
+headerbar button:hover, button.flat:hover, .toc-passage:hover {{ background: alpha({fg},0.08); }}
+button.primary {{ background: {accent}; color: {on_accent}; }}
+button.primary:hover {{ background: shade({accent},1.08); }}
+button.primary:disabled {{ background: alpha({fg},0.07); color: alpha({fg},0.5); }}
+entry {{ border: 1px solid {selection}; border-radius: 6px; box-shadow: none; }}
+.toc-passage {{ border: none; padding: 8px; }}
+.toc-branch > title {{ min-height: 32px; padding: 6px 0; }}
+.toc-passage {{ min-height: 28px; }}
+button.current-passage {{ color: {current}; background: {selection}; }}
+row:selected, button:checked {{ background: {selection}; }}
+button:focus-visible, .toc-branch > title:focus-visible, row:focus-visible {{ outline: 2px solid {focus}; outline-offset: -2px; }}
+button.current-passage:focus-visible {{ outline-color: {current_focus}; }}
+.switcher, .switcher row {{ background: transparent; }}
+.switcher row {{ border-radius: 6px; padding: 7px 8px; min-height: 22px; }}
+.switcher row:hover {{ background: alpha({fg},0.08); }}
+.switcher row:selected {{ background: {selection}; color: {current}; }}
+/* A hairline between the panes, not a bar. */
+paned > separator {{ min-width: 1px; margin: 0; padding: 0; border: none; background: {selection}; background-image: none; }}
+paned > separator:hover {{ background: {accent}; }}
+headerbar {{ border-bottom: 1px solid {selection}; box-shadow: none; }}
+.app-title {{ font-weight: bold; }}
+.heading {{ color: {accent_text}; font-size: 19px; font-weight: bold; }}
+/* Allow room for hinted glyphs and accents at fractional display scales. */
+label {{ padding-top: 2px; padding-bottom: 2px; }}
+.dim-label {{ opacity: 0.7; font-size: 13px; min-height: 18px; padding-top: 3px; padding-bottom: 3px; }}
+.count {{ font-feature-settings: "tnum"; }}
+textview {{ font-family: "{font}"; font-size: {size}px; }}
+textview text selection {{ background: {selection}; }}
+/* The reading footer: a divider, with the text fading out just above it rather than running under it. */
+.reading-footer {{ border-top: 1px solid {selection}; padding-top: 10px; }}
+.reading-fade {{ background: linear-gradient(to bottom, alpha({bg},0), {bg}); }}
+.today-card {{ border: 1px solid {selection}; border-radius: 12px; padding: 16px 18px; }}
+.today-large {{ font-family: "{font}"; font-size: {size+4}px; color: {accent_text}; }}
+.today-reading {{ font-family: "{font}"; font-size: {max(15,size-4)}px; }}
+.toc-date {{ padding: 8px; }}
+.today-card flowboxchild {{ padding: 0; }}
+.counter-count {{ font-family: "{font}"; font-size: 96px; }}
+.counter-done {{ color: {accent_text}; }}
+.counter-button {{ padding: 14px 48px; }}
+.notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''
+
 def word_count(text):
     # Keep apostrophes and hyphens inside words; em/en dashes separate words.
     return len(re.findall(r"[^\W_]+(?:[’‘ʼ'\-‑][^\W_]+)*", text, re.UNICODE))
@@ -344,15 +414,37 @@ def align(key,row):
     fields=ALIGN.get(key)
     return ":".join([key]+[str(row.get(f)) for f in fields]) if fields else None
 
-def heading(item):
-    """The reading pane's title: what the passage is, not just its number."""
-    if item["section"]=="prayers": return "Prayer"
+def heading(item,context=None):
+    """The reading pane's title: what the passage is, not just its number. context is the category it was opened in, if any."""
+    if item["section"]=="prayers":
+        # Where the prayer sits: its own name for an obligatory prayer, else its category. Never just "Prayer".
+        named=next((t for t in OBLIGATORY_PRAYERS if t in item["tags"]),None)
+        if named:
+            # bahai.org prints the name at the top of the text; then the section says where it is instead.
+            return "Obligatory prayers" if item.get("text","").lstrip().startswith(named) else named
+        if context in item["tags"]: return context
+        return item["tags"][0] if item["tags"] else "Prayer"
     if item.get("heading"): return item["heading"]
     number=item["title"].split(" · ")[0]; parts=item["id"].split(":"); kind=parts[-2] if len(parts)>=2 else parts[0]
     if kind=="hidden":
         origin="Arabic" if "From the Arabic" in item["tags"] else "Persian" if "From the Persian" in item["tags"] else None
         return f"{origin} no. {number}" if origin else number
     return {"Paragraphs":f"Paragraph {number}","QAs":f"Question and Answer {number}","Notes":f"Note {number}"}.get(kind,number)
+
+def subtitle(item,context=None):
+    """The line under the heading: the rest of where the passage is and how long it is, never a repeat of the heading."""
+    title=heading(item,context)
+    parts=item["tags"]+([item["subgroup"]] if item["subgroup"] else [])
+    if item["section"]=="prayers": parts=[item.get("author")]+parts+[word_label(item)]
+    elif item.get("author") and not any(item["author"] in p for p in parts+[title] if p): parts=parts+[item["author"]]
+    return " · ".join(dict.fromkeys(p for p in parts if p and p!=title))
+
+def list_title(item):
+    """A passage's name in the contents list. The obligatory prayers go by their names, not their first line of directions."""
+    if item["section"]=="prayers":
+        named=next((t for t in OBLIGATORY_PRAYERS if t in item["tags"]),None)
+        if named: return named
+    return item["title"]
 
 # Official texts from the Bahá’í Reference Library (bahai.org), imported by scripts/import-bahai-library.py.
 # English only; they are bundled in data/ and never downloaded by the app.
@@ -719,31 +811,36 @@ class Reader(Gtk.Application):
         self.window=Gtk.ApplicationWindow(application=self, title="Bahá’í Reader", default_width=1160, default_height=790)
         self.window.connect("close-request",self.window_closing)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); self.app_title=Gtk.Label(label="BAHÁ’Í READER",ellipsize=Pango.EllipsizeMode.END); header.set_title_widget(self.app_title)
+        header=Gtk.HeaderBar(); header.set_show_title_buttons(not bool(shutil.which("omarchy"))); self.app_title=Gtk.Label(label=APP_NAME,ellipsize=Pango.EllipsizeMode.END); self.app_title.add_css_class("app-title"); header.set_title_widget(self.app_title)
         self.narrow=False; self.sidebar_wanted=True
-        header.pack_start(self.button("☰", self.toggle_sidebar))
-        today=self.button("Today",lambda *_: self.navigate("today")); today.set_tooltip_text("Today (Ctrl+T)"); header.pack_start(today)
-        chance=self.button("Random",lambda *_: self.random_passage()); chance.set_tooltip_text("A random passage (Ctrl+R)"); header.pack_start(chance)
+        # Today lives in the section list only; Random is an action, so it sits in the menu rather than beside navigation.
+        panel=Gtk.Button(icon_name="sidebar-show-symbolic"); panel.connect("clicked",self.toggle_sidebar); panel.set_tooltip_text("Show or hide the contents (Esc)"); self.name_widget(panel,"Contents"); header.pack_start(panel)
         # The menu holds what concerns the whole app; Aa holds only how the text reads.
-        more=Gtk.MenuButton(label="⋮"); more.set_tooltip_text("Menu"); more.add_css_class("app-menu"); self.name_widget(more,"Menu"); self.app_menu=more; header.pack_end(more)
-        entries=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
-        for edge in ("top","bottom","start","end"): getattr(entries,"set_margin_"+edge)(12)
-        more_pop=Gtk.Popover(); more_pop.set_child(entries); more.set_popover(more_pop)
-        # In a narrow window the header's Today, Random and Copy rest here.
-        self.narrow_entries=[]
-        for label,action in (("Today",lambda:(self.navigate("today"),self.focus_view())),("Random passage",self.random_passage),("Copy the passage",self.copy_passage)):
-            entry=self.button(label,lambda _,a=action:(more_pop.popdown(),a())); entry.get_child().set_xalign(0); entry.set_visible(False); entries.append(entry); self.narrow_entries.append(entry)
-        self.copy_entry=self.narrow_entries[-1]; more_pop.connect("show",lambda *_:self.copy_entry.set_sensitive(self.copy.get_sensitive()))
-        for label,action in (("Location & reminders…",self.location_dialog),("Languages & offline libraries…",self.language_dialog),("Keyboard shortcuts",self.shortcuts_dialog),("About Bahá’í Reader (F1)",self.about_dialog)):
-            entry=self.button(label,lambda _,a=action:(more_pop.popdown(),a())); entry.get_child().set_xalign(0); entries.append(entry)
+        more=Gtk.MenuButton(icon_name="view-more-symbolic"); more.set_tooltip_text("Menu"); more.add_css_class("app-menu"); self.name_widget(more,"Menu"); self.app_menu=more; header.pack_end(more)
+        entries=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2)
+        for edge in ("top","bottom","start","end"): getattr(entries,"set_margin_"+edge)(6)
+        more_pop=Gtk.Popover(); more_pop.set_child(entries); more.set_popover(more_pop); more_pop.add_css_class("menu")
+        def menu_entry(label,action,shortcut=None):
+            entry=self.button("",lambda _,a=action:(more_pop.popdown(),a())); entry.add_css_class("flat")
+            row=Gtk.Box(spacing=24); row.append(Gtk.Label(label=label,xalign=0,hexpand=True))
+            if shortcut: keys=Gtk.Label(label=shortcut); keys.add_css_class("dim-label"); row.append(keys)
+            entry.set_child(row); entry.get_label=lambda:label; entries.append(entry); return entry
+        self.random_entry=menu_entry("Random passage",self.random_passage,"Ctrl+R")
+        # In a narrow window the header's Copy rests here.
+        self.copy_entry=menu_entry("Copy the passage",self.copy_passage,"Ctrl+Shift+C"); self.copy_entry.set_visible(False); self.narrow_entries=[self.copy_entry]
+        more_pop.connect("show",lambda *_:self.copy_entry.set_sensitive(self.copy.get_sensitive()))
+        entries.append(Gtk.Separator())
+        for label,action,keys in (("Location & reminders…",self.location_dialog,None),("Languages & offline libraries…",self.language_dialog,None),("Keyboard shortcuts",self.shortcuts_dialog,None),("About Bahá’í Reader",self.about_dialog,"F1")):
+            menu_entry(label,action,keys)
         self.star=self.button("☆ Save", self.bookmark); self.star.set_tooltip_text("Save this passage (Ctrl+D)"); header.pack_end(self.star)
         self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
-        self.wide_header=(today,chance,self.copy)
-        menu=Gtk.MenuButton(label="Aa"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
+        self.wide_header=(self.copy,)
+        menu=Gtk.MenuButton(label="Aa"); menu.set_tooltip_text("Text and appearance"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
         settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
         pop.set_child(settings)
         self.option(settings, "Appearance", "theme", ["Omarchy", "Light", "Dark", "Sepia"], "Omarchy")
+        self.option(settings, "Interface font", "chrome_font", list(CHROME_FONTS), "System")
         fonts=sorted({f.get_name() for f in self.window.get_pango_context().list_families()})
         self.option(settings, "Reading font", "font", fonts, "Noto Serif" if "Noto Serif" in fonts else "DejaVu Serif")
         self.slider(settings, "Text size", "size", 15, 36, 22)
@@ -763,7 +860,7 @@ class Reader(Gtk.Application):
         counting=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); counting.connect("key-pressed",self.counter_key); counting.connect("key-released",lambda _c,key,*_:self.counter_held.discard(key)); self.window.add_controller(counting)
         # Previous/Next before the reading view's own cursor keys see them.
         paging=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); paging.connect("key-pressed", self.page_key); self.window.add_controller(paging)
-        body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True)
+        body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.split=body; self.panel_width_ready=False; self.panel_programmatic=False; self.panel_save_source=None; self.panel_window_width=0
         # Neither pane can be dragged below its minimum width, so neither disappears.
         body.set_resize_start_child(False); body.set_shrink_start_child(False)
@@ -774,8 +871,17 @@ class Reader(Gtk.Application):
         self.sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); self.sidebar.set_size_request(220,-1); self.sidebar.add_css_class("sidebar")
         for edge in ("top", "bottom", "start", "end"): getattr(self.sidebar,"set_margin_"+edge)(16)
         body.set_start_child(self.sidebar)
-        for title,key in [("Today","today"),("Prayers","prayers"),("Obligatory prayers","obligatory"),("The Hidden Words","hidden"),("Writings","writings"),("Saved passages","saved")]:
-            b=self.button(title, lambda _,k=key: self.navigate(k)); self.sidebar.append(b)
+        # The sections: one compact list of icon-and-label rows, the current one selected.
+        self.switcher=Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE); self.switcher.add_css_class("switcher"); self.switcher_rows={}
+        self.name_widget(self.switcher,"Sections")
+        for key,title,icon in SECTION_ROWS:
+            row=Gtk.ListBoxRow(); row.section=key; line=Gtk.Box(spacing=10)
+            image=Gtk.Image(gicon=Gio.ThemedIcon.new_from_names([icon,"text-x-generic-symbolic"]),accessible_role=Gtk.AccessibleRole.PRESENTATION)
+            line.append(image); line.append(Gtk.Label(label=title,xalign=0,hexpand=True,ellipsize=Pango.EllipsizeMode.END))
+            row.set_child(line); row.set_tooltip_text(title); self.switcher.append(row); self.switcher_rows[key]=row
+        self.switcher_syncing=False
+        self.switcher.connect("row-selected",lambda _box,row: row and not self.switcher_syncing and row.section!=self.section and self.navigate(row.section))
+        self.sidebar.append(self.switcher)
         self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); self.sidebar.append(self.manage)
         self.grouping=Choice()
         for key,label in WRITINGS_GROUPINGS.items(): self.grouping.append(key,label)
@@ -799,7 +905,10 @@ class Reader(Gtk.Application):
         self.subtitle=Gtk.Label(label="A moment for reflection",wrap=True,justify=Gtk.Justification.CENTER,margin_start=12,margin_end=12); self.subtitle.add_css_class("dim-label"); right.append(self.subtitle)
         self.reader=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
         self.reader.set_top_margin(24); self.reader.set_bottom_margin(50)
-        self.pages=Gtk.Box(homogeneous=True, vexpand=True); right.append(self.pages)
+        self.pages=Gtk.Box(homogeneous=True, vexpand=True)
+        # The text fades out above the footer instead of being cut mid-line under it.
+        pages_overlay=Gtk.Overlay(vexpand=True); pages_overlay.set_child(self.pages); right.append(pages_overlay)
+        self.fade=Gtk.Box(valign=Gtk.Align.END,height_request=FADE_HEIGHT,can_target=False); self.fade.add_css_class("reading-fade"); pages_overlay.add_overlay(self.fade)
         self.readscroll=Gtk.ScrolledWindow(vexpand=True, kinetic_scrolling=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.readscroll.set_child(self.reader); self.pages.append(self.readscroll)
         # A second language beside the passage, from a downloaded library; never fetched while reading.
         self.second=Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD, vexpand=True, hexpand=True)
@@ -813,16 +922,17 @@ class Reader(Gtk.Application):
         click=Gtk.GestureClick(); click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         click.connect("pressed",lambda *_:self.stop_scroll()); self.readscroll.add_controller(click)
         self.related=Gtk.MenuButton(label="Related passages",visible=False); right.append(self.related)
-        self.said_toggle=Gtk.ToggleButton(label="Said today",halign=Gtk.Align.CENTER,visible=False); self.said_toggle.connect("toggled",self.said_toggled); right.append(self.said_toggle)
+        self.said_toggle=Gtk.ToggleButton(label="Said today",halign=Gtk.Align.CENTER,visible=False,tooltip_text="Mark this obligatory prayer as said. Today shows what is said and what is still open."); self.said_toggle.connect("toggled",self.said_toggled); right.append(self.said_toggle)
         self.filing=Gtk.Box(spacing=10,halign=Gtk.Align.CENTER,visible=False); right.append(self.filing)
         self.filing.append(Gtk.Label(label="Collection")); self.collection=Choice(); self.filing.append(self.collection)
         self.collection.connect("changed",self.file_current); self.filling=False
         self.filing.append(self.button("Manage…",self.collections_dialog))
+        footer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12); footer.add_css_class("reading-footer"); self.footer=footer
         nav=Gtk.Box(spacing=12, halign=Gtk.Align.CENTER); self.previous=self.button("← Previous", lambda *_: self.step(-1)); nav.append(self.previous)
-        self.position=Gtk.Label(); self.position.add_css_class("dim-label"); nav.append(self.position)
-        self.next=self.button("Next →", lambda *_: self.step(1)); nav.append(self.next); right.append(nav)
+        self.position=Gtk.Label(); self.position.add_css_class("dim-label"); self.position.add_css_class("count"); nav.append(self.position)
+        self.next=self.button("Next →", lambda *_: self.step(1)); self.next.add_css_class("primary"); nav.append(self.next); footer.append(nav); right.append(footer)
         self.name_widget(self.previous,"Previous passage"); self.name_widget(self.next,"Next passage")
-        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); right.append(self.status)
+        self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); footer.append(self.status)
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         # New installs open on Today; everyone else keeps the section they were in.
         self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.theme_tick)
@@ -898,7 +1008,7 @@ class Reader(Gtk.Application):
             self.panel_width_ready=True
         return True
     def window_resized(self,*_):
-        """Too narrow for both panes: they take turns and ☰ switches between them. Wide-mode minimums stay under NARROW_WIDTH, so the allocated
+        """Too narrow for both panes: they take turns and the contents button switches between them. Wide-mode minimums stay under NARROW_WIDTH, so the allocated
         width always gets there, whatever the compositor does; the asked-for size gets there before the first frame."""
         sizes=[n for n in (self.window.get_default_size()[0],self.window.get_width()) if n>0]
         width=min(sizes) if sizes else 0
@@ -1018,6 +1128,7 @@ class Reader(Gtk.Application):
     def navigate(self,key):
         self.section="writings" if key=="gleanings" else key
         self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.manage.set_visible(self.section=="saved")
+        self.switcher_syncing=True; self.switcher.select_row(self.switcher_rows.get(self.section)); self.switcher_syncing=False
         if self.section=="today":
             self.current=None; self.active_group=[]; self.filing.set_visible(False); self.related.set_visible(False)
         self.show_view("today" if self.section=="today" else "reading")
@@ -1082,13 +1193,14 @@ class Reader(Gtk.Application):
             for item in entries:
                 self.groups.setdefault(item["id"],entries)
                 button=self.button("",lambda _,i=item,g=entries:self.open_from_list(i,g))
-                label=Gtk.Label(label=item["title"],xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
+                label=Gtk.Label(label=list_title(item),xalign=0,ellipsize=Pango.EllipsizeMode.END,max_width_chars=29)
                 content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
                 content.append(label)
                 if item["section"]=="prayers":
                     count_label=Gtk.Label(label=word_label(item), xalign=0)
                     count_label.add_css_class("dim-label"); content.append(count_label)
                 button.set_child(content)
+                # The whole title, which the row may cut off.
                 button.set_tooltip_text(item["title"]+(" — "+word_label(item) if item["section"]=="prayers" else ""))
                 button.add_css_class("toc-passage")
                 parent.append(button); self.passage_buttons.append((item,button))
@@ -1140,11 +1252,12 @@ class Reader(Gtk.Application):
     def branch(self,parent,title,path,items):
         expander=Gtk.Expander(hexpand=True, vexpand=False)
         expander.add_css_class("toc-branch")
-        heading=Gtk.Box(spacing=8, halign=Gtk.Align.START, margin_end=12)
-        label=Gtk.Label(label=title, xalign=0,
-                        ellipsize=Pango.EllipsizeMode.END, max_width_chars=18)
+        # The name takes whatever width there is; when it is still cut off, its tooltip has it whole.
+        heading=Gtk.Box(spacing=8, hexpand=True, margin_end=12)
+        label=Gtk.Label(label=title, xalign=0, hexpand=True,
+                        ellipsize=Pango.EllipsizeMode.END, tooltip_text=title)
         heading.append(label)
-        total=Gtk.Label(label=self.unit_label(len(items))); total.add_css_class("dim-label")
+        total=Gtk.Label(label=self.unit_label(len(items))); total.add_css_class("dim-label"); total.add_css_class("count")
         heading.append(total)
         expander.set_label_widget(heading)
         expander.set_tooltip_text(title)
@@ -1221,8 +1334,10 @@ class Reader(Gtk.Application):
     def show_passage(self,item,group):
         self.current=item; self.active_group=group; self.prefs["last"]=item["id"]; self.save(); self.show_view("reading")
         self.position.set_text(f"{group.index(item)+1} of {len(group)}" if item in group and len(group)>1 else "")
-        self.heading.set_text(heading(item))
-        self.subtitle.set_text(" · ".join(item["tags"]+([item["subgroup"]] if item["subgroup"] else [])+([word_label(item)] if item["section"]=="prayers" else [])))
+        # The category it was opened in: the one tag its whole group shares.
+        context=next((t for t in item["tags"] if all(t in g["tags"] for g in group)),None) if item in group else None
+        self.heading.set_text(heading(item,context))
+        self.subtitle.set_text(subtitle(item,context))
         self.reader.set_direction(Gtk.TextDirection.LTR if self.language_info().get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
         self.stop_scroll()
         buffer=self.reader.get_buffer(); buffer.set_text(item["text"])
@@ -1231,8 +1346,8 @@ class Reader(Gtk.Application):
             buffer.apply_tag(tag,buffer.get_iter_at_offset(start),buffer.get_iter_at_offset(end))
         apply_spans(buffer,item)
         if item["citation"]:
-            tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
-            buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],tag)
+            tag=buffer.get_tag_table().lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=CITATION_GAP)
+            buffer.insert_with_tags(buffer.get_end_iter(),"\n— "+item["citation"],tag)
         self.readscroll.get_vadjustment().set_value(0)
         self.show_second()
         self.related.set_visible(bool(item["references"]))
@@ -1424,7 +1539,7 @@ class Reader(Gtk.Application):
         title=Gtk.Label(label="Alláh-u-Abhá"); title.add_css_class("heading"); box.append(title)
         self.counter_count=Gtk.Label(label="0"); self.counter_count.add_css_class("counter-count"); box.append(self.counter_count)
         self.counter_state=Gtk.Label(); box.append(self.counter_state)
-        self.counter_button=self.button("Count",lambda *_:self.counter_add()); self.counter_button.add_css_class("counter-button"); self.counter_button.set_halign(Gtk.Align.CENTER); box.append(self.counter_button)
+        self.counter_button=self.button("Count",lambda *_:self.counter_add()); self.counter_button.add_css_class("counter-button"); self.counter_button.add_css_class("primary"); self.counter_button.set_halign(Gtk.Align.CENTER); box.append(self.counter_button)
         controls=Gtk.Box(spacing=10,halign=Gtk.Align.CENTER); box.append(controls); self.counter_controls=controls
         controls.append(Gtk.Label(label="Target"))
         self.counter_target=Choice(); self.name_widget(self.counter_target,"Target")
@@ -1788,41 +1903,8 @@ class Reader(Gtk.Application):
         if signature==self.signature:return True
         self.signature=signature; bg,fg,accent,selection=[base[k] for k in ("background","foreground","accent","selection")]
         # Some themes (White) use an accent too close to the selection for text on it.
-        current=readable(selection,accent,fg); focus=readable(bg,accent,fg,minimum=3); accent_text=readable(bg,accent,fg); current_focus=readable(selection,fg,accent,minimum=3)
-        self.colors=dict(background=bg,foreground=fg,accent=accent,selection=selection,current=current)
-        font=self.prefs.get("font","DejaVu Serif").replace('"','').replace('\\','')
-        size=int(self.prefs.get("size",22))
-        self.provider.load_from_data(f'''window {{ font-family: monospace; }}
-window, textview, textview text {{ background: {bg}; color: {fg}; }}
-headerbar, popover contents, list, row, entry, button, combobox {{ background: {bg}; color: {fg}; }}
-/* The GTK theme paints .sidebar itself; keep the contents list on the reading palette. */
-.sidebar, .sidebar scrolledwindow, .sidebar viewport, .sidebar expander {{ background: {bg}; color: {fg}; }}
-button {{ border: 1px solid {selection}; border-radius: 0px; padding: 8px 12px; }}
-.toc-passage {{ border: none; padding: 8px; }}
-.toc-branch > title {{ min-height: 32px; padding: 6px 0; }}
-.toc-passage {{ min-height: 28px; }}
-button.current-passage {{ color: {current}; background: {selection}; }}
-button:hover, row:selected, button:checked {{ background: {selection}; }}
-button:focus-visible, .toc-branch > title:focus-visible {{ outline: 2px solid {focus}; outline-offset: -2px; }}
-button.current-passage:focus-visible {{ outline-color: {current_focus}; }}
-paned > separator {{ min-width: 5px; background: {selection}; }}
-paned > separator:hover {{ background: {accent}; }}
-headerbar {{ border-bottom: 1px solid {selection}; }}
-.heading {{ color: {accent_text}; font-size: 19px; }}
-/* Allow room for hinted glyphs and accents at fractional display scales. */
-label {{ padding-top: 2px; padding-bottom: 2px; }}
-.dim-label {{ opacity: 0.7; font-size: 13px; min-height: 18px; padding-top: 3px; padding-bottom: 3px; }}
-textview {{ font-family: "{font}"; font-size: {size}px; }}
-textview text selection {{ background: {selection}; }}
-.today-card {{ border: 1px solid {selection}; padding: 16px; }}
-.today-large {{ font-family: "{font}"; font-size: {size+4}px; color: {accent_text}; }}
-.today-reading {{ font-family: "{font}"; font-size: {max(15,size-4)}px; }}
-.toc-date {{ padding: 8px; }}
-.today-card flowboxchild {{ padding: 0; }}
-.counter-count {{ font-family: "{font}"; font-size: 96px; }}
-.counter-done {{ color: {accent_text}; }}
-.counter-button {{ padding: 14px 48px; }}
-.notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''.encode())
+        self.colors=dict(background=bg,foreground=fg,accent=accent,selection=selection,current=readable(selection,accent,fg))
+        self.provider.load_from_data(stylesheet(self.colors,self.prefs).encode())
         for view in (self.reader,self.second):
             view.set_pixels_inside_wrap(int(self.prefs.get("spacing",8))); view.set_pixels_below_lines(14)
         self.fit_margins()
@@ -1861,12 +1943,12 @@ textview text selection {{ background: {selection}; }}
         table=buffer.get_tag_table()
         label=table.lookup("language") or buffer.create_tag("language",scale=0.7,pixels_below_lines=12)
         note=table.lookup("note") or buffer.create_tag("note",style=Pango.Style.ITALIC,scale=0.85)
-        cite=table.lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=18)
+        cite=table.lookup("citation") or buffer.create_tag("citation",style=Pango.Style.ITALIC,scale=0.85,pixels_above_lines=CITATION_GAP)
         buffer.insert_with_tags(buffer.get_end_iter(),info["Name"].upper()+"\n",label)
         if item:
             self.second.set_direction(Gtk.TextDirection.LTR if info.get("IsLeftToRight",True) else Gtk.TextDirection.RTL)
             start=buffer.get_char_count(); buffer.insert(buffer.get_end_iter(),item["text"]); apply_spans(buffer,item,start)
-            if item["citation"]: buffer.insert_with_tags(buffer.get_end_iter(),"\n\n— "+item["citation"],cite)
+            if item["citation"]: buffer.insert_with_tags(buffer.get_end_iter(),"\n— "+item["citation"],cite)
         else:
             self.second.set_direction(Gtk.TextDirection.LTR)
             if not other: text=f"The {name} library is not downloaded or could not be read. Download it in ⋮ → Languages & offline libraries."
