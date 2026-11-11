@@ -24,6 +24,8 @@ class RemindersMixin:
     def tick(self):
         """The wall clock, every 30 seconds, with a window or without: a long timeout would not survive suspend or a change of
         the clock. Waking from suspend, the next tick catches up; what has gone stale is skipped."""
+        # Updated while only reminders were running: restart as the new version, still in the background.
+        if self.held and (not self.window or not self.window.get_visible()) and self.updated_on_disk(): self.restart(background=True)
         self.send_due_reminders()
         if not self.window or not self.window.get_visible(): return True
         if getattr(self,"today_day",None)!=badi.observed_date(self.now(),self.place()) and self.section=="today":

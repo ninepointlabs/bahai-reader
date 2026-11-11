@@ -60,7 +60,7 @@ def main(args):
         print(f"bahai-reader: unknown option {args[0]!r}. Try bahai-reader --help.",file=sys.stderr); return 2
     # X11 WM_CLASS comes from the program name; match StartupWMClass and the Wayland app_id.
     GLib.set_prgname("org.bahai.Reader")
-    app=Reader(background=background)
+    app=Reader(background=background); app.can_restart=True
     if background:
         # Already running: nothing to do, and no window to open.
         try: app.register(None)

@@ -1,5 +1,6 @@
 """The application and its window: header, sidebar, panes, keyboard handling and navigation between sections."""
 import json
+import os
 import shutil
 import sys
 from gi.repository import Gtk, Gdk, Gio, GLib, Pango
@@ -7,7 +8,7 @@ import badi
 
 from . import config
 from .about import AboutMixin
-from .config import APP_NAME
+from .config import APP_NAME, version
 from .contents import ContentsMixin
 from .counter import CounterMixin
 from .languages import LanguagesMixin
@@ -38,6 +39,8 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
             else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
             self.language=1
         self.adwaita=False; self.book=None; self.finder=None
+        # The version this process started as; an update installed while it runs is picked up by restarting (see restart).
+        self.started_version=version(); self.can_restart=False
         self._items=None; self.section="today"; self.fixed_now=None; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
         self.connect("activate", self.activate)
         said=Gio.SimpleAction.new("said",GLib.VariantType.new("s")); said.connect("activate",lambda _a,key:self.notification_said(key.get_string())); self.add_action(said)
@@ -93,7 +96,20 @@ class Reader(ShellMixin, FinderMixin, HighlightsMixin, ContentsMixin, ReadingMix
         """Where the day's times come from: the saved location, with the clock hours the user entered, if any, in place of the sun."""
         location=self.prefs.get("location"); hours=self.prefs.get("clock_hours")
         return badi.clock_place(location,hours) if hours else location
+    def updated_on_disk(self):
+        """True when a different version has been installed while this process runs (a package update with the app open or
+        keeping reminders in the background). Only the real app process restarts, not tests that build a Reader."""
+        return self.can_restart and self.started_version!="unknown" and version()!=self.started_version
+    def restart(self,background):
+        """Becomes the installed version: the same process, started again from the new files, with or without a window.
+        Reminders and the single running instance carry on; settings are saved first."""
+        self.save()
+        script=str(config.ROOT/"reader.py")
+        print(f"bahai-reader: {version()} was installed while {self.started_version} was running; restarting.",file=sys.stderr)
+        os.execv(sys.executable,[sys.executable,script]+(["--background"] if background else []))
     def activate(self, app):
+        # Opened again after an update: open the new version, not the one still running from before it.
+        if self.updated_on_disk() and not self.background_launch: return self.restart(background=False)
         self.start_ticking()
         if self.background_launch:
             # --background: reminders run with no window until the next launch asks for one.

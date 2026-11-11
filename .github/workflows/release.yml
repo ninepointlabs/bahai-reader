@@ -27,6 +27,7 @@ jobs:
       - run: xvfb-run -a /usr/bin/python3 tests/highlights_ui.py
       - run: for t in navigation today robustness dropdown finder highlights; do BAHAI_READER_SHELL=classic xvfb-run -a /usr/bin/python3 tests/${t}_ui.py || exit 1; done
       - run: BAHAI_READER_SHELL=classic xvfb-run -a dbus-run-session -- /usr/bin/python3 tests/background_ui.py
+      - run: xvfb-run -a dbus-run-session -- /usr/bin/python3 tests/update_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/navigation_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/chrome_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/layout_ui.py
