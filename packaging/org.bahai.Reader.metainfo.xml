@@ -41,6 +41,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.1" date="2026-11-11">
+      <description><p>After an update, the app now opens as the new version even if the old one was still running in the background for reminders. Before, it kept showing the old version until you logged out.</p></description>
+    </release>
     <release version="0.2.0" date="2026-11-11">
       <description><p>A redesign. On systems with libadwaita 1.4 or newer, the app opens in a new window: Home with the day at a glance and Continue reading, the Writings as a library of books with each book’s contents, search across all the texts (Ctrl+K), progress through each book, highlights and notes, and focus mode. The interface uses the desktop’s own font; the reading text is unchanged. Debian 12 keeps the earlier window, with the same texts and features it had.</p></description>
     </release>

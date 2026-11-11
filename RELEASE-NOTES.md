@@ -1,6 +1,10 @@
-A redesign of Bahá’í Reader.
+Bug-fix release of Bahá’í Reader.
 
-v0.2.0 brings a new window built with libadwaita, a library of books in place of the long list of Writings, search across all the texts, highlights and notes. The texts themselves, and how they are set on the page, are unchanged.
+- Fixed: **after an update, the app opens as the new version.** If reminders kept the app running in the background (or the window was open) while a new version was installed, opening the app showed the old version until you logged out. Now the running app notices the update and restarts itself as the new version the next time it is opened, and when only reminders are running it does so in the background on its own. Your settings, saved passages, highlights and reminders carry over.
+
+**Updating from 0.2.0 or earlier with reminders running in the background:** the version that is already running does not have this fix yet, so quit it once after updating (or log out and in), then open Bahá’í Reader. On Omarchy you can also run `pkill -f bahai-reader` before opening it. From 0.2.1 on, this happens by itself.
+
+v0.2.0 was a redesign: a new libadwaita window (Debian 12 keeps the earlier one), a library of books in place of the long list of Writings, search across all the texts (Ctrl+K), progress through each book, highlights and notes, focus mode, and the desktop's own font for the interface. The texts, and how they are set on the page, are unchanged.
 
 - New: **a libadwaita window** on systems with libadwaita 1.4 or newer (Debian 13, Ubuntu 24.04, Fedora 43, Arch/Omarchy, and the Flatpak). The sidebar has **Home, Prayers, Writings and Saved**. Below 700 px the sidebar and the reader take turns. Colours follow the Omarchy theme, or the chosen palette, through libadwaita’s own colours. **Debian 12** (libadwaita 1.2) keeps the earlier window, with the same texts and features it had.
 - New: **Home**: the Badí‘ date, the obligatory prayer and the passage of the day at a glance; **Continue reading**, with the last three books you read at the passage you left; and the **library**.
