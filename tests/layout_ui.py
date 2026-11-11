@@ -89,7 +89,7 @@ def main():
             if narrow:
                 if r["star"] not in ("☆","★"): problems.append(f"Save button not compact: {r['star']!r}")
                 if r["sidebar"] or not r["content"]: problems.append(f"narrow window shows both panes or neither: {r}")
-                if r["copy"] or r["entries"]!=[True,True,True] or r["previous"]!="←": problems.append(f"header not compact: {r}")
+                if r["copy"] or r["entries"]!=[True] or r["previous"]!="←": problems.append(f"header not compact: {r}")
                 if not r["stacked"]: problems.append("side by side not stacked")
                 for name,want in (("list",[True,False]),("section_stays",[True,False]),("after_open",[False,True]),("escape",[True,False]),("random",[False,True]),("today",[False,True])):
                     if r.get(name)!=want: problems.append(f"{name}: {r.get(name)}, wanted {want}")

@@ -115,7 +115,9 @@ with tempfile.TemporaryDirectory() as temp:
             app.navigate("obligatory")
             assert list(p for p in app.branches if p.count("/")==1)==["obligatory/The three prayers","obligatory/Kitáb-i-Aqdas"]
             assert app.branches["obligatory/The three prayers"].get_expanded() and len(app.visible)==47
-            assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Prayer"
+            # Named, not "Prayer": bahai.org prints the prayer's name atop its text, so the heading says where it is.
+            assert app.current["tags"]==["Short Obligatory Prayer"] and app.heading.get_text()=="Obligatory prayers"
+            assert app.subtitle.get_text().startswith("Bahá’u’lláh · Short Obligatory Prayer · ")
             # Its directions are in italics, the words of the prayer are not.
             buffer=app.reader.get_buffer(); direction=buffer.get_tag_table().lookup("direction")
             # bahai.org's text: its italic paragraphs are the directions (its "To be recited" line is in capitals instead).
@@ -176,9 +178,10 @@ with tempfile.TemporaryDirectory() as temp:
             # The menu holds the app-level entries; Aa keeps only reading settings.
             entries=app.app_menu.get_popover().get_child(); labels=[]; child=entries.get_first_child()
             while child:
-                if child.get_visible(): labels.append(child.get_label())  # Today, Random and Copy join them only in a narrow window
+                if child.get_visible() and isinstance(child,reader.Gtk.Button): labels.append(child.get_label())  # Copy joins them only in a narrow window
                 child=child.get_next_sibling()
-            assert labels==["Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader (F1)"], labels
+            # Random is an action, not a place, so it is in the menu, not beside the navigation.
+            assert labels==["Random passage","Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader"], labels
             app.shortcuts_dialog(); assert app.shortcuts_window.get_visible(); app.shortcuts_window.close()
             # Ctrl+T: the Today view, with the passage of the day on a card that opens it in its section. Ctrl+R: a different random passage.
             assert app.key_pressed(None,reader.Gdk.KEY_t,0,reader.Gdk.ModifierType.CONTROL_MASK)
