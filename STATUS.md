@@ -2,9 +2,9 @@
 
 Brief: UX Phases 1 and 2, Python + GTK 4 + libadwaita (approved by Tim 2026-11-11, 8:42 AM CT).
 Source review: “Bahá’í Reader UX and Stack Review” (read 2026-11-11).
-Nothing here is merged, tagged or released. Nothing was pushed to `main`.
+**2026-11-11: merged and released.** On Tim's instruction (“merge everything and do a release”, relayed by Hermes), PRs #42–#48 were merged into `main` in order (merge commits; no branches deleted), after the full CI run on #48's tip passed (build, Flatpak, Debian 12/Fedora 43/Arch installs). Release v0.2.0: VERSION, README, website, metainfo and release notes in the release PR (linked below), then the tag `v0.2.0`, which the release workflow publishes once its checks pass. Nothing was pushed to `main` directly.
 
-**Where things stand (2026-11-11): all Phase 1 and Phase 2 work in the brief is in open PRs #42–#48, none merged.** Left for Tim: review and merge in order, the 0.2.0 release decision (no version bump, tag or release made), and re-running CI once Ubuntu's mirrors answer (see “CI”).
+Before merging, CI (once Ubuntu's mirrors answered) found a real bug on Ubuntu 24.04 (libadwaita 1.5): a dialog closed while it was still animating open stayed on screen for good. Fixed in #48 (a close that comes too early waits until the dialog is open; anything left is force-closed) with a regression test; all tests then passed on Ubuntu 24.04, Arch, Debian 12 and in CI.
 
 **Mockups approved 2026-11-11** (“Go with those and continue”, relayed by Hermes). Phase 2 shell work is under way in stacked PRs; nothing is merged.
 
@@ -18,13 +18,13 @@ Decisions taken with that approval (the defaults I recommended; say if any is wr
 
 | Step | Branch | PR | State |
 | --- | --- | --- | --- |
-| Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | open, not merged |
-| Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | open, not merged |
-| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, approved, not merged |
-| Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | https://github.com/ninepointlabs/bahai-reader/pull/45 | open, not merged |
-| Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | https://github.com/ninepointlabs/bahai-reader/pull/46 | open, not merged |
-| Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | https://github.com/ninepointlabs/bahai-reader/pull/47 | open, not merged |
-| Phase 2, step 3/6 (rest): settings windows as AdwPreferencesDialog, shortcuts dialog, accessibility pass with Orca | `feat/prefs-shortcuts-a11y` (base: `feat/highlights-notes`, **stacked on #47**) | https://github.com/ninepointlabs/bahai-reader/pull/48 | open, not merged |
+| Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | merged |
+| Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | merged |
+| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | approved, merged |
+| Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | https://github.com/ninepointlabs/bahai-reader/pull/45 | merged |
+| Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | https://github.com/ninepointlabs/bahai-reader/pull/46 | merged |
+| Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | https://github.com/ninepointlabs/bahai-reader/pull/47 | merged |
+| Phase 2, step 3/6 (rest): settings windows as AdwPreferencesDialog, shortcuts dialog, accessibility pass with Orca | `feat/prefs-shortcuts-a11y` (base: `feat/highlights-notes`, **stacked on #47**) | https://github.com/ninepointlabs/bahai-reader/pull/48 | merged |
 
 Merge order: #42 → #43 → #44 → #45 → #46 → #47 → #48. Each PR's base is the branch before it; GitHub retargets it when the one below merges. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
@@ -166,7 +166,7 @@ Checked in `debian:12` containers on 2026-11-11:
 - Debian 12 (bookworm): **libadwaita 1.2.2**, GTK 4.8.3, PyGObject 3.42.2. bookworm-backports has no newer libadwaita. The review was right.
 - Debian 13 (trixie, stable since August 2025): libadwaita 1.7.6, GTK 4.18.6, PyGObject 3.50.0.
 - Fedora 43: libadwaita 1.8.8. TUF (Arch): libadwaita 1.10.0. Flatpak (GNOME 51 runtime): current libadwaita.
-- Ubuntu 24.04: **not verified**; the container could not reach Ubuntu’s mirrors (DNS failure). Not assumed.
+- Ubuntu 24.04: libadwaita 1.5.0, GTK 4.14.5, PyGObject 3.48.2 (checked in an `ubuntu:24.04` container once the mirrors answered): gets the new window.
 
 What libadwaita 1.2 lacks for the Phase 2 shell: `AdwNavigationSplitView`, `AdwToolbarView`, `AdwBreakpoint`, `AdwNavigationView` (all 1.4), `AdwPreferencesDialog` and `AdwDialog` (1.5). It has `AdwApplicationWindow`, `AdwHeaderBar`, `AdwToastOverlay`, `AdwLeaflet` (deprecated in 1.4), `AdwPreferencesWindow`, `AdwStatusPage` and the style manager.
 
@@ -200,11 +200,9 @@ Approved by Tim: **yes**, 2026-11-11 (“Go with those and continue”, relayed 
 
 ## CI
 
-GitHub Actions, 2026-11-11 (UTC), on every PR #42–#48:
-
-- **Flatpak job: passed** on each PR that got that far (#42–#46 so far; it builds the bundle and starts the app in the GNOME 51 sandbox, which from #45 is the libadwaita window).
-- **`build` job: never got past `sudo apt-get update && sudo apt-get install …`** on any PR: it hangs until the 20-minute job timeout (cancelled). I cancelled and re-ran the first three once at 15:30; same result. A local `ubuntu:24.04` container could not resolve `security.ubuntu.com` the same day, so this looks like an Ubuntu mirror problem, not the code. The package install jobs (Debian 12, Fedora 43, Arch) depend on `build`, so they have not run on GitHub either.
-- **So CI is not green.** What has been verified is the local results above, which cover the same tests (unit tests, every UI test in both windows, package installs in `debian:12`, `fedora:43` and `archlinux:base`). To do: re-run each PR's latest run once Ubuntu's mirrors answer (`gh run rerun <run id>`).
+- Until about 17:00 UTC on 2026-11-11, every `build` job hung at `apt-get install` (Ubuntu mirror outage); the Flatpak job passed throughout.
+- Once the mirrors answered, CI found the libadwaita 1.5 dialog bug (see the top). After the fix, the full run on #48's tip (`43075522577`) passed: build (all unit and UI tests, both windows, AppImage), Flatpak, and the installed-package tests on Debian 12, Fedora 43 and Arch.
+- Reproduced locally in an `ubuntu:24.04` container (libadwaita 1.5.0, GTK 4.14.5): Ubuntu 24.04 gets the new window.
 
 ## Open questions and blocked gates
 
@@ -213,6 +211,5 @@ Answered 2026-11-11 by “Go with those and continue” (as I read it; correct m
 Still open:
 1. **CI** cannot run its `build` job while Ubuntu's mirrors are failing (see “CI”); re-run when they answer.
 4. **Not done (optional or out of scope in the brief):** gettext/translation set-up (optional; not started), the About window is still the app's own (not `AdwAboutDialog`), the Aa popover stays a popover (it is not a settings window), and highlights are not shown in the side-by-side second language.
-5. **0.2.0 release prep** (VERSION, RELEASE-NOTES.md, the metainfo `<release>`, the website's download links, the autonomix-cli install line) is not done: it belongs with the release, which needs Tim's OK.
-2. **Ubuntu 24.04's libadwaita version** is still unconfirmed here (believed 1.5, which would get the new window; otherwise it falls back to classic, which is safe either way).
+5. **0.2.0** released on Tim's instruction (see the top).
 3. **Release 0.2.0** is the intended end; no version bump, tag or release without Tim's OK.
