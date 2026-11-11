@@ -47,6 +47,8 @@ overrides:
       - python3 (>= 3.11)
       - python3-gi
       - gir1.2-gtk-4.0 (>= 4.8)
+      # The libadwaita window needs 1.4+; with an older one (Debian 12 has 1.2) the classic window opens instead.
+      - gir1.2-adw-1
       # Time zone data for sun times at a saved location.
       - tzdata
     recommends:
@@ -59,6 +61,7 @@ overrides:
       # Fedora 43's python3-gobject no longer pulls in the cairo typelib.
       - gobject-introspection
       - gtk4 >= 4.8
+      - libadwaita
       # Time zone data for sun times at a saved location.
       - tzdata
     recommends:
@@ -68,6 +71,7 @@ overrides:
       - python>=3.11
       - python-gobject
       - gtk4>=4.8
+      - libadwaita
       # Time zone data for sun times at a saved location.
       - tzdata
     recommends:

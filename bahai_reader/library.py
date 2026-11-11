@@ -273,6 +273,39 @@ def reflections(items):
     pool=[i for i in items if (i["section"] in ("prayers","hidden") or REFLECTION_BOOKS.intersection(i["tags"])) and i["word_count"]<=REFLECTION_WORDS]
     return sorted(pool,key=lambda i:i["id"])
 
+HIDDEN_WORDS="The Hidden Words"
+
+def book_of(item):
+    """The book a passage belongs to, as the library shows it, or None for a prayer."""
+    if item["section"]=="hidden": return HIDDEN_WORDS
+    if item["section"]=="writings" and item["tags"]: return item["tags"][0]
+    return None
+
+def books(items):
+    """{book: its passages in reading order}, for the library."""
+    shelf={}
+    for item in items:
+        book=book_of(item)
+        if book: shelf.setdefault(book,[]).append(item)
+    return shelf
+
+def book_summary(passages):
+    """A line for a book's card: its parts, or how many passages it has, and how long it is."""
+    parts=list(dict.fromkeys(i["subgroup"] for i in passages if i["subgroup"]))
+    words=sum(i["word_count"] for i in passages)
+    length=f"{round(words/1000)}k words" if words>=1000 else f"{words} words"
+    count=f"{len(parts)} parts" if len(parts)>1 else f"{len(passages)} passage{'s' if len(passages)!=1 else ''}"
+    return f"{count} · {length}"
+
+def book_progress(passages,item):
+    """How far through the book a passage is, by words: (words before it, words in the book)."""
+    total=sum(i["word_count"] for i in passages)
+    before=0
+    for i in passages:
+        if i is item or i["id"]==item["id"]: break
+        before+=i["word_count"]
+    return before,total
+
 def passage_of_the_day(items,day):
     """The same passage all day; a fixed shuffle walked one step a day, so consecutive days always differ."""
     pool=reflections(items)

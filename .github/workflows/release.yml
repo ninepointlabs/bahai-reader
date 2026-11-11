@@ -18,8 +18,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-gtk-4.0 xvfb dbus-x11 desktop-file-utils appstream x11-utils file zsync
+      - run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb dbus-x11 desktop-file-utils appstream x11-utils file zsync
       - run: /usr/bin/python3 -m unittest discover -s tests
+      # The window this runner's libadwaita gives (the libadwaita one from 1.4), then the same tests in the classic window,
+      # which Debian 12 and any system without libadwaita 1.4 get. layout, chrome and smoke always test the classic window.
+      - run: xvfb-run -a /usr/bin/python3 tests/shell_ui.py
+      - run: for t in navigation today robustness dropdown; do BAHAI_READER_SHELL=classic xvfb-run -a /usr/bin/python3 tests/${t}_ui.py || exit 1; done
+      - run: BAHAI_READER_SHELL=classic xvfb-run -a dbus-run-session -- /usr/bin/python3 tests/background_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/navigation_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/chrome_ui.py
       - run: xvfb-run -a /usr/bin/python3 tests/layout_ui.py
@@ -53,6 +58,7 @@ jobs:
           flatpak install --user -y --noninteractive dist/*.flatpak
           Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2
           timeout 300 dbus-run-session -- flatpak run --filesystem="$PWD:ro" --command=python3 org.bahai.Reader "$PWD/tests/smoke_ui.py" flatpak
+          timeout 300 dbus-run-session -- flatpak run --filesystem="$PWD:ro" --command=python3 org.bahai.Reader "$PWD/tests/shell_ui.py" flatpak
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak
@@ -79,13 +85,13 @@ jobs:
         run: |
           case "$DISTRO" in
             debian)
-              docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec 'apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus-x11; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; timeout 300 /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec 'apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus-x11; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; timeout 300 /usr/bin/python3 /work/tests/smoke_ui.py installed; timeout 300 /usr/bin/python3 /work/tests/shell_ui.py installed'
               ;;
             fedora)
-              docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec 'dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb mesa-libGL mesa-libEGL mesa-libGLES dbus-daemon; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; timeout 300 /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec 'dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb mesa-libGL mesa-libEGL mesa-libGLES dbus-daemon; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; timeout 300 /usr/bin/python3 /work/tests/smoke_ui.py installed; timeout 300 /usr/bin/python3 /work/tests/shell_ui.py installed'
               ;;
             arch)
-              docker run --rm -v "$PWD:/work:ro" archlinux:base bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /work/dist/*.pkg.tar.zst; pacman -S --noconfirm xorg-server-xvfb xorg-xauth dbus; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; timeout 300 /usr/bin/python3 /work/tests/smoke_ui.py installed'
+              docker run --rm -v "$PWD:/work:ro" archlinux:base bash -ec 'pacman -Syu --noconfirm; pacman -U --noconfirm /work/dist/*.pkg.tar.zst; pacman -S --noconfirm xorg-server-xvfb xorg-xauth dbus; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; timeout 300 /usr/bin/python3 /work/tests/smoke_ui.py installed; timeout 300 /usr/bin/python3 /work/tests/shell_ui.py installed'
               ;;
           esac
   release:

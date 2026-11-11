@@ -3,7 +3,7 @@ from gi.repository import Gtk, Pango
 import badi
 
 from .labels import list_title, word_label
-from .library import AYYAM_PRAYERS, FAST_PRAYERS, badi_days_tag, obligatory
+from .library import AYYAM_PRAYERS, FAST_PRAYERS, badi_days_tag, book_of, obligatory
 from .search import fold
 from .settings import AUTHOR_ORDER
 
@@ -12,11 +12,15 @@ class ContentsMixin:
     def rebuild(self):
         """Build the contents tree for the section once; searching only hides rows."""
         if not hasattr(self,"toc"): return
-        self.grouping.set_visible(self.section=="writings")
+        self.grouping.set_visible(self.section=="writings" and not self.adwaita)
         saved=self.prefs.get("saved",[])
         self.section_items=[i for i in self.items if (i["id"] in saved if self.section=="saved" else i["section"]==self.section)]
+        if self.section=="writings" and self.book: self.section_items=[i for i in self.section_items if book_of(i)==self.book]
         while child:=self.toc.get_first_child(): self.toc.remove(child)
         self.branches={}; self.branch_rows=[]; self.passage_buttons=[]; self.groups={}
+        if self.section=="home" or self.library_showing():
+            # Home and the library are pages of their own; there is no contents list to show.
+            self.section_items=[]; self.visible=[]; self.query=None; self.count.set_text(""); self.secondscroll.set_visible(False); return
         if self.section=="today":
             self.build_calendar()
             self.no_match=Gtk.Label(wrap=True,xalign=0,visible=False); self.no_match.add_css_class("dim-label"); self.toc.append(self.no_match)
@@ -30,6 +34,11 @@ class ContentsMixin:
         if self.section=="saved":
             # A personal prayerbook: collections in their own order, then whatever is not filed yet.
             groups=self.filed(); self.section_items=[i for g in groups.values() for i in g]
+        if self.section=="prayers" and self.adwaita:
+            # In the libadwaita window the obligatory prayers are the first group of Prayers.
+            row=self.button("",lambda *_:self.navigate("obligatory")); row.add_css_class("toc-passage"); row.set_tooltip_text("The three obligatory prayers, their guidance, and the Alláh-u-Abhá counter")
+            line=Gtk.Box(spacing=8); line.append(Gtk.Label(label="Obligatory prayers",xalign=0,hexpand=True)); line.append(Gtk.Image(icon_name="go-next-symbolic")); row.set_child(line)
+            self.toc.append(row); self.obligatory_row=row
         if self.section=="obligatory":
             row=self.button("Alláh-u-Abhá counter",self.show_counter); row.add_css_class("toc-passage"); row.get_child().set_xalign(0); self.toc.append(row); self.counter_row=row
         ordered=list(groups.items()) if self.section in ("obligatory","saved") else sorted(groups.items())
@@ -42,6 +51,9 @@ class ContentsMixin:
                 path=f"writings/by-author/{author}"
                 container=self.branch(self.toc,author,path,[i for _,items in authors[author] for i in items])
                 for tag,items in authors[author]: self.add_entries(self.branch(container,tag,f"{path}/{tag}",items),f"{path}/{tag}",items)
+        elif self.section=="writings" and self.book:
+            # One book: its own parts and passages are the contents.
+            path=f"writings/{self.book}"; self.add_entries(self.toc,path,self.section_items)
         else:
             for tag,items in ordered:
                 path=f"{self.section}/{tag}"
@@ -73,7 +85,7 @@ class ContentsMixin:
                 # The whole title, which the row may cut off.
                 button.set_tooltip_text(item["title"]+(" — "+word_label(item) if item["section"]=="prayers" else ""))
                 button.add_css_class("toc-passage")
-                parent.append(button); self.passage_buttons.append((item,button))
+                parent.append(button); button.container=parent; self.passage_buttons.append((item,button))
 
     def change_grouping(self,choice):
         value=choice.get_active_id()
@@ -136,6 +148,7 @@ class ContentsMixin:
         expander.set_label_widget(heading)
         expander.set_tooltip_text(title)
         box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3,margin_start=14,margin_top=6,margin_bottom=6)
+        box.expander=expander; expander.container=parent
         expander.set_child(box); parent.append(expander); self.branches[path]=expander; self.branch_rows.append((expander,total,path,items))
         def toggled(widget,_):
             if not self.restoring and not self.query:
@@ -203,12 +216,20 @@ class ContentsMixin:
         return self.prayer_opener(event.prayers,f"Prayers for {event.name}")
 
     def open_in_section(self,item,group,label):
-        if self.section!=item["section"]: self.navigate(item["section"])
+        if self.section!=item["section"] or (self.adwaita and item["section"]=="writings" and self.book!=book_of(item)): self.navigate(item["section"],book=book_of(item))
         elif self.search.get_text(): self.search.set_text(""); self.filter()
         self.show_passage(item,group); self.show_content()
         self.subtitle.set_text(label+" · "+self.subtitle.get_text())
 
     def highlight(self):
         for item,button in self.passage_buttons:
-            if self.current and item["id"]==self.current["id"]: button.add_css_class("current-passage")
+            if self.current and item["id"]==self.current["id"]:
+                button.add_css_class("current-passage")
+                if self.adwaita and not self.query:
+                    # Open the parts that hold it, so the contents show where the reader is (without remembering that as a choice).
+                    # (A collapsed GtkExpander unparents its child, so the way up is recorded when the contents are built.)
+                    self.restoring=True; box=getattr(button,"container",None)
+                    while getattr(box,"expander",None):
+                        box.expander.set_expanded(True); box=box.expander.container
+                    self.restoring=False
             else: button.remove_css_class("current-passage")

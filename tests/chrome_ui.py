@@ -1,5 +1,7 @@
 """The section switcher, the header, list names and tooltips, and the reading footer (UX Phase 1).
 Run with xvfb-run -a /usr/bin/python3 tests/chrome_ui.py [installed|flatpak]."""
+import os
+os.environ["BAHAI_READER_SHELL"]="classic"  # the classic window's chrome (UX Phase 1); the libadwaita window is tested in shell_ui.py
 import sys
 import tempfile
 from pathlib import Path

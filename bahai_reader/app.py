@@ -16,13 +16,14 @@ from .location import LocationMixin
 from .reading import ReadingMixin
 from .reminders import RemindersMixin
 from .saved import SavedMixin
+from .shell import ShellMixin, adwaita
 from .settings import CHROME_FONTS, WRITINGS_GROUPINGS, load_settings
 from .theme import ThemeMixin
 from .today import TodayMixin
 from .ui import CONTENT_MIN_WIDTH, FADE_HEIGHT, NARROW_WIDTH, SECTION_ROWS
 from .widgets import Choice
 
-class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMixin, TodayMixin, ThemeMixin, AboutMixin, LocationMixin, LanguagesMixin, Gtk.Application):
+class Reader(ShellMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMixin, TodayMixin, ThemeMixin, AboutMixin, LocationMixin, LanguagesMixin, Gtk.Application):
     def __init__(self,background=False):
         super().__init__(application_id="org.bahai.Reader")
         self.window=None; self.notices=[]; self.save_failed=False; self.background_launch=background; self.ticking=False; self.held=False
@@ -34,6 +35,7 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
             if (config.LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in ⋮ → Languages & offline libraries.")
             else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
             self.language=1
+        self.adwaita=False; self.book=None
         self._items=None; self.section="today"; self.fixed_now=None; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
         self.connect("activate", self.activate)
         said=Gio.SimpleAction.new("said",GLib.VariantType.new("s")); said.connect("activate",lambda _a,key:self.notification_said(key.get_string())); self.add_action(said)
@@ -59,10 +61,17 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
             except OSError: pass
     def notice(self,text):
         if not hasattr(self,"notice_box"): self.notices.append(text); return
+        if self.adwaita: return self.shell_notice(text)
         row=Gtk.Box(spacing=12); row.add_css_class("notice")
         row.append(Gtk.Label(label=text,wrap=True,xalign=0,hexpand=True))
         row.append(self.button("Dismiss",lambda *_: (self.notice_box.remove(row), self.notice_box.set_visible(self.notice_box.get_first_child() is not None))))
         self.notice_box.append(row); self.notice_box.set_visible(True)
+    def notice_texts(self):
+        """The notices shown so far: toasts in the libadwaita window, the notice bar in the classic one."""
+        if self.adwaita: return list(self.notice_log)
+        texts=[]; row=self.notice_box.get_first_child()
+        while row: texts.append(row.get_first_child().get_text()); row=row.get_next_sibling()
+        return texts
     def button(self, text, callback):
         b=Gtk.Button(label=text); b.connect("clicked", callback); return b
     def name_widget(self,widget,text):
@@ -86,6 +95,8 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
             if self.window: self.window.destroy()
             self.window=None; self.quit(); raise
     def build(self):
+        Adw=adwaita()
+        if Adw: return self.build_adwaita(Adw)
         self.window=Gtk.ApplicationWindow(application=self, title="Bahá’í Reader", default_width=1160, default_height=790)
         self.window.connect("close-request",self.window_closing)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -95,49 +106,15 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
         panel=Gtk.Button(icon_name="sidebar-show-symbolic"); panel.connect("clicked",self.toggle_sidebar); panel.set_tooltip_text("Show or hide the contents (Esc)"); self.name_widget(panel,"Contents"); header.pack_start(panel)
         # The menu holds what concerns the whole app; Aa holds only how the text reads.
         more=Gtk.MenuButton(icon_name="view-more-symbolic"); more.set_tooltip_text("Menu"); more.add_css_class("app-menu"); self.name_widget(more,"Menu"); self.app_menu=more; header.pack_end(more)
-        entries=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2)
-        for edge in ("top","bottom","start","end"): getattr(entries,"set_margin_"+edge)(6)
-        more_pop=Gtk.Popover(); more_pop.set_child(entries); more.set_popover(more_pop); more_pop.add_css_class("menu")
-        def menu_entry(label,action,shortcut=None):
-            entry=self.button("",lambda _,a=action:(more_pop.popdown(),a())); entry.add_css_class("flat")
-            row=Gtk.Box(spacing=24); row.append(Gtk.Label(label=label,xalign=0,hexpand=True))
-            if shortcut: keys=Gtk.Label(label=shortcut); keys.add_css_class("dim-label"); row.append(keys)
-            entry.set_child(row); entry.get_label=lambda:label; entries.append(entry); return entry
-        self.random_entry=menu_entry("Random passage",self.random_passage,"Ctrl+R")
-        # In a narrow window the header's Copy rests here.
-        self.copy_entry=menu_entry("Copy the passage",self.copy_passage,"Ctrl+Shift+C"); self.copy_entry.set_visible(False); self.narrow_entries=[self.copy_entry]
-        more_pop.connect("show",lambda *_:self.copy_entry.set_sensitive(self.copy.get_sensitive()))
-        entries.append(Gtk.Separator())
-        for label,action,keys in (("Location & reminders…",self.location_dialog,None),("Languages & offline libraries…",self.language_dialog,None),("Keyboard shortcuts",self.shortcuts_dialog,None),("About Bahá’í Reader",self.about_dialog,"F1")):
-            menu_entry(label,action,keys)
-        self.star=self.button("☆ Save", self.bookmark); self.star.set_tooltip_text("Save this passage (Ctrl+D)"); header.pack_end(self.star)
-        self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); header.pack_end(self.copy)
-        self.wide_header=(self.copy,)
-        menu=Gtk.MenuButton(label="Aa"); menu.set_tooltip_text("Text and appearance"); pop=Gtk.Popover(); menu.set_popover(pop); header.pack_end(menu)
-        settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
-        pop.set_child(settings)
-        self.option(settings, "Appearance", "theme", ["Omarchy", "Light", "Dark", "Sepia"], "Omarchy")
-        self.option(settings, "Interface font", "chrome_font", list(CHROME_FONTS), "System")
-        fonts=sorted({f.get_name() for f in self.window.get_pango_context().list_families()})
-        self.option(settings, "Reading font", "font", fonts, "Noto Serif" if "Noto Serif" in fonts else "DejaVu Serif")
-        self.slider(settings, "Text size", "size", 15, 36, 22)
-        self.slider(settings, "Line spacing", "spacing", 0, 20, 8)
-        self.slider(settings, "Page margins", "margin", 24, 160, 80)
-        settings.append(Gtk.Label(label="Side by side",xalign=0)); self.compare=Choice(); settings.append(self.compare)
-        self.compare.connect("changed",self.compare_changed); self.compare_cache=(None,{}); self.filling_compare=False
-        pop.connect("show",lambda *_: self.fill_compare())
+        self.make_menu(more)
+        for widget in self.make_actions(): header.pack_end(widget)
         self.window.set_child(outer)
         if shutil.which("omarchy"): outer.append(header); self.window.set_decorated(False)
         else: self.window.set_titlebar(header)
         self.notice_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,visible=False); outer.append(self.notice_box)
         for text in self.notices: self.notice(text)
         self.notices=[]
-        keys=Gtk.EventControllerKey(); keys.connect("key-pressed", self.key_pressed); self.window.add_controller(keys)
-        self.counter_held=set()
-        counting=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); counting.connect("key-pressed",self.counter_key); counting.connect("key-released",lambda _c,key,*_:self.counter_held.discard(key)); self.window.add_controller(counting)
-        # Previous/Next before the reading view's own cursor keys see them.
-        paging=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); paging.connect("key-pressed", self.page_key); self.window.add_controller(paging)
+        self.install_keys()
         body=Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.split=body; self.panel_width_ready=False; self.panel_programmatic=False; self.panel_save_source=None; self.panel_window_width=0
         # Neither pane can be dragged below its minimum width, so neither disappears.
@@ -160,22 +137,72 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
         self.switcher_syncing=False
         self.switcher.connect("row-selected",lambda _box,row: row and not self.switcher_syncing and row.section!=self.section and self.navigate(row.section))
         self.sidebar.append(self.switcher)
-        self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); self.sidebar.append(self.manage)
+        self.make_contents(self.sidebar)
+        self.make_views(); body.set_end_child(self.views)
+        self.finish_build()
+    def make_menu(self,more):
+        """The ⋮ menu: what concerns the whole app."""
+        entries=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2)
+        for edge in ("top","bottom","start","end"): getattr(entries,"set_margin_"+edge)(6)
+        more_pop=Gtk.Popover(); more_pop.set_child(entries); more.set_popover(more_pop); more_pop.add_css_class("menu")
+        def menu_entry(label,action,shortcut=None):
+            entry=self.button("",lambda _,a=action:(more_pop.popdown(),a())); entry.add_css_class("flat")
+            row=Gtk.Box(spacing=24); row.append(Gtk.Label(label=label,xalign=0,hexpand=True))
+            if shortcut: keys=Gtk.Label(label=shortcut); keys.add_css_class("dim-label"); row.append(keys)
+            entry.set_child(row); entry.get_label=lambda:label; entries.append(entry); return entry
+        self.random_entry=menu_entry("Random passage",self.random_passage,"Ctrl+R")
+        # In a narrow window the header's Copy rests here.
+        self.copy_entry=menu_entry("Copy the passage",self.copy_passage,"Ctrl+Shift+C"); self.copy_entry.set_visible(False); self.narrow_entries=[self.copy_entry]
+        more_pop.connect("show",lambda *_:self.copy_entry.set_sensitive(self.copy.get_sensitive()))
+        entries.append(Gtk.Separator())
+        for label,action,keys in (("Location & reminders…",self.location_dialog,None),("Languages & offline libraries…",self.language_dialog,None),("Keyboard shortcuts",self.shortcuts_dialog,None),("About Bahá’í Reader",self.about_dialog,"F1")):
+            menu_entry(label,action,keys)
+    def make_actions(self):
+        """Save, Copy and Aa, in the order a header packs them from the end."""
+        self.star=self.button("☆ Save", self.bookmark); self.star.set_tooltip_text("Save this passage (Ctrl+D)"); 
+        self.copy=self.button("Copy", self.copy_passage); self.copy.set_tooltip_text("Copy the passage with its citation (Ctrl+Shift+C)"); 
+        self.wide_header=(self.copy,)
+        menu=Gtk.MenuButton(label="Aa"); menu.set_tooltip_text("Text and appearance"); pop=Gtk.Popover(); menu.set_popover(pop); self.text_menu=menu
+        settings=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        for edge in ("top", "bottom", "start", "end"): getattr(settings, "set_margin_"+edge)(18)
+        pop.set_child(settings)
+        self.option(settings, "Appearance", "theme", ["Omarchy", "Light", "Dark", "Sepia"], "Omarchy")
+        self.option(settings, "Interface font", "chrome_font", list(CHROME_FONTS), "System")
+        fonts=sorted({f.get_name() for f in self.window.get_pango_context().list_families()})
+        self.option(settings, "Reading font", "font", fonts, "Noto Serif" if "Noto Serif" in fonts else "DejaVu Serif")
+        self.slider(settings, "Text size", "size", 15, 36, 22)
+        self.slider(settings, "Line spacing", "spacing", 0, 20, 8)
+        self.slider(settings, "Page margins", "margin", 24, 160, 80)
+        settings.append(Gtk.Label(label="Side by side",xalign=0)); self.compare=Choice(); settings.append(self.compare)
+        self.compare.connect("changed",self.compare_changed); self.compare_cache=(None,{}); self.filling_compare=False
+        pop.connect("show",lambda *_: self.fill_compare())
+        return [self.star,self.copy,self.text_menu]
+    def install_keys(self):
+        keys=Gtk.EventControllerKey(); keys.connect("key-pressed", self.key_pressed); self.window.add_controller(keys)
+        self.counter_held=set()
+        counting=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); counting.connect("key-pressed",self.counter_key); counting.connect("key-released",lambda _c,key,*_:self.counter_held.discard(key)); self.window.add_controller(counting)
+        # Previous/Next before the reading view's own cursor keys see them.
+        paging=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); paging.connect("key-pressed", self.page_key); self.window.add_controller(paging)
+    def make_contents(self,box):
+        """Below the sections: Manage collections, the Writings grouping, the search entry, the count and the contents tree."""
+        self.manage=self.button("Manage collections…",self.collections_dialog); self.manage.set_visible(False); box.append(self.manage)
         self.grouping=Choice()
         for key,label in WRITINGS_GROUPINGS.items(): self.grouping.append(key,label)
         self.grouping.set_active_id(self.prefs.get("writings_by","book")); self.grouping.set_visible(False)
         self.grouping.set_tooltip_text("List the Writings by book, or by author and then book")
-        self.grouping.connect("changed",self.change_grouping); self.sidebar.append(self.grouping)
-        self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); self.sidebar.append(self.search)
+        self.grouping.connect("changed",self.change_grouping); box.append(self.grouping)
+        self.search=Gtk.SearchEntry(placeholder_text="Search this section…"); self.search.connect("search-changed", self.filter); box.append(self.search)
         into_list=Gtk.EventControllerKey(); into_list.connect("key-pressed", self.search_key); self.search.add_controller(into_list)
-        self.count=Gtk.Label(xalign=0); self.count.add_css_class("dim-label"); self.sidebar.append(self.count)
-        scroll=Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.EXTERNAL); self.sidebar.append(scroll)
+        self.count=Gtk.Label(xalign=0); self.count.add_css_class("dim-label"); box.append(self.count)
+        scroll=Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.EXTERNAL); box.append(scroll)
         self.toc=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); scroll.set_child(self.toc)
         # The contents list is one Tab stop; arrow keys move inside it.
         out_of_list=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE); out_of_list.connect("key-pressed", self.list_key); scroll.add_controller(out_of_list)
         self.branches={}; self.passage_buttons=[]; self.active_group=[]; self.restoring=False; self.query=None
+    def make_views(self):
+        """The right-hand views: a passage, Today and the counter."""
         # No transition between views: nothing moves, so there is nothing to reduce for gtk-enable-animations.
-        self.views=Gtk.Stack(hexpand=True,vexpand=True,transition_type=Gtk.StackTransitionType.NONE); body.set_end_child(self.views); self.views.set_size_request(CONTENT_MIN_WIDTH,-1)
+        self.views=Gtk.Stack(hexpand=True,vexpand=True,transition_type=Gtk.StackTransitionType.NONE); self.views.set_size_request(CONTENT_MIN_WIDTH,-1)
         right=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True)
         right.set_margin_top(32); self.views.add_named(right,"reading")
         self.build_today(); self.build_counter()
@@ -211,9 +238,10 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
         self.next=self.button("Next →", lambda *_: self.step(1)); self.next.add_css_class("primary"); nav.append(self.next); footer.append(nav); right.append(footer)
         self.name_widget(self.previous,"Previous passage"); self.name_widget(self.next,"Next passage")
         self.status=Gtk.Label(label="English · Available offline · Texts: BahaiPrayers.net, bahai.org", margin_bottom=16, margin_start=12, margin_end=12, wrap=True, justify=Gtk.Justification.CENTER); self.status.add_css_class("dim-label"); footer.append(self.status)
+    def finish_build(self):
         self.provider=Gtk.CssProvider(); Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         # New installs open on Today; everyone else keeps the section they were in.
-        self.update_status(); self.navigate(self.prefs.get("section","today")); self.apply_theme(); GLib.timeout_add_seconds(1,self.theme_tick)
+        self.update_status(); self.navigate(self.prefs.get("section",self.first_section()),book=self.prefs.get("book")); self.apply_theme(); GLib.timeout_add_seconds(1,self.theme_tick)
         self.window.connect("notify::default-width",self.window_resized); self.window_resized()
         self.window.present()
     def window_closing(self,window):
@@ -245,6 +273,7 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
             self.panel_width_ready=True
         return True
     def window_resized(self,*_):
+        if self.adwaita: return self.fit_margins()
         """Too narrow for both panes: they take turns and the contents button switches between them. Wide-mode minimums stay under NARROW_WIDTH, so the allocated
         width always gets there, whatever the compositor does; the asked-for size gets there before the first frame."""
         sizes=[n for n in (self.window.get_default_size()[0],self.window.get_width()) if n>0]
@@ -264,16 +293,19 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
         self.fit_margins(width or None)
     def fit_margins(self,width=None):
         """Page margins give way once the text column would get narrower than about 360 px."""
+        if self.adwaita: return self.shell_fit_margins()
         width=width or self.split.get_width()
         if self.sidebar.get_visible() and self.views.get_visible(): width-=self.split.get_position()
         if self.secondscroll.get_visible() and not self.narrow: width//=2
         margin=min(int(self.prefs.get("margin",80)),max(12,(width-360)//2))
         for view in (self.reader,self.second): view.set_left_margin(margin); view.set_right_margin(margin)
     def toggle_sidebar(self,*_):
+        if self.adwaita: return self.shell_toggle_sidebar()
         if self.narrow: self.show_list(not self.sidebar.get_visible())
         else: self.sidebar_wanted=not self.sidebar.get_visible(); self.sidebar.set_visible(self.sidebar_wanted)
     def show_list(self,visible=True):
         """The contents panel; in a narrow window, instead of the right pane."""
+        if self.adwaita: return self.shell_show_list(visible)
         self.sidebar.set_visible(visible)
         if self.narrow:
             self.views.set_visible(not visible)
@@ -281,6 +313,9 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
             self.search.grab_focus() if visible else self.focus_view()
         elif visible: self.sidebar_wanted=True
     def show_content(self):
+        if self.adwaita:
+            if self.splitview.get_collapsed(): self.splitview.set_show_content(True)
+            return
         if self.narrow and self.sidebar.get_visible(): self.show_list(False)
     def open_from_list(self,item,group):
         self.show_passage(item,group); self.show_content()
@@ -300,6 +335,12 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
             if key==Gdk.KEY_d: self.bookmark(); return True
             if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True
         if key==Gdk.KEY_F1: self.about_dialog(); return True
+        if self.adwaita and key==Gdk.KEY_F11 and not modifiers & (Gdk.ModifierType.CONTROL_MASK|Gdk.ModifierType.ALT_MASK):
+            self.set_focus_mode(not self.focus_mode); return True
+        if self.adwaita and key==Gdk.KEY_Escape:
+            if self.focus_mode: self.set_focus_mode(False); return True
+            if self.splitview.get_collapsed() and self.splitview.get_show_content(): self.show_list(); return True
+            return False
         if key==Gdk.KEY_Escape:
             if not self.sidebar.get_visible(): self.show_list(); return True
             if self.narrow: self.show_list(False); return True
@@ -345,18 +386,33 @@ class Reader(ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMix
         scale.set_value(self.prefs.get(key,default)); scale.set_draw_value(True)
         def change(s): self.prefs[key]=int(s.get_value()); self.save(); self.signature=None; self.apply_theme()
         scale.connect("value-changed",change); box.append(scale)
-    def navigate(self,key):
+    def navigate(self,key,book=None):
+        """Open a section. book: in the libadwaita window, the book to open in Writings (None shows the library)."""
+        if key=="home" and not self.adwaita: key="today"
         self.section="writings" if key=="gleanings" else key
+        self.book=book if self.adwaita and self.section=="writings" else None
+        if self.book: self.prefs["book"]=self.book
+        else: self.prefs.pop("book",None)
         self.prefs["section"]=self.section; self.save(); self.search.set_text(""); self.manage.set_visible(self.section=="saved")
-        self.switcher_syncing=True; self.switcher.select_row(self.switcher_rows.get(self.section)); self.switcher_syncing=False
-        if self.section=="today":
+        self.switcher_syncing=True; self.switcher.select_row(self.switcher_rows.get(self.nav_key())); self.switcher_syncing=False
+        if self.section in ("today","home") or self.library_showing():
             self.current=None; self.active_group=[]; self.filing.set_visible(False); self.related.set_visible(False)
-        self.show_view("today" if self.section=="today" else "reading")
+        self.show_view("today" if self.section=="today" else "home" if self.section=="home" else "library" if self.library_showing() else "reading")
         self.rebuild()
         if self.section=="today": self.refresh_today()
+        if self.section=="home": self.refresh_home()
+        if self.library_showing(): self.refresh_library()
+        if self.adwaita: self.shell_navigated()
+    def first_section(self):
+        """Where a new install opens: Home in the libadwaita window, Today in the classic one."""
+        return "home" if self.adwaita else "today"
+    def library_showing(self):
+        """Writings with no book open, in the libadwaita window: the library instead of a passage."""
+        return self.adwaita and self.section=="writings" and not self.book
     def show_view(self,name):
         """The right pane: a passage, or Today. Copy and Save act on a passage, so they rest elsewhere."""
         self.views.set_visible_child_name(name)
         if name!="reading": self.show_content()  # a passage is picked from the list; Today and the counter are only here
         ready=name=="reading" and self.current is not None
         self.star.set_sensitive(ready); self.copy.set_sensitive(ready)
+        if self.adwaita: self.shell_titles()

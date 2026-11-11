@@ -2,6 +2,18 @@
 
 A standalone GTK 4 Linux app for quiet reading. Follows Omarchy colors live, including custom themes. No shell plugin or Omarchy dependency.
 
+## Two windows
+
+On systems with libadwaita 1.4 or newer (Debian 13, Ubuntu 24.04, Fedora 43, Arch, and the Flatpak), the app opens in its **libadwaita window**: a sidebar with **Home, Prayers, Writings and Saved** beside the reader.
+
+- **Home** shows the day at a glance: the Badí‘ date, the obligatory prayer’s state, and the passage of the day. **Open Today** (or Ctrl+T) shows the full Today page. Below that, **Continue reading** has the last three books you read, each at the passage you left, with how far through the book you are. Then the **library**: every book as a card, grouped by author.
+- **Writings** is the library. Opening a book turns the sidebar into that book’s contents (parts, chapters, passages), with **Back** to the library. The Hidden Words is one of the books.
+- **Prayers** lists the prayer categories, with **Obligatory prayers** (the three prayers, their guidance in the Kitáb-i-Aqdas, and the Alláh-u-Abhá counter) first.
+- **Saved** holds your collections.
+- The colours follow the Omarchy theme (or the chosen palette) through libadwaita’s own colour names, so every control matches. Notices appear as dismissable messages at the bottom of the window. Below 700 px the sidebar and the reader take turns. **F11** is focus mode: only the text.
+
+Where libadwaita is older than 1.4 (Debian 12 has 1.2), the app opens in the **classic window** described in the rest of this README, with the same texts, search, saved passages, Today and reminders. To choose the window yourself, start the app with `BAHAI_READER_SHELL=classic` or `BAHAI_READER_SHELL=adwaita` in its environment.
+
 ## Install packages
 
 Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). It takes two steps: `add` only starts tracking the repository, and `install` then installs the package for your distribution. The install step asks for your password.
@@ -71,7 +83,7 @@ Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packag
 
 `bahai-reader --help` and `--version` print and exit; `--background` runs reminders with no window (see Features). If the settings file is damaged, the app starts with defaults, keeps the damaged file as `settings.json.bad` (or `settings.json.bad.1` and so on, never replacing an earlier one), and says so. Damaged collection entries are dropped, but every passage filed in one stays saved.
 
-Requires Python 3.11+, GTK 4, and PyGObject. Arch/Omarchy packages: `python-gobject gtk4`. Debian 12+/Ubuntu 24.04+: `python3-gi gir1.2-gtk-4.0`. Fedora: `python3-gobject gtk4`.
+Requires Python 3.11+, GTK 4, and PyGObject; libadwaita 1.4+ for the libadwaita window (without it, the classic window opens). Arch/Omarchy packages: `python-gobject gtk4 libadwaita`. Debian 12+/Ubuntu 24.04+: `python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`. Fedora: `python3-gobject gtk4 libadwaita`.
 
 ## Features
 
@@ -129,6 +141,7 @@ Square, undecorated window lets Hyprland supply themed borders. The interface us
 | Ctrl+D | Save or unsave the current passage |
 | Ctrl+Shift+C | Copy the passage (or the selected words) with its citation |
 | F1 | About Bahá’í Reader |
+| F11 | Focus mode (libadwaita window): only the text; F11 or Escape brings the sidebar and header back |
 | Ctrl+Q | Quit (also from the small windows). While reminders keep running, it closes the window instead |
 | Ctrl+T | Today (previously the passage of the day, which is now a card on Today) |
 | Ctrl+R | Random passage |
@@ -174,6 +187,6 @@ xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
 
 The pinned nFPM builder creates all three packages and SHA256SUMS in `dist/`. GitHub Actions tests the source and package installation/GTK startup in Debian 12, Fedora 43, and Arch containers. Tagged releases publish only after checks pass. Update VERSION, RELEASE-NOTES.md, and the website's versioned download links before tagging `vX.Y.Z`.
 
-**Code layout.** `reader.py` starts the app; the app itself is the `bahai_reader` package beside it (see its `__init__.py` for the map): data and settings modules (`config`, `settings`, `library`, `search`, `citations`, `labels`, `theme`) that need no display, and the window and its views (`app`, `contents`, `reading`, `saved`, `today`, `counter`, `reminders`, `about`, `location`, `languages`), each view a mixin of the one `Reader` application class. `import reader` still exposes every name, and setting a path on it (`reader.STATE=…`) applies to the whole app, as the tests expect. `badi.py` is the Badí‘ calendar. Packages install `reader.py`, `badi.py` and `bahai_reader/*.py` under `/usr/share/bahai-reader`.
+**Code layout.** `reader.py` starts the app; the app itself is the `bahai_reader` package beside it (see its `__init__.py` for the map): data and settings modules (`config`, `settings`, `library`, `search`, `citations`, `labels`, `theme`) that need no display, and the window and its views (`app` and `shell`, the libadwaita window, `contents`, `reading`, `saved`, `today`, `counter`, `reminders`, `about`, `location`, `languages`), each view a mixin of the one `Reader` application class. `import reader` still exposes every name, and setting a path on it (`reader.STATE=…`) applies to the whole app, as the tests expect. `badi.py` is the Badí‘ calendar. Packages install `reader.py`, `badi.py` and `bahai_reader/*.py` under `/usr/share/bahai-reader`.
 
 The static website is in `docs/` and deploys through GitHub Pages. Application code and original artwork are MIT licensed; bundled texts have separate attribution in DATA-NOTICE.md.

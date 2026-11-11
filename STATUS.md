@@ -4,7 +4,13 @@ Brief: UX Phases 1 and 2, Python + GTK 4 + libadwaita (approved by Tim 2026-11-1
 Source review: “Bahá’í Reader UX and Stack Review” (read 2026-11-11).
 Nothing here is merged, tagged or released. Nothing was pushed to `main`.
 
-**Current gate: waiting for Tim to approve the Phase 2 mockups before the new libadwaita shell is built.**
+**Mockups approved 2026-11-11** (“Go with those and continue”, relayed by Hermes). Phase 2 shell work is under way in stacked PRs; nothing is merged.
+
+Decisions taken with that approval (the defaults I recommended; say if any is wrong):
+- The mockups are built as drawn (all eleven decisions in `design/mockups/phase2/README.md`).
+- **Debian 12: option A, graceful fallback.** libadwaita 1.4+ gets the new window; older libadwaita (Debian 12 has 1.2.2) gets the classic (Phase 1) window. No package target dropped.
+- **No Blueprint:** widgets are built in code, as the rest of the app is, with no new build tool. (The brief allowed “Blueprint or `.ui` templates”; neither is used. Easy to revisit.)
+- **Hidden Words prologue:** left as it is, inside Arabic no. 1.
 
 ## Done
 
@@ -12,8 +18,9 @@ Nothing here is merged, tagged or released. Nothing was pushed to `main`.
 | --- | --- | --- | --- |
 | Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | open, not merged |
 | Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | open, not merged |
-| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, **waiting for Tim’s approval** |
-| Phase 2, steps 3–6: new shell and the rest | — | — | **blocked on mockup approval** |
+| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, approved, not merged |
+| Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | see below once opened | open, not merged |
+| Phase 2, rest: Ctrl+K search, book progress footer and reader heading, highlights and notes, preferences and shortcuts dialogs, Orca pass | — | — | to do, in that order |
 
 Merge order: #42, then #43, then #44. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
@@ -39,9 +46,32 @@ How it was done: an AST script moved every top-level statement and every `Reader
 
 Packaging: `.deb`/`.rpm`/Arch (nfpm), the AppImage and the Flatpak now also install `bahai_reader/*.py` beside `reader.py`. Launchers are unchanged.
 
+### Phase 2, step 3: the libadwaita window (`feat/adw-shell`)
+
+- `bahai_reader/shell.py`: `AdwApplicationWindow` → `AdwToastOverlay` → `AdwNavigationSplitView`, each page an `AdwToolbarView` with an `AdwHeaderBar`; one `AdwBreakpoint` (below 700 px) collapses the split view. It builds the same widgets as the classic window (contents list, reading view, Today, counter), so every view works unchanged in both.
+- Chosen at start: libadwaita ≥ 1.4 → the new window; otherwise the classic one. `BAHAI_READER_SHELL=classic|adwaita` overrides (documented in the README).
+- Sidebar: Home, Prayers (with count), Writings (“18 books”), Saved (count). Today, Obligatory prayers and the Hidden Words keep their own pages and belong to Home, Prayers and Writings respectively.
+- Home: date, obligatory prayer and passage-of-the-day cards; Continue reading (last three books, at the passage left, % of the book by words); the library, by author. Writings shows the library; a book card opens the book with its contents in the sidebar and Back to the library; the branch holding the current passage opens.
+- Settings: `positions` (last passage per book), `recent` (books, most recent first), `book` (the open book), all validated in `clean_settings`.
+- Theme: the palette goes to libadwaita’s named colours (`@define-color`, and the CSS variables libadwaita 1.6+ reads when GTK ≥ 4.16); the sidebar takes Omarchy’s `dark_background` when it keeps 7:1 contrast with the text; accent text and text on the accent are contrast-checked; `AdwStyleManager` is forced light or dark to match. No per-widget button/entry CSS in the new window.
+- Notices are `AdwToast`s (they stay until dismissed). F11 is focus mode (Esc leaves it). Header actions are icons (save, copy), with Aa and ⋮ as before.
+- Packaging: `.deb` depends on `gir1.2-adw-1` (1.2 on Debian 12, which then gets the classic window), `.rpm` and Arch on `libadwaita`; the Flatpak runtime has it; the AppImage uses the host’s if present.
+- Tests: `tests/shell_ui.py` (new, drives the whole new window), `tests/test_shell.py` (13: library, Continue reading settings, theme mapping, choosing the window). `layout_ui`, `chrome_ui` and `smoke_ui` test the classic window and now say so (they pin it). `robustness_ui` reads notices through `notice_texts()` (bar or toasts) and `today_ui` expects Home or Today as the first page, depending on the window. CI runs `shell_ui`, then navigation/today/robustness/dropdown/background in the classic window too, and `shell_ui installed` in the Debian, Fedora and Arch install jobs and the Flatpak.
+
 ## Tests actually run
 
 All on 2026-11-11.
+
+Phase 2 libadwaita window (`feat/adw-shell`):
+
+| Where | What | Result |
+| --- | --- | --- |
+| TUF | unit tests | 239 OK (1 skipped) |
+| Arch container + Xvfb, libadwaita 1.10 (new window) | `shell_ui` + all 8 existing UI tests | all passed |
+| Same, `BAHAI_READER_SHELL=classic` | all 8 existing UI tests | all passed |
+| Classic window unchanged | Phase 1 screenshots re-rendered in the classic window | 8 of 9 byte-identical; the 9th differs only in the search field’s blinking caret (as before) |
+| `debian:12` container, libadwaita 1.2.2 | unit tests, `shell_ui` (skips: classic window chosen), `smoke_ui`, `navigation_ui`, `today_ui`, `chrome_ui` | all passed; the classic window opens |
+| Packages built and installed in `debian:12`, `fedora:43`, `archlinux:base` | `smoke_ui installed`, `shell_ui installed` | all passed; Fedora and Arch open the new window, Debian 12 the classic one |
 
 Phase 2 split branch:
 
@@ -100,11 +130,11 @@ On Hidden Words Arabic no. 1, the official 0.1.9 text opens with “HE IS THE GL
 
 ## Mockups
 
-**Made; waiting for Tim’s approval.** In the repo at [`design/mockups/phase2/`](design/mockups/phase2/README.md) on the `design/phase2-mockups` branch, PR https://github.com/ninepointlabs/bahai-reader/pull/44. Ten stills: Home/library, Reader (with a highlight and a note), Reader for a long work with contents, Today, Saved (collections, highlights and notes), Ctrl+K search, Focus mode, Narrow Home, Narrow Reader, and the Reader in Dark. The README lists the eleven design decisions to confirm (for example: Today folds into Home, Obligatory prayers move under Prayers, the Hidden Words becomes a library book, F11 for focus mode).
+**Made and approved.** In the repo at [`design/mockups/phase2/`](design/mockups/phase2/README.md) on the `design/phase2-mockups` branch, PR https://github.com/ninepointlabs/bahai-reader/pull/44. Ten stills: Home/library, Reader (with a highlight and a note), Reader for a long work with contents, Today, Saved (collections, highlights and notes), Ctrl+K search, Focus mode, Narrow Home, Narrow Reader, and the Reader in Dark. The README lists the eleven design decisions to confirm (for example: Today folds into Home, Obligatory prayers move under Prayers, the Hidden Words becomes a library book, F11 for focus mode).
 
 They are HTML drawn in libadwaita’s layout and rendered in headless Chrome, not running code. All quoted text, titles and counts come from the bundled library through `extract.py` (quotations were checked against the texts: for example “Free thyself from the fetters of this world” is Persian no. 40). Day-to-day content (passage of the day, reading positions, highlights, notes) is example data.
 
-Approved by Tim: **no** (not yet).
+Approved by Tim: **yes**, 2026-11-11 (“Go with those and continue”, relayed by Hermes), as drawn.
 
 ## CI
 
@@ -120,10 +150,9 @@ Not started (Phase 2, step 6). Orca is not installed on TUF.
 
 ## Open questions and blocked gates
 
-1. **Hidden Words prologue:** keep it inside Arabic no. 1 (as now), or show it as its own “Prologue” entry before no. 1? Either way the words stay bahai.org’s.
-2. **Phase 2 shell on Debian 12** (libadwaita 1.2): choose A (graceful fallback, recommended), B (raise the `.deb` baseline, Flatpak for Debian 12) or C (Flatpak plus a 0.1.x `.deb` line). See “Debian 12 and libadwaita”.
-3. **Gate: the mockups.** Approve, or say what to change, in `design/mockups/phase2/README.md` (eleven decisions listed). The new shell, library home, Ctrl+K, reader polish, highlights and notes, theme mapping, Orca pass and shortcuts window all wait for this.
-4. **Templates:** Blueprint needs `blueprint-compiler` at build time (not in Debian 12’s or the CI image’s default set); plain GtkBuilder `.ui` files need nothing. Plan: write `.ui` files directly unless Tim prefers Blueprint.
-5. **Ubuntu 24.04’s libadwaita version** is still to be confirmed (container DNS failed); it decides whether Ubuntu 24.04 gets the new shell or the fallback under option A.
+Answered 2026-11-11 by “Go with those and continue” (as I read it; correct me if not): mockups approved; Debian 12 option A; no Blueprint; the Hidden Words prologue stays inside Arabic no. 1.
 
-When all of these are answered, the next PRs are: the `AdwApplicationWindow` + `AdwNavigationSplitView` shell (with the fallback), then library home and Ctrl+K, then reader polish with highlights and notes, then theme mapping, Orca and the shortcuts window. 0.2.0 is the intended end, and is not to be tagged without Tim’s OK.
+Still open:
+1. **CI** cannot run its `build` job while Ubuntu's mirrors are failing (see “CI”); re-run when they answer.
+2. **Ubuntu 24.04's libadwaita version** is still unconfirmed here (believed 1.5, which would get the new window; otherwise it falls back to classic, which is safe either way).
+3. **Release 0.2.0** is the intended end; no version bump, tag or release without Tim's OK.

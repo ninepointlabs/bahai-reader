@@ -30,9 +30,8 @@ def child(case,temp):
     result={}
     def check():
         if case=="read-only-folder": app.bookmark()  # a save that cannot be written
-        row=app.notice_box.get_first_child(); notices=[]
-        while row: notices.append(row.get_first_child().get_text()); row=row.get_next_sibling()
-        result.update(window=app.window is not None and app.window.get_visible(), notices=notices, prefs=app.prefs, section=app.section, language=app.language,
+        notices=app.notice_texts()  # the notice bar, or toasts in the libadwaita window
+        result.update(window=app.window is not None and app.window.get_visible(), notices=notices, prefs=app.prefs, section=app.section, language=app.language, first=app.first_section(),
                       files=sorted(p.name for p in config.iterdir()))
         app.quit(); return False
     GLib.timeout_add(500,check)
@@ -52,7 +51,7 @@ def main():
             if not result["window"]: problems.append("no window")
             if expected and not any(expected in n for n in result["notices"]) and expected not in result["files"]: problems.append(f"expected {expected!r} in notices/files: {result}")
             if case=="wrong-types":
-                if result["prefs"].get("saved")!=["hidden:1"] or "size" in result["prefs"] or result["prefs"].get("margin")!=160 or result["section"]!="today": problems.append(str(result))
+                if result["prefs"].get("saved")!=["hidden:1"] or "size" in result["prefs"] or result["prefs"].get("margin")!=160 or result["section"]!=result["first"]: problems.append(str(result))
             if case=="invalid-json" and not any("saved passages" in n for n in result["notices"]): problems.append(str(result))
             if case=="corrupt-pack" and result["language"]!=1: problems.append(str(result))
             if case=="damaged-collections" and (result["prefs"].get("saved")!=["hidden:2","hidden:1"] or result["prefs"].get("collections")!=[{"name":"Kept","items":["hidden:2"]}]): problems.append(str(result))

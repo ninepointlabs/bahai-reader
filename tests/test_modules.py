@@ -61,7 +61,7 @@ class Split(unittest.TestCase):
                     self.assertEqual(inner,[],f"{path.name}: {node.name}")
     def test_one_reader_class_made_of_mixins(self):
         self.assertTrue(issubclass(reader.Reader,reader.Gtk.Application))
-        self.assertEqual(len([c for c in reader.Reader.__mro__ if c.__name__.endswith("Mixin")]),10)
+        self.assertEqual(len([c for c in reader.Reader.__mro__ if c.__name__.endswith("Mixin")]),11)  # 10 views + the libadwaita shell
     def test_data_modules_do_not_import_gtk(self):
         for name in NO_GTK:
             source=(PACKAGE/f"{name}.py").read_text()

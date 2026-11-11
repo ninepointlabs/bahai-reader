@@ -253,6 +253,7 @@ class TodayMixin:
     def refresh_today(self):
         """Rebuilds only the cards whose content changed, so the keyboard focus stays where it is."""
         if not getattr(self,"today_box",None) or not self.window: return
+        if self.adwaita and self.views.get_visible_child_name()=="home": self.refresh_home()
         cards={key:[r for r in rows if r[0] not in ("button","toggle") or r[2] is not None] for key,rows in self.today_content().items()}; focus=self.window.get_focus()
         focused=next((name for name,widget in self.today_buttons.items() if widget is focus),None)
         for key,card in self.today_cards.items():

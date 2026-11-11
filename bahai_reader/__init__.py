@@ -8,7 +8,7 @@ Modules, from the data up to the window:
   widgets, desktop          shared widgets, desktop integration
   contents, reading, saved, today, counter, reminders,
   about, location, languages                       the views and windows, as mixins of
-  app                                              Reader, the Gtk.Application
+  app, shell                                       Reader, the Gtk.Application; shell builds its libadwaita window
 """
 import gi
 gi.require_version("Gtk", "4.0")
