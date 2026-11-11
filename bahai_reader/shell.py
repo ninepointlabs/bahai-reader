@@ -4,8 +4,9 @@ so the views work unchanged in either; only the frame around them differs. Debia
 import os
 import shutil
 import sys
+import time
 import gi
-from gi.repository import Gtk, Gio, GLib, Pango
+from gi.repository import Gtk, Gdk, Gio, GLib, Pango
 
 from .config import APP_NAME
 from .labels import heading
@@ -35,6 +36,26 @@ def adwaita():
     if Adw and (Adw.get_major_version(),Adw.get_minor_version())>=ADWAITA_MINIMUM: return Adw
     if wanted=="adwaita": print("bahai-reader: libadwaita 1.4 or newer is needed for that window; using the classic one.",file=sys.stderr)
     return None
+
+OPENING=0.45  # seconds an AdwDialog takes to animate open
+
+def present_dialog(Adw,dialog,parent):
+    dialog.shown_at=time.monotonic(); Adw.Dialog.present(dialog,parent)
+
+def close_dialog(Adw,dialog):
+    """Closes an AdwDialog. libadwaita 1.5 (Ubuntu 24.04) leaves a dialog on screen for good if it is closed while still
+    animating open, so there a close that comes too early waits until the dialog is fully open; and one that is somehow
+    still attached afterwards is closed without its animation."""
+    if (Adw.get_major_version(),Adw.get_minor_version())>=(1,6): return Adw.Dialog.close(dialog)
+    def rescue():
+        if dialog.get_parent() is not None and dialog.get_can_close(): dialog.force_close()
+        return False
+    def close():
+        Adw.Dialog.close(dialog); GLib.timeout_add(600,rescue); return False
+    early=OPENING-(time.monotonic()-getattr(dialog,"shown_at",0))
+    if early>0: GLib.timeout_add(int(early*1000)+50,close)
+    else: close()
+    return True
 
 def author_rank(author):
     return (AUTHOR_ORDER.index(author) if author in AUTHOR_ORDER else len(AUTHOR_ORDER),author or "")
@@ -356,23 +377,36 @@ class ShellMixin:
         (libadwaita 1.5+; AdwPreferencesWindow on 1.4) holding the same content as before. It keeps the small window's
         interface (present, close, close-request, add_controller), so the code that fills and closes it is shared."""
         Adw=self.Adw; app=self
+        def forget(*_):
+            if getattr(self,attribute,None) is window: setattr(self,attribute,None)
+            return False
         if hasattr(Adw,"PreferencesDialog"):
             class SettingsDialog(Adw.PreferencesDialog):
-                def present(self): Adw.Dialog.present(self,app.window)
+                def present(self): present_dialog(Adw,self,app.window)
+                def close(self):
+                    # A dialog closes with an animation and says "closed" afterwards; forget it now, so opening it again at once
+                    # builds a fresh one instead of showing the one on its way out.
+                    if self.get_can_close(): forget()
+                    return close_dialog(Adw,self)
                 def connect(self,signal,callback,*args):
                     if signal!="close-request": return super().connect(signal,callback,*args)
                     # A small window's close-request may keep it open (Languages, while downloading) by returning True.
                     self.set_can_close(False)
-                    return super().connect("close-attempt",lambda dialog:None if callback(dialog) else dialog.force_close())
+                    def attempt(dialog):
+                        if not callback(dialog): forget(); dialog.force_close()
+                    return super().connect("close-attempt",attempt)
             window=SettingsDialog(title=title,content_width=width,search_enabled=False)
         else:
             window=Adw.PreferencesWindow(title=title,transient_for=self.window,modal=True,default_width=width,search_enabled=False)
         setattr(self,attribute,window)
         # Closed, it is forgotten, so the next opening builds it afresh (as the small windows do).
-        forget=lambda *_:(getattr(self,attribute,None) is window and setattr(self,attribute,None),False)[1]
         if isinstance(window,Gtk.Window): window.connect("close-request",forget)
         else: window.connect("closed",forget)
         keys=Gtk.EventControllerKey(); keys.connect("key-pressed",self.quit_key); window.add_controller(keys)
+        if not isinstance(window,Gtk.Window):
+            # Esc through the same close as the Close button (see close_dialog).
+            escape=Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE)
+            escape.connect("key-pressed",lambda _c,key,*_:(window.close(),True)[1] if key==Gdk.KEY_Escape else False); window.add_controller(escape)
         page=Adw.PreferencesPage(title=title,icon_name=icon); group=Adw.PreferencesGroup(); page.add(group); window.add(page)
         box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=spacing); group.add(box)
         return window,box

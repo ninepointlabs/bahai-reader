@@ -89,6 +89,12 @@ with tempfile.TemporaryDirectory() as temp:
             window=getattr(app,name); assert isinstance(window,kind), (name,type(window))
             window.close(); yield
             assert getattr(app,name) is None, name
+        # Closed while still animating open, a dialog still goes away (libadwaita 1.5, Ubuntu 24.04, otherwise leaves it stuck).
+        app.location_dialog(); quick=app.location_window; quick.close()
+        for _ in range(12):
+            if quick.get_parent() is None: break
+            yield
+        assert quick.get_parent() is None and app.location_window is None, "a dialog closed as it opened stayed on screen"
         # The location window's content works inside it: the city search finds Haifa.
         app.location_dialog(); yield
         app.location_search.set_text("Haifa"); yield; yield

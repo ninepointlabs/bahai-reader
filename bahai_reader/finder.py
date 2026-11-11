@@ -5,6 +5,7 @@ from gi.repository import Gtk, Gdk, GLib, Pango
 from .labels import heading, list_title
 from .library import book_of
 from .search import find, fold, search_passages, snippet
+from .shell import close_dialog, present_dialog
 
 SHOWN=60  # results listed at once; the count says how many there are
 
@@ -55,7 +56,7 @@ class FinderMixin:
             dialog=Adw.Dialog(title="Search",content_width=640,content_height=560)
             view=Adw.ToolbarView(); view.add_top_bar(Adw.HeaderBar()); view.set_content(box); dialog.set_child(view)
             dialog.connect("closed",lambda *_:self.finder_closed())
-            self.finder=dialog; dialog.present(self.window)
+            self.finder=dialog; present_dialog(Adw,dialog,self.window)
         else:
             window=Gtk.Window(title="Search",modal=True,transient_for=self.window,default_width=640,default_height=560)
             window.set_child(box); window.connect("close-request",lambda *_:(self.finder_closed(),False)[1])
@@ -67,7 +68,9 @@ class FinderMixin:
         self.finder=None
     def close_finder(self):
         if self.finder:
-            finder=self.finder; self.finder=None; finder.close()
+            finder=self.finder; self.finder=None
+            if isinstance(finder,Gtk.Window): finder.close()
+            else: close_dialog(self.Adw,finder)
     def finder_key(self,controller,key,code,modifiers):
         if key==Gdk.KEY_Down:
             row=self.finder_results.get_row_at_index(0)
