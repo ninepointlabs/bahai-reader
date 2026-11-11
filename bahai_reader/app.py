@@ -15,6 +15,7 @@ from .library import catalog, load_library, local_pack
 from .location import LocationMixin
 from .reading import ReadingMixin
 from .reminders import RemindersMixin
+from .finder import FinderMixin
 from .saved import SavedMixin
 from .shell import ShellMixin, adwaita
 from .settings import CHROME_FONTS, WRITINGS_GROUPINGS, load_settings
@@ -23,7 +24,7 @@ from .today import TodayMixin
 from .ui import CONTENT_MIN_WIDTH, FADE_HEIGHT, NARROW_WIDTH, SECTION_ROWS
 from .widgets import Choice
 
-class Reader(ShellMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMixin, TodayMixin, ThemeMixin, AboutMixin, LocationMixin, LanguagesMixin, Gtk.Application):
+class Reader(ShellMixin, FinderMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin, CounterMixin, TodayMixin, ThemeMixin, AboutMixin, LocationMixin, LanguagesMixin, Gtk.Application):
     def __init__(self,background=False):
         super().__init__(application_id="org.bahai.Reader")
         self.window=None; self.notices=[]; self.save_failed=False; self.background_launch=background; self.ticking=False; self.held=False
@@ -35,7 +36,7 @@ class Reader(ShellMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin
             if (config.LIBRARY/f"{self.language}.json").exists(): self.notices.append(f"The downloaded {name} library could not be read, so English is shown. Download it again in ⋮ → Languages & offline libraries.")
             else: self.notices.append(f"The {name} library is not downloaded, so English is shown.")
             self.language=1
-        self.adwaita=False; self.book=None
+        self.adwaita=False; self.book=None; self.finder=None
         self._items=None; self.section="today"; self.fixed_now=None; self.current=None; self.signature=None; self.palette_source=None; self.resolved_colors={}
         self.connect("activate", self.activate)
         said=Gio.SimpleAction.new("said",GLib.VariantType.new("s")); said.connect("activate",lambda _a,key:self.notification_said(key.get_string())); self.add_action(said)
@@ -150,6 +151,7 @@ class Reader(ShellMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin
             row=Gtk.Box(spacing=24); row.append(Gtk.Label(label=label,xalign=0,hexpand=True))
             if shortcut: keys=Gtk.Label(label=shortcut); keys.add_css_class("dim-label"); row.append(keys)
             entry.set_child(row); entry.get_label=lambda:label; entries.append(entry); return entry
+        self.search_entry=menu_entry("Search the texts…",self.open_finder,"Ctrl+K")
         self.random_entry=menu_entry("Random passage",self.random_passage,"Ctrl+R")
         # In a narrow window the header's Copy rests here.
         self.copy_entry=menu_entry("Copy the passage",self.copy_passage,"Ctrl+Shift+C"); self.copy_entry.set_visible(False); self.narrow_entries=[self.copy_entry]
@@ -331,6 +333,7 @@ class Reader(ShellMixin, ContentsMixin, ReadingMixin, SavedMixin, RemindersMixin
             if key==Gdk.KEY_t: self.navigate("today"); self.focus_view(); return True
             if key==Gdk.KEY_r: self.random_passage(); return True
             if key==Gdk.KEY_f: self.show_list(); self.search.grab_focus(); return True
+            if key==Gdk.KEY_k: self.open_finder(); return True
             if key==Gdk.KEY_q: self.quit_app(); return True
             if key==Gdk.KEY_d: self.bookmark(); return True
             if key in (Gdk.KEY_c,Gdk.KEY_C) and modifiers & Gdk.ModifierType.SHIFT_MASK: self.copy_passage(); return True

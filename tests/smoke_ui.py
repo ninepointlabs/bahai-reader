@@ -183,7 +183,7 @@ with tempfile.TemporaryDirectory() as temp:
                 if child.get_visible() and isinstance(child,reader.Gtk.Button): labels.append(child.get_label())  # Copy joins them only in a narrow window
                 child=child.get_next_sibling()
             # Random is an action, not a place, so it is in the menu, not beside the navigation.
-            assert labels==["Random passage","Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader"], labels
+            assert labels==["Search the texts…","Random passage","Location & reminders…","Languages & offline libraries…","Keyboard shortcuts","About Bahá’í Reader"], labels
             app.shortcuts_dialog(); assert app.shortcuts_window.get_visible(); app.shortcuts_window.close()
             # Ctrl+T: the Today view, with the passage of the day on a card that opens it in its section. Ctrl+R: a different random passage.
             assert app.key_pressed(None,reader.Gdk.KEY_t,0,reader.Gdk.ModifierType.CONTROL_MASK)

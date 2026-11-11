@@ -20,7 +20,8 @@ Decisions taken with that approval (the defaults I recommended; say if any is wr
 | Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | open, not merged |
 | Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | open, approved, not merged |
 | Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | see below once opened | open, not merged |
-| Phase 2, rest: Ctrl+K search, book progress footer and reader heading, highlights and notes, preferences and shortcuts dialogs, Orca pass | — | — | to do, in that order |
+| Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | see below once opened | open, not merged |
+| Phase 2, rest: highlights and notes, preferences and shortcuts dialogs, Orca pass | — | — | to do, in that order |
 
 Merge order: #42, then #43, then #44. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
@@ -58,9 +59,25 @@ Packaging: `.deb`/`.rpm`/Arch (nfpm), the AppImage and the Flatpak now also inst
 - Packaging: `.deb` depends on `gir1.2-adw-1` (1.2 on Debian 12, which then gets the classic window), `.rpm` and Arch on `libadwaita`; the Flatpak runtime has it; the AppImage uses the host’s if present.
 - Tests: `tests/shell_ui.py` (new, drives the whole new window), `tests/test_shell.py` (13: library, Continue reading settings, theme mapping, choosing the window). `layout_ui`, `chrome_ui` and `smoke_ui` test the classic window and now say so (they pin it). `robustness_ui` reads notices through `notice_texts()` (bar or toasts) and `today_ui` expects Home or Today as the first page, depending on the window. CI runs `shell_ui`, then navigation/today/robustness/dropdown/background in the classic window too, and `shell_ui installed` in the Debian, Fedora and Arch install jobs and the Flatpak.
 
+### Phase 2: Ctrl+K search and book progress (`feat/search-progress`)
+
+- `bahai_reader/finder.py`: Ctrl+K (or the search buttons, or ⋮ → Search the texts…) opens a search over every passage, or only the open book (“This book”; for a prayer, all the prayers). Results are grouped by book or prayer category with the matching words in bold; ↓ moves into them, Enter or a click opens the passage in its place with the match selected and scrolled into view. It is an `AdwDialog` on libadwaita ≥ 1.5 and a small modal window otherwise, so the classic window has it too.
+- `search.py`: `fold_map` maps folded text back to the original characters (checked against `fold()` on every passage), so a match found while ignoring accents and apostrophes is shown exactly where it is. Matching uses each passage's cached folded text: 4 ms per query after the first (0.7 s once).
+- The libadwaita reader: the book and part as a small line above the heading; “Passage 3 of 27 · about 33 minutes” below it; the footer shows “God Passes By · 3 of 27”, a progress bar through the whole book by words, and “5% of the book” (a prayer shows its place in its category instead). Next is the one suggested (primary) button.
+- Tests: `tests/test_finder.py` (8), `tests/finder_ui.py` (in either window; CI runs it in both). README: features and Ctrl+K in the shortcuts table.
+
 ## Tests actually run
 
 All on 2026-11-11.
+
+Ctrl+K search and book progress (`feat/search-progress`):
+
+| Where | What | Result |
+| --- | --- | --- |
+| TUF | unit tests | 247 OK (1 skipped) |
+| Arch container, libadwaita window | `shell_ui`, `finder_ui` + the 8 existing UI tests | all passed |
+| Arch container, classic window | `finder_ui`, `navigation_ui`, `robustness_ui`, `today_ui`, `dropdown_ui`, `background_ui` | all passed |
+| `debian:12` (classic window) | unit tests, `finder_ui`, `smoke_ui`, `shell_ui` (skips) | all passed |
 
 Phase 2 libadwaita window (`feat/adw-shell`):
 
