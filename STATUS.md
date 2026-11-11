@@ -11,11 +11,11 @@ Nothing here is merged, tagged or released. Nothing was pushed to `main`.
 | Step | Branch | PR | State |
 | --- | --- | --- | --- |
 | Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | open, not merged |
-| Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | see the split PR (linked in its description and below once opened) | open, not merged |
-| Phase 2, step 2: mockups | — | — | not started |
+| Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | open, not merged |
+| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | see the mockups PR (below once opened) | open, **waiting for Tim’s approval** |
 | Phase 2, steps 3–6: new shell and the rest | — | — | **blocked on mockup approval** |
 
-Merge order: #42 first; the split PR's base is #42's branch and GitHub retargets it to `main` when #42 merges.
+Merge order: #42, then #43, then the mockups PR. Each one's base is the previous branch; GitHub retargets it when the one below merges.
 
 ### Phase 1 (one PR)
 
@@ -78,7 +78,17 @@ Checked in `debian:12` containers on 2026-11-11:
 
 What libadwaita 1.2 lacks for the Phase 2 shell: `AdwNavigationSplitView`, `AdwToolbarView`, `AdwBreakpoint`, `AdwNavigationView` (all 1.4), `AdwPreferencesDialog` and `AdwDialog` (1.5). It has `AdwApplicationWindow`, `AdwHeaderBar`, `AdwToastOverlay`, `AdwLeaflet` (deprecated in 1.4), `AdwPreferencesWindow`, `AdwStatusPage` and the style manager.
 
-Phase 1 does not use libadwaita at all, so it runs on Debian 12 as before. The Phase 2 options are in “Open questions”.
+Phase 1 does not use libadwaita at all, so it runs on Debian 12 as before.
+
+### Phase 2 shell on Debian 12: options (Tim to choose; nothing dropped)
+
+The approved shell needs libadwaita 1.4 (split view, breakpoints, toolbar view) and 1.5 (preferences dialog). Debian 12 has 1.2.2 and no backport.
+
+- **A. Graceful fallback (recommended).** One app, two windows: on libadwaita ≥ 1.4 (Debian 13, Fedora 43, Arch, the Flatpak and, if confirmed, Ubuntu 24.04) the new shell; on Debian 12 the Phase 1 window, which the split keeps as its own module. The data and reading code are shared, so the text, search, citations, saved passages and theme work the same on both; features that need the new shell (library home, focus mode, the highlights UI) are new-shell only, and Debian 12 keeps what it has today. The `.deb` keeps `Debian 12+` and adds a dependency on `gir1.2-adw-1` (available as 1.2 on Debian 12). Cost: two window modules to keep starting in CI; the Debian 12 install test stays as the guard. A plain libadwaita 1.2 version of the new shell (with `AdwLeaflet`) is possible, but `AdwLeaflet` is deprecated, so it would be throwaway work.
+- **B. Raise the `.deb` baseline** to Debian 13 / Ubuntu 24.04 for 0.2.0, and point Debian 12 users to the Flatpak (it already ships, with its own GTK and libadwaita) or to staying on 0.1.x. Simplest code; it is a change to a supported target, so it needs Tim’s explicit yes.
+- **C. Flatpak only for Debian 12**, but keep publishing a 0.1.x `.deb` for it with security and text fixes only. Middle ground; two release lines.
+
+Until Tim chooses, nothing about packaging changes: Phase 1 and the split run on Debian 12 (tested in a `debian:12` container) and the shell is not started.
 
 ## Hidden Words preamble (finding)
 
@@ -90,7 +100,11 @@ On Hidden Words Arabic no. 1, the official 0.1.9 text opens with “HE IS THE GL
 
 ## Mockups
 
-Not made yet. They come after the `reader.py` split and before the new shell.
+**Made; waiting for Tim’s approval.** In the repo at [`design/mockups/phase2/`](design/mockups/phase2/README.md) on the `design/phase2-mockups` branch (mockups PR below). Ten stills: Home/library, Reader (with a highlight and a note), Reader for a long work with contents, Today, Saved (collections, highlights and notes), Ctrl+K search, Focus mode, Narrow Home, Narrow Reader, and the Reader in Dark. The README lists the eleven design decisions to confirm (for example: Today folds into Home, Obligatory prayers move under Prayers, the Hidden Words becomes a library book, F11 for focus mode).
+
+They are HTML drawn in libadwaita’s layout and rendered in headless Chrome, not running code. All quoted text, titles and counts come from the bundled library through `extract.py` (quotations were checked against the texts: for example “Free thyself from the fetters of this world” is Persian no. 40). Day-to-day content (passage of the day, reading positions, highlights, notes) is example data.
+
+Approved by Tim: **no** (not yet).
 
 ## Accessibility / Orca
 
@@ -99,5 +113,9 @@ Not started (Phase 2, step 6). Orca is not installed on TUF.
 ## Open questions and blocked gates
 
 1. **Hidden Words prologue:** keep it inside Arabic no. 1 (as now), or show it as its own “Prologue” entry before no. 1? Either way the words stay bahai.org’s.
-2. **Phase 2 shell on Debian 12** (libadwaita 1.2): see the options in the Phase 2 section once written.
-3. **Gate:** the new shell waits for Tim’s approval of the mockups.
+2. **Phase 2 shell on Debian 12** (libadwaita 1.2): choose A (graceful fallback, recommended), B (raise the `.deb` baseline, Flatpak for Debian 12) or C (Flatpak plus a 0.1.x `.deb` line). See “Debian 12 and libadwaita”.
+3. **Gate: the mockups.** Approve, or say what to change, in `design/mockups/phase2/README.md` (eleven decisions listed). The new shell, library home, Ctrl+K, reader polish, highlights and notes, theme mapping, Orca pass and shortcuts window all wait for this.
+4. **Templates:** Blueprint needs `blueprint-compiler` at build time (not in Debian 12’s or the CI image’s default set); plain GtkBuilder `.ui` files need nothing. Plan: write `.ui` files directly unless Tim prefers Blueprint.
+5. **Ubuntu 24.04’s libadwaita version** is still to be confirmed (container DNS failed); it decides whether Ubuntu 24.04 gets the new shell or the fallback under option A.
+
+When all of these are answered, the next PRs are: the `AdwApplicationWindow` + `AdwNavigationSplitView` shell (with the fallback), then library home and Ctrl+K, then reader polish with highlights and notes, then theme mapping, Orca and the shortcuts window. 0.2.0 is the intended end, and is not to be tagged without Tim’s OK.
