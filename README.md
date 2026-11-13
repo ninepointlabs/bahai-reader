@@ -6,6 +6,17 @@ A standalone GTK 4 Linux app for quiet reading. Follows Omarchy colors live, inc
 
 On systems with libadwaita 1.4 or newer (Debian 13, Ubuntu 24.04, Fedora 43, Arch, and the Flatpak), the app opens in its **libadwaita window**: a sidebar with **Home, Prayers, Writings and Saved** beside the reader.
 
+<p>
+<img src="docs/screenshots/01-home-library.webp" width="49%" alt="Home: today’s Badí‘ date, the obligatory prayer, the passage of the day, Continue reading, and the library grouped by author">
+<img src="docs/screenshots/03-reader-highlight-note.webp" width="49%" alt="The Hidden Words, Arabic no. 12, with the book’s contents in the sidebar and a highlighted phrase with its note">
+</p>
+<p>
+<img src="docs/screenshots/06-search-ctrl-k.webp" width="49%" alt="Ctrl+K search over every text, with results grouped by book">
+<img src="docs/screenshots/10a-light-home.webp" width="49%" alt="Home in the light palette">
+</p>
+
+A [narrated 1:25 tour](https://bahaireader.org/#tour) of the libadwaita window is on bahaireader.org.
+
 - **Home** shows the day at a glance: the Badí‘ date, the obligatory prayer’s state, and the passage of the day. **Open Today** (or Ctrl+T) shows the full Today page. Below that, **Continue reading** has the last three books you read, each at the passage you left, with how far through the book you are. Then the **library**: every book as a card, grouped by author.
 - **Writings** is the library. Opening a book turns the sidebar into that book’s contents (parts, chapters, passages), with **Back** to the library. The Hidden Words is one of the books.
 - **Prayers** lists the prayer categories, with **Obligatory prayers** (the three prayers, their guidance in the Kitáb-i-Aqdas, and the Alláh-u-Abhá counter) first.
