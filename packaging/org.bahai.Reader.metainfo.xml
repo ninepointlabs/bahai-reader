@@ -41,6 +41,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.3" date="2026-11-15">
+      <description><p>Highlights, notes and saved passages now follow you to the same passage in another language. A very long note with no spaces no longer breaks the window, and the note editor counts characters up to its 5,000-character limit.</p></description>
+    </release>
     <release version="0.2.2" date="2026-11-15">
       <description><p>Notes, the highlight bar and menus now stand out from the page in dark themes. Before, they had the page’s own background, so a note opened over the text looked like a hole in it.</p></description>
     </release>

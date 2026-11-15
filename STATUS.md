@@ -8,6 +8,8 @@ Source review: “Bahá’í Reader UX and Stack Review” (read 2026-11-11).
 
 **0.2.2 (2026-11-15):** Retaking the site's highlight screenshot (PR #51) showed the note popover with no visible edge in the Omarchy bahai theme: `adwaita_colors` gave popovers the page's background, and the classic stylesheet did the same. Fixed in PR #53: `theme.raised()` (a step lighter than the page on dark palettes, white on light ones) for `popover_bg_color` and for the classic window's popover contents, arrow, lists and rows, plus a faint border there. Tests: two in `tests/test_shell.py`; CI green.
 
+**0.2.3 (2026-11-15):** QA fixes from PR #52 (M1 long no-space note wraps and is previewed in the list; M2 highlights, notes and saved passages follow a passage across languages via `match`, stored records unchanged; L2 note counter and hard limit). Reviewed and tested on main with 0.2.2 merged in (unit suite; marks_qa, highlights, shell, smoke, finder in libadwaita and marks_qa, highlights, navigation in classic, on Ubuntu 24.04).
+
 Before merging, CI (once Ubuntu's mirrors answered) found a real bug on Ubuntu 24.04 (libadwaita 1.5): a dialog closed while it was still animating open stayed on screen for good. Fixed in #48 (a close that comes too early waits until the dialog is open; anything left is force-closed) with a regression test; all tests then passed on Ubuntu 24.04, Arch, Debian 12 and in CI.
 
 **Mockups approved 2026-11-11** (“Go with those and continue”, relayed by Hermes). Phase 2 shell work is under way in stacked PRs; nothing is merged.
