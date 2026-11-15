@@ -22,6 +22,11 @@ class HighlightsMixin:
         self.painted=[]; self.mark_popover=None; self.selection_source=None; self.quiet_selection=None
         buffer.connect("notify::has-selection",self.selection_changed)
         click=Gtk.GestureClick(); click.connect("released",self.reader_clicked); self.reader.add_controller(click)
+        # Highlights made on this passage in another language: their words cannot be drawn on this translation, so they are
+        # shown above the text, with their notes.
+        self.mark_notice=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8,visible=False,margin_start=24,margin_end=24,margin_bottom=4)
+        overlay=self.pages.get_parent(); overlay.get_parent().insert_child_after(self.mark_notice,overlay.get_prev_sibling())
+        self.followed=[]
         self.build_marks_page()
     def recolor_highlights(self):
         for name,tag in getattr(self,"mark_tags",{}).items():
@@ -36,6 +41,7 @@ class HighlightsMixin:
         buffer=self.reader.get_buffer(); start,end=buffer.get_bounds()
         for tag in [*self.mark_tags.values(),self.note_tag]: buffer.remove_tag(tag,start,end)
         self.painted=[]
+        self.show_followed()
         if not self.current: return
         text=self.current["text"]
         for record in marks.of_passage(self.highlights(),self.current["id"]):
@@ -46,6 +52,34 @@ class HighlightsMixin:
             buffer.apply_tag(self.mark_tags[record["color"]],a,b)
             if record.get("note"): buffer.apply_tag(self.note_tag,a,b)
             self.painted.append(record)
+    def followed_marks(self,item):
+        """Highlights of item made in another language: stored under that language's id, shown here by the passage's numbering."""
+        return [r for r in self.highlights() if r["id"]!=item["id"] and (self.passage_of(r["id"]) or {}).get("id")==item["id"]]
+    def language_name(self,key):
+        info=self.language_info(marks.language_of(key)); return info.get("English",info["Name"])
+    def show_followed(self):
+        """A marker above the text for each highlight made on this passage in another language, with its note in full."""
+        notice=self.mark_notice
+        while child:=notice.get_first_child(): notice.remove(child)
+        self.followed=self.followed_marks(self.current) if self.current else []
+        for record in self.followed:
+            card=Gtk.Box(spacing=12); card.add_css_class("card"); card.add_css_class("mark-card")
+            bar=Gtk.Box(); bar.add_css_class("mark-bar"); bar.add_css_class("swatch-"+record["color"]); card.append(bar)
+            text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4,hexpand=True,margin_top=8,margin_bottom=8,margin_end=8)
+            title=f"Highlighted in {self.language_name(record['id'])}: “{marks.excerpt(record['words'],160)}”"
+            text.append(self.note_label(title,dim=True))
+            if record.get("note"):
+                scroll=Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,max_content_height=160,propagate_natural_height=True)
+                scroll.set_child(self.note_label(record["note"])); text.append(scroll)
+            card.append(text); notice.append(card)
+            self.name_widget(card,title+(f" Note: {record['note']}" if record.get("note") else ""))
+        notice.set_visible(bool(self.followed))
+    def note_label(self,text,dim=False,lines=-1):
+        """A label that wraps anywhere, so a long word or a note with no spaces cannot widen the window."""
+        label=Gtk.Label(label=text,xalign=0,wrap=True,wrap_mode=Pango.WrapMode.WORD_CHAR,max_width_chars=70,width_chars=1)
+        if lines>0: label.set_lines(lines); label.set_ellipsize(Pango.EllipsizeMode.END)
+        if dim: label.add_css_class("dim-label")
+        return label
     def highlight_at(self,offset):
         return next((r for r in self.painted if r["start"]<=offset<r["end"]),None)
 
@@ -135,8 +169,29 @@ class HighlightsMixin:
         note=Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR,accepts_tab=False,top_margin=6,bottom_margin=6,left_margin=8,right_margin=8); note.add_css_class("note-editor")
         note.get_buffer().set_text(record.get("note",""))
         self.name_widget(note,"Note on this highlight")
+        count=Gtk.Label(xalign=1,halign=Gtk.Align.END,width_chars=13); count.add_css_class("dim-label"); count.add_css_class("caption")
+        count.set_tooltip_text(f"A note keeps up to {marks.NOTE_LIMIT:,} characters.")
+        def fit(buffer,where,text,length):
+            # A note holds at most NOTE_LIMIT characters: typing stops there, and a paste keeps what fits.
+            room=marks.NOTE_LIMIT-buffer.get_char_count()
+            if len(text)<=room: return
+            buffer.stop_emission_by_name("insert-text")
+            if room<=0: return
+            at=buffer.create_mark(None,where,True)
+            def insert():
+                # After the stopped insert has unwound; inserting inside the handler would invalidate GTK's iterators.
+                if not at.get_deleted():
+                    rest=marks.NOTE_LIMIT-buffer.get_char_count()
+                    if rest>0: buffer.insert(buffer.get_iter_at_mark(at),text[:rest])
+                    buffer.delete_mark(at)
+                return False
+            GLib.idle_add(insert)
+        def counted(buffer):
+            length=buffer.get_char_count(); count.set_text(f"{length:,} / {marks.NOTE_LIMIT:,}")
+            (count.add_css_class if length>=marks.NOTE_LIMIT else count.remove_css_class)("warning")
+        note.get_buffer().connect("insert-text",fit); note.get_buffer().connect("changed",counted); counted(note.get_buffer())
         scroll=Gtk.ScrolledWindow(min_content_height=90,max_content_height=220,propagate_natural_height=True,min_content_width=300,hscrollbar_policy=Gtk.PolicyType.NEVER)
-        scroll.set_child(note); scroll.add_css_class("card"); box.append(scroll)
+        scroll.set_child(note); scroll.add_css_class("card"); box.append(scroll); box.append(count)
         actions=Gtk.Box(spacing=8)
         remove=self.button("Remove highlight",lambda *_:self.remove_highlight(record)); remove.add_css_class("flat"); remove.add_css_class("destructive-action"); actions.append(remove)
         done=self.button("Done",lambda *_:popover.popdown()); done.set_hexpand(True); done.set_halign(Gtk.Align.END); done.add_css_class("suggested-action"); actions.append(done)
@@ -148,7 +203,7 @@ class HighlightsMixin:
                 else: record.pop("note",None)
                 self.save(); self.paint_highlights(); self.marks_changed()
         popover.connect("closed",keep_note)
-        popover.set_child(box); self.mark_note=note; self.mark_editing=record; popover.popup()
+        popover.set_child(box); self.mark_note=note; self.mark_note_count=count; self.mark_editing=record; popover.popup()
         if focus_note: note.grab_focus()
     def remove_highlight(self,record):
         self.prefs["highlights"]=[r for r in self.highlights() if r is not record]; self.save()
@@ -173,20 +228,22 @@ class HighlightsMixin:
         """Every highlight and note, newest first, each opening its passage at the highlight."""
         self.show_view("highlights")
         while child:=self.marks_list.get_first_child(): self.marks_list.remove(child)
-        by_id={i["id"]:i for i in self.items}; records=list(reversed(self.highlights())); self.mark_cards=[]
+        records=list(reversed(self.highlights())); self.mark_cards=[]
         notes=sum(1 for r in records if r.get("note"))
         self.marks_count.set_text(f"{len(records)} highlight{'s' if len(records)!=1 else ''}, {notes} with a note" if records else
                                   "No highlights yet. Select words in a passage to highlight them in a colour or add a note; Ctrl+H highlights the selection.")
         for record in records:
-            item=by_id.get(record["id"])
+            item=self.passage_of(record["id"])
             card=Gtk.Button(); card.add_css_class("card"); card.add_css_class("mark-card"); card.set_sensitive(item is not None)
             line=Gtk.Box(spacing=12); bar=Gtk.Box(); bar.add_css_class("mark-bar"); bar.add_css_class("swatch-"+record["color"]); line.append(bar)
             text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6,hexpand=True)
-            words=Gtk.Label(label=marks.excerpt(record["words"]),xalign=0,wrap=True,max_width_chars=70); words.add_css_class("today-reading"); text.append(words)
+            words=self.note_label(marks.excerpt(record["words"])); words.add_css_class("today-reading"); text.append(words)
             place=" · ".join(filter(None,(book_of(item) or (item["tags"][0] if item and item["tags"] else None),heading(item)))) if item else "This passage is not in the current library."
-            where=Gtk.Label(label=place,xalign=0,wrap=True); where.add_css_class("dim-label"); text.append(where)
+            if item and item["id"]!=record["id"]: place+=f" · highlighted in {self.language_name(record['id'])}"
+            text.append(self.note_label(place,dim=True))
             if record.get("note"):
-                note=Gtk.Label(label=record["note"],xalign=0,wrap=True,max_width_chars=70,margin_top=2); text.append(note)
+                # The list shows the start of a long note; the passage shows all of it.
+                note=self.note_label(marks.preview(record["note"]),lines=8); note.set_margin_top(2); text.append(note)
             line.append(text); card.set_child(line)
             self.name_widget(card,f"{COLOR_NAMES[record['color']]} highlight: {marks.excerpt(record['words'],120)}. {place}."+(f" Note: {record['note']}" if record.get("note") else ""))
             if item: card.connect("clicked",lambda _,r=record,i=item:self.open_highlight(r,i))
@@ -194,7 +251,8 @@ class HighlightsMixin:
         if self.adwaita: self.content_title.set_title("Highlights & notes"); self.content_title.set_subtitle(""); self.content_page.set_title("Highlights & notes")
     def open_highlight(self,record,item):
         self.open_passage(item,"Highlight")
-        place=marks.anchor(item["text"],record)
+        # A highlight from another language is shown above the text, not at its words.
+        place=marks.anchor(item["text"],record) if item["id"]==record["id"] else None
         if place:
             buffer=self.reader.get_buffer(); mark=buffer.create_mark(None,buffer.get_iter_at_offset(place[0]),True)
             def scroll():

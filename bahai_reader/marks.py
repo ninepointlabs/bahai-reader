@@ -5,6 +5,7 @@ import datetime
 
 COLORS=("yellow","green","blue","magenta")
 NOTE_LIMIT=5000  # characters kept in one note
+PREVIEW_LIMIT=600  # characters of a note shown in the Highlights & notes list; the passage shows all of it
 
 def clean_highlights(records):
     """Only well-formed highlights; anything else in the file is dropped rather than stopping the app."""
@@ -55,6 +56,29 @@ def add(records,record):
     """Adds a highlight; any highlight of the same passage it overlaps is replaced by it (one colour per word)."""
     keep=[r for r in records if not (r["id"]==record["id"] and r["start"]<record["end"] and record["start"]<r["end"])]
     return keep+[record]
+
+def preview(note,limit=PREVIEW_LIMIT):
+    """The start of a note for the list. A long note, even one with no spaces, cannot make the list wider than the window."""
+    return note if len(note)<=limit else note[:limit].rstrip()+"…"
+
+# ----- following a passage into another language -----
+# Highlights, notes and saved passages are stored under the id of the passage they were made on ("hidden:2" in English,
+# "4:hidden:687" in Spanish) and are never rewritten. In another language they are shown on the passage that has the same
+# numbering (the item's "match", as side by side pairs them). Prayers, Days of Remembrance, Riḍván messages and the English-only
+# bahai.org texts have no match, so they stay with their own language.
+
+def language_of(key):
+    """The language a stored passage id belongs to: "4:hidden:687" is 4; an id with no number in front is English (1)."""
+    head=key.split(":",1)[0]
+    return int(head) if head.isdigit() else 1
+
+def follow(key,by_id,by_match,matches_in):
+    """The passage of the current library that a stored id means, or None.
+    by_id and by_match index the current library; matches_in(language) gives {id: match} for a language's library."""
+    item=by_id.get(key)
+    if item is not None: return item
+    match=matches_in(language_of(key)).get(key)
+    return by_match.get(match) if match else None
 
 def excerpt(words,limit=220):
     flat=" ".join(words.split())

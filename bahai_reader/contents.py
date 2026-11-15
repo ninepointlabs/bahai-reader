@@ -13,8 +13,7 @@ class ContentsMixin:
         """Build the contents tree for the section once; searching only hides rows."""
         if not hasattr(self,"toc"): return
         self.grouping.set_visible(self.section=="writings" and not self.adwaita)
-        saved=self.prefs.get("saved",[])
-        self.section_items=[i for i in self.items if (i["id"] in saved if self.section=="saved" else i["section"]==self.section)]
+        self.section_items=[i for i in self.items if i["section"]==self.section] if self.section!="saved" else []
         if self.section=="writings" and self.book: self.section_items=[i for i in self.section_items if book_of(i)==self.book]
         while child:=self.toc.get_first_child(): self.toc.remove(child)
         self.branches={}; self.branch_rows=[]; self.passage_buttons=[]; self.groups={}
