@@ -59,6 +59,17 @@ class ThemeMapping(unittest.TestCase):
         # No per-widget overrides of buttons or entries: libadwaita draws those from the named colours.
         self.assertNotRegex(css,r"(^|\n)(button|entry) \{"); self.assertNotIn("monospace",css)
         self.assertNotIn(":root",theme.adwaita_stylesheet(FLEXOKI,{},variables=False))
+    def test_popovers_stand_off_the_page(self):
+        # A note or menu over the text needs an edge: in a dark theme a popover the colour of the page looked like a hole in it.
+        bahai=dict(background="#0F1715",foreground="#ECE4D0",accent="#D9AE5B",selection="#26352F")
+        for palette in (bahai,FLEXOKI,dict(FLEXOKI,background="#ffffff")):
+            named=theme.adwaita_colors(palette)
+            self.assertNotEqual(named["popover_bg_color"].lower(),palette["background"].lower(),palette)
+            self.assertGreaterEqual(theme.contrast(named["popover_fg_color"],named["popover_bg_color"]),7,palette)
+        self.assertGreater(theme.luminance(theme.adwaita_colors(bahai)["popover_bg_color"]),theme.luminance(bahai["background"]))
+    def test_classic_popovers_stand_off_the_page_too(self):
+        css=theme.stylesheet(dict(background="#0F1715",foreground="#ECE4D0",accent="#D9AE5B",selection="#26352F"),{})
+        self.assertIn("popover contents, popover arrow, popover list, popover row { background: "+theme.raised("#0F1715","#ECE4D0"),css)
     def test_mix(self):
         self.assertEqual(theme.mix("#000000","#ffffff",0.5),"#808080"); self.assertEqual(theme.mix("#123456","#123456",0.3),"#123456")
 
