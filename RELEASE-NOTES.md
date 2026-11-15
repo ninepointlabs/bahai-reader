@@ -1,6 +1,10 @@
 Bug-fix release of Bahá’í Reader.
 
-- Fixed: **notes and menus have an edge in dark themes.** The highlight bar, the note box and the menus had exactly the page’s background, so a note opened over the text looked like a hole cut in it. They now sit a step lighter than the page (white on light palettes), in both windows.
+- Fixed: **a very long note with no spaces no longer breaks the window.** Saved → Highlights & notes now wraps notes anywhere and lists the first 600 characters of each; before, a long unbroken note could leave Home or the classic window blank until the app was restarted. Notes are still kept in full.
+- Fixed: **highlights, notes and saved passages follow you into another language.** On the passage with the same numbering (as Side by side pairs them), saved passages show as saved, and a highlight is shown above the translated text with its note, since its words cannot be marked on a translation. Prayers, Days of Remembrance, Riḍván messages and the English-only bahai.org texts stay with their own language. Nothing stored is rewritten.
+- Improved: **the note editor counts characters** and stops at the 5,000-character limit; a paste keeps what fits.
+
+v0.2.2 gave notes, the highlight bar and menus an edge in dark themes, so a note opened over the text no longer looks like a hole cut in it.
 
 v0.2.1 made the app open as the new version after an update, even when reminders kept the old one running in the background. **If you are updating from 0.2.0 or earlier with reminders running**, quit the app once after updating (or log out and in); from 0.2.1 on this happens by itself.
 
