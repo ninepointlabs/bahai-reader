@@ -36,6 +36,8 @@ def stylesheet(colors,prefs):
     chrome_rule=f"window, popover, tooltip {{ font-family: {chrome}; }}\n" if chrome else ""
     return chrome_rule+f'''window, textview, textview text {{ background: {bg}; color: {fg}; }}
 headerbar, popover contents, list, row, entry, button, combobox {{ background: {bg}; color: {fg}; }}
+popover contents, popover arrow, popover list, popover row {{ background: {raised(bg,fg)}; color: {fg}; }}
+popover contents, popover arrow {{ border: 1px solid alpha({fg},0.12); }}
 /* The GTK theme paints .sidebar itself; keep the contents list on the reading palette. */
 .sidebar, .sidebar scrolledwindow, .sidebar viewport, .sidebar expander {{ background: {bg}; color: {fg}; }}
 /* Soft, quiet controls: small radii, a light fill instead of a box, and one primary style. */
@@ -84,6 +86,12 @@ textview text selection {{ background: {selection}; }}
 .notice {{ background: {selection}; color: {fg}; padding: 8px 16px; border-bottom: 1px solid {accent}; }}'''
 
 
+def raised(bg,fg):
+    """The background of what floats over the page (popovers): a step lighter than the page, as libadwaita's own palettes do,
+    so a note or menu opened over the text has an edge even in a dark theme whose surfaces are all one colour."""
+    if luminance(bg)<0.4: return mix(bg,fg,0.1)
+    return "#ffffff" if bg.lower()!="#ffffff" else mix(bg,fg,0.04)
+
 def mix(first,second,amount):
     """first moved amount (0 to 1) of the way toward second, as #rrggbb."""
     a=[int(first[i:i+2],16) for i in (1,3,5)]; b=[int(second[i:i+2],16) for i in (1,3,5)]
@@ -104,7 +112,7 @@ def adwaita_colors(colors,omarchy=None):
     return {"window_bg_color":bg,"window_fg_color":fg,"view_bg_color":bg,"view_fg_color":fg,
             "headerbar_bg_color":bg,"headerbar_fg_color":fg,"headerbar_backdrop_color":bg,"headerbar_border_color":selection,
             "sidebar_bg_color":sidebar,"sidebar_fg_color":fg,"sidebar_backdrop_color":sidebar,"sidebar_border_color":selection,
-            "card_bg_color":card,"card_fg_color":fg,"popover_bg_color":bg,"popover_fg_color":fg,"dialog_bg_color":bg,"dialog_fg_color":fg,
+            "card_bg_color":card,"card_fg_color":fg,"popover_bg_color":raised(bg,fg),"popover_fg_color":fg,"dialog_bg_color":bg,"dialog_fg_color":fg,
             "accent_bg_color":accent,"accent_fg_color":readable(accent,bg,fg,"#ffffff","#000000"),"accent_color":readable(bg,accent,fg),
             "thumbnail_bg_color":card,"thumbnail_fg_color":fg}
 
