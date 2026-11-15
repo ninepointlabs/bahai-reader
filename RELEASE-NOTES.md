@@ -1,8 +1,8 @@
 Bug-fix release of Bahá’í Reader.
 
-- Fixed: **after an update, the app opens as the new version.** If reminders kept the app running in the background (or the window was open) while a new version was installed, opening the app showed the old version until you logged out. Now the running app notices the update and restarts itself as the new version the next time it is opened, and when only reminders are running it does so in the background on its own. Your settings, saved passages, highlights and reminders carry over.
+- Fixed: **notes and menus have an edge in dark themes.** The highlight bar, the note box and the menus had exactly the page’s background, so a note opened over the text looked like a hole cut in it. They now sit a step lighter than the page (white on light palettes), in both windows.
 
-**Updating from 0.2.0 or earlier with reminders running in the background:** the version that is already running does not have this fix yet, so quit it once after updating (or log out and in), then open Bahá’í Reader. On Omarchy you can also run `pkill -f bahai-reader` before opening it. From 0.2.1 on, this happens by itself.
+v0.2.1 made the app open as the new version after an update, even when reminders kept the old one running in the background. **If you are updating from 0.2.0 or earlier with reminders running**, quit the app once after updating (or log out and in); from 0.2.1 on this happens by itself.
 
 v0.2.0 was a redesign: a new libadwaita window (Debian 12 keeps the earlier one), a library of books in place of the long list of Writings, search across all the texts (Ctrl+K), progress through each book, highlights and notes, focus mode, and the desktop's own font for the interface. The texts, and how they are set on the page, are unchanged.
 

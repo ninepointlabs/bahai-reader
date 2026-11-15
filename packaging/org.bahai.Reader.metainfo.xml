@@ -41,6 +41,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.2" date="2026-11-15">
+      <description><p>Notes, the highlight bar and menus now stand out from the page in dark themes. Before, they had the page’s own background, so a note opened over the text looked like a hole in it.</p></description>
+    </release>
     <release version="0.2.1" date="2026-11-11">
       <description><p>After an update, the app now opens as the new version even if the old one was still running in the background for reminders. Before, it kept showing the old version until you logged out.</p></description>
     </release>
