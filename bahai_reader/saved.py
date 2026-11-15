@@ -1,34 +1,77 @@
 """Saved passages and collections."""
 from gi.repository import Gtk, Gdk
 
+from . import marks
+from .library import load_library
 from .settings import UNSORTED, collection_name
 
 class SavedMixin:
     """Reader methods: saved passages and collections."""
+    # ----- stored ids in the current language -----
+    def passage_of(self,key):
+        """The current library's passage for a stored id (a saved passage, a collection entry or a highlight), following an id
+        from another language to the passage numbered the same here; None when this library has no counterpart."""
+        cache=getattr(self,"follow_cache",None)
+        if cache is None or cache[0] is not self.items:
+            items=self.items
+            cache=self.follow_cache=(items,{i["id"]:i for i in items},{i["match"]:i for i in items if i["match"]},{})
+        _,by_id,by_match,known=cache
+        if key not in known: known[key]=marks.follow(key,by_id,by_match,self.matches_in)
+        return known[key]
+
+    def matches_in(self,language):
+        """{passage id: alignment key} of a language's library, read once; empty if that language is not downloaded."""
+        known=getattr(self,"match_ids",None)
+        if known is None: known=self.match_ids={}
+        if language not in known:
+            if language==self.language: items=self.items
+            else:
+                try: items=load_library(language)
+                except (OSError,ValueError,KeyError,TypeError): items=[]
+            known[language]={i["id"]:i["match"] for i in items if i["match"]}
+        return known[language]
+
+    def saved_keys(self,item=None):
+        """The stored ids under which a passage is saved: its own id, or the id of the same passage in another language."""
+        item=item or self.current
+        if not item: return []
+        return [k for k in self.prefs.get("saved",[]) if k==item["id"] or (self.passage_of(k) or {}).get("id")==item["id"]]
+
+    def saved_key(self,item=None):
+        keys=self.saved_keys(item)
+        return keys[0] if keys else None
+
     def filed(self):
-        """{collection name: saved passages in it} for this language, then Unsorted."""
-        by_id={i["id"]:i for i in self.items}; groups={}; filed=set()
-        for collection in self.prefs.get("collections",[]):
-            groups[collection["name"]]=[by_id[i] for i in collection["items"] if i in by_id]; filed.update(collection["items"])
-        groups[UNSORTED]=[by_id[i] for i in self.prefs.get("saved",[]) if i in by_id and i not in filed]
+        """{collection name: saved passages in it} for this language, then Unsorted. Passages saved in another language are
+        shown as this language's passage of the same number, once."""
+        groups={}; seen=set()
+        def passages(keys):
+            result=[]
+            for key in keys:
+                item=self.passage_of(key)
+                if item is not None and item["id"] not in seen: seen.add(item["id"]); result.append(item)
+            return result
+        for collection in self.prefs.get("collections",[]): groups[collection["name"]]=passages(collection["items"])
+        groups[UNSORTED]=passages(self.prefs.get("saved",[]))
         return groups
 
     def collection_of(self,key):
         return next((c["name"] for c in self.prefs.get("collections",[]) if key in c["items"]),None)
 
     def show_filing(self):
-        saved=bool(self.current) and self.current["id"] in self.prefs.get("saved",[])
-        self.filing.set_visible(saved)
-        if not saved: return
+        key=self.saved_key() if self.current else None
+        self.filing.set_visible(key is not None)
+        if key is None: return
         self.filling=True
         self.collection.remove_all(); self.collection.append("",UNSORTED)
         for collection in self.prefs.get("collections",[]): self.collection.append(collection["name"],collection["name"])
-        self.collection.set_active_id(self.collection_of(self.current["id"]) or "")
+        self.collection.set_active_id(self.collection_of(key) or "")
         self.filling=False
 
     def file_current(self,choice):
         if self.filling or not self.current or choice.get_active_id() is None: return
-        self.move_passage(self.current["id"],choice.get_active_id() or None)
+        key=self.saved_key()
+        if key is not None: self.move_passage(key,choice.get_active_id() or None)
 
     def move_passage(self,key,name):
         """Files a saved passage in the named collection, or in none (Unsorted)."""

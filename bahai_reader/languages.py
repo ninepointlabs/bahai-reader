@@ -20,6 +20,7 @@ class LanguagesMixin:
         items=load_library(language)
         if not items: raise ValueError("Download this language before switching")
         self.language=language; self.items=items; self.prefs["language"]=language; self.save(); self.compare_cache=(None,{})
+        self.match_ids={}  # a language just downloaded again may number differently
         self.rebuild(); self.update_status(); self.refresh_today()
 
     def language_dialog(self,*_):

@@ -103,7 +103,7 @@ class ReadingMixin:
         return bool(self.current) and self.views.get_visible_child_name()=="reading"
 
     def update_star(self):
-        saved=bool(self.current) and self.current["id"] in self.prefs.get("saved",[])
+        saved=bool(self.current) and self.saved_key() is not None
         self.name_widget(self.star,"Saved" if saved else "Save")
         if self.adwaita:
             self.star.set_icon_name("starred-symbolic" if saved else "non-starred-symbolic"); self.update_counts(); return
@@ -117,11 +117,16 @@ class ReadingMixin:
 
     def bookmark(self,*_):
         if not self.on_passage(): return
-        saved=self.prefs.setdefault("saved",[]); key=self.current["id"]
-        saved.remove(key) if key in saved else saved.append(key)
-        # Unsaving takes the passage out of its collection too.
-        for collection in self.prefs.get("collections",[]):
-            if key in collection["items"] and key not in saved: collection["items"].remove(key)
+        saved=self.prefs.setdefault("saved",[])
+        # The ids it is stored under, which may be the same passage's id in another language: unsaving removes those,
+        # and takes the passage out of its collection too. Saving stores this language's id.
+        keys=self.saved_keys()
+        if keys:
+            for key in keys:
+                saved.remove(key)
+                for collection in self.prefs.get("collections",[]):
+                    if key in collection["items"]: collection["items"].remove(key)
+        else: saved.append(self.current["id"])
         self.save()
         self.update_star(); self.show_filing()
         if self.section=="saved": self.rebuild()
