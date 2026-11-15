@@ -1,8 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-<rect width="1200" height="630" fill="#0f1715"/><path d="M0 510h1200" stroke="#304238" stroke-width="2"/>
-<circle cx="1020" cy="125" r="180" fill="#14201b" stroke="#304238" stroke-width="2"/><path d="M1020 20v210M915 125h210" stroke="#d9ae5b" stroke-width="3" opacity=".55"/>
-<text x="100" y="165" fill="#d9ae5b" font-family="monospace" font-size="24" letter-spacing="5">BAHÁ’Í READER · LINUX</text>
-<text x="100" y="270" fill="#ece4d0" font-family="Georgia,serif" font-size="72">A quiet place for</text><text x="100" y="355" fill="#d9ae5b" font-family="Georgia,serif" font-size="82">the Writings.</text>
-<text x="100" y="435" fill="#a1afa5" font-family="sans-serif" font-size="25">Prayers · Hidden Words · Bahá’í books · Offline</text>
-<text x="100" y="565" fill="#ece4d0" font-family="sans-serif" font-size="23">Ten collections · Downloadable languages · Omarchy themes</text>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
+<!-- Open Graph card. social-card.png is this file rendered at 1200×630; the window is the real 0.2.1 Home (screenshots/01-home-library.webp). -->
+<defs><clipPath id="win"><rect x="560" y="96" width="720" height="450"/></clipPath></defs>
+<rect width="1200" height="630" fill="#0f1715"/>
+<rect x="578" y="114" width="720" height="450" fill="#1c2b23"/>
+<image x="560" y="96" width="720" height="450" href="screenshots/01-home-library.webp" xlink:href="screenshots/01-home-library.webp" clip-path="url(#win)" preserveAspectRatio="xMinYMin slice"/>
+<rect x="560.5" y="96.5" width="720" height="450" fill="none" stroke="#d9ae5b"/>
+<path d="M0 560h560" stroke="#304238" stroke-width="2"/>
+<text x="72" y="150" fill="#d9ae5b" font-family="monospace" font-size="20" letter-spacing="4">BAHÁ’Í READER · LINUX</text>
+<text x="72" y="248" fill="#ece4d0" font-family="Georgia,serif" font-size="58">A quiet place</text>
+<text x="72" y="318" fill="#ece4d0" font-family="Georgia,serif" font-size="58">for the <tspan fill="#d9ae5b" font-style="italic">Writings.</tspan></text>
+<text x="72" y="394" fill="#a1afa5" font-family="sans-serif" font-size="22">472 prayers and 18 books, offline.</text>
+<text x="72" y="428" fill="#a1afa5" font-family="sans-serif" font-size="22">Search, highlights and notes, focus mode.</text>
+<text x="72" y="604" fill="#ece4d0" font-family="sans-serif" font-size="21">Version 0.2.1 · bahaireader.org</text>
 </svg>
