@@ -25,7 +25,8 @@ jobs:
       - run: flutter test
 
   linux:
-    runs-on: ubuntu-24.04
+    # The oldest supported glib: a bundle built on 24.04 needs glib 2.80 and does not start on Debian 12 (2.74).
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -105,8 +106,8 @@ jobs:
         run: |
           check='Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; bahai-reader --version; set +e; timeout 20 dbus-run-session -- bahai-reader; code=$?; test "$code" = 124 || { echo "exited with $code" >&2; exit 1; }'
           case "$DISTRO" in
-            debian) docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libegl1 libgl1-mesa-dri; $check" ;;
-            ubuntu) docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libegl1 libgl1-mesa-dri; $check" ;;
+            debian) docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libgl1-mesa-dri; $check" ;;
+            ubuntu) docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libgl1-mesa-dri; $check" ;;
             fedora) docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec "dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb mesa-libGL mesa-libEGL dbus-daemon; $check" ;;
             arch) docker run --rm -v "$PWD:/work:ro" archlinux:base bash -ec "pacman -Syu --noconfirm; pacman -U --noconfirm /work/dist/*.pkg.tar.zst; pacman -S --noconfirm xorg-server-xvfb dbus mesa; $check" ;;
           esac

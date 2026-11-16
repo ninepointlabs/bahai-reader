@@ -42,6 +42,9 @@ overrides:
   deb:
     depends:
       - libgtk-3-0t64 | libgtk-3-0
+      # Flutter draws with OpenGL ES through EGL.
+      - libegl1
+      - libgles2
       - fontconfig
     recommends:
       - fonts-dejavu-core
@@ -49,12 +52,15 @@ overrides:
   rpm:
     depends:
       - gtk3
+      - libglvnd-egl
+      - libglvnd-gles
       - fontconfig
     recommends:
       - dejavu-serif-fonts
   archlinux:
     depends:
       - gtk3
+      - libglvnd
       - fontconfig
     recommends:
       - noto-fonts

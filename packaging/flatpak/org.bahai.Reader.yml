@@ -22,7 +22,7 @@ modules:
   - name: bahai-reader
     buildsystem: simple
     build-commands:
-      - cp -R bundle /app/lib/bahai-reader
+      - mkdir -p /app/lib && cp -R bundle /app/lib/bahai-reader
       - mkdir -p /app/bin && ln -s ../lib/bahai-reader/bahai-reader /app/bin/bahai-reader
       - install -Dm644 -t /app/share/applications org.bahai.Reader.desktop
       - install -Dm644 -t /app/share/icons/hicolor/scalable/apps org.bahai.Reader.svg
