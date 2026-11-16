@@ -759,6 +759,9 @@ class AppState extends ChangeNotifier {
   /// Removes one stored id from the saved list, exactly as stored.
   Future<void> removeSaved(String id) async {
     settings.saved.remove(id);
+    for (final c in settings.collections) {
+      c.items.remove(id);
+    }
     await _save();
   }
 
