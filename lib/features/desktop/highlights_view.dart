@@ -72,8 +72,8 @@ class HighlightsView extends StatelessWidget {
                 Text(
                   excerpt(r.words, 300),
                   style: TextStyle(
-                    fontFamily: readingFonts.first,
-                    fontFamilyFallback: readingFonts.sublist(1),
+                    fontFamily: readingFace(context).fontFamily,
+                    fontFamilyFallback: readingFace(context).fontFamilyFallback,
                     fontSize: (size - 4).clamp(15, 40),
                   ),
                 ),

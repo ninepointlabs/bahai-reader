@@ -22,6 +22,12 @@ class WindowControl {
   /// Shows the window (if it was hidden) and asks the desktop to bring it forward.
   Future<void> present() => _call('present');
 
+  /// Ctrl+Q: closes the window as its close button does (it only hides while reminders keep running). Elsewhere it quits.
+  Future<void> close() async {
+    if (Platform.isLinux) return _call('close');
+    await SystemNavigator.pop();
+  }
+
   /// With [keep], closing the window hides it and the app keeps running; without, closing it quits.
   Future<void> setKeepRunning(bool keep) => _call('setKeepRunning', keep);
 }

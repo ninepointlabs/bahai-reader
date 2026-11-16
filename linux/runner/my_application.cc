@@ -49,6 +49,10 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* call, gpointe
   if (strcmp(name, "present") == 0) {
     present_window(self);
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (strcmp(name, "close") == 0) {
+    // Ctrl+Q: as the close button does, so while reminders keep running it hides the window instead of quitting.
+    if (self->window != nullptr) gtk_window_close(self->window);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (strcmp(name, "setKeepRunning") == 0) {
     FlValue* args = fl_method_call_get_args(call);
     self->keep_running = args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_BOOL && fl_value_get_bool(args);
@@ -143,8 +147,21 @@ static gboolean my_application_local_command_line(GApplication* application,
   MyApplication* self = MY_APPLICATION(application);
   // Strip out the first argument as it is the binary name.
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+  gboolean informational = FALSE;
   for (gchar** arg = *arguments + 1; *arg != nullptr; arg++) {
-    if (strcmp(*arg, "--background") == 0) self->background = TRUE;
+    if (strcmp(*arg, "--background") == 0) {
+      self->background = TRUE;
+    } else if (strcmp(*arg, "--open") == 0) {
+      if (*(arg + 1) != nullptr) arg++;
+    } else {
+      // --help, --version or an unknown option: answered by this process (Dart's main prints and exits before any
+      // window shows), never handed to a running copy.
+      informational = TRUE;
+    }
+  }
+  if (informational) {
+    g_application_set_flags(application,
+                            (GApplicationFlags)(g_application_get_flags(application) | G_APPLICATION_NON_UNIQUE));
   }
 
   g_autoptr(GError) error = nullptr;

@@ -15,6 +15,8 @@ import '../calendar/reminders.dart';
 import '../calendar/today.dart';
 import '../calendar/zones.dart';
 import '../library/library.dart';
+import '../library/downloads.dart' hide checkLanguages;
+import '../library/downloads.dart' as downloads show checkLanguages;
 import '../library/library_repository.dart';
 import '../library/passage.dart';
 import '../marks/highlight.dart';
@@ -74,7 +76,7 @@ class AppState extends ChangeNotifier {
     final result = lastImport = await importGtk(settings, source: gtk, fresh: fresh);
     if (result.done) settings.gtkImport = {'at': DateTime.now().toIso8601String(), 'status': result.status};
     final message = result.message;
-    if (message != null) notice = notice == null ? message : '$notice\n$message';
+    if (message != null) _addNotice(message);
     await store.save(settings);
   }
 
@@ -83,7 +85,15 @@ class AppState extends ChangeNotifier {
       languages = await repository.languages();
       folder = Folder(await repository.foldTable());
       calendar = BadiCalendar.fromJson(jsonDecode(await repository.calendarTable()));
-      if (!languages.any((l) => l.id == settings.language)) settings.language = 1;
+      if (!languages.any((l) => l.id == settings.language)) {
+        // As the GTK app says it: the language chosen there (or here) is not on this computer, or cannot be read.
+        final info = await repository.info(settings.language);
+        final damaged = await repository.damagedPack(settings.language);
+        _addNotice(damaged != null
+            ? 'The downloaded ${info.english} library could not be read, so English is shown. Download it again in ⋮ → Languages & offline libraries.'
+            : 'The ${info.english} library is not downloaded, so English is shown.');
+        settings.language = 1;
+      }
       await _use(settings.language);
       // Libraries that hold marks made in other languages, so they can follow into this one. Loaded in the background;
       // [marksReady] completes when they are in.
@@ -128,9 +138,100 @@ class AppState extends ChangeNotifier {
     if (id == settings.language) return;
     loading = true;
     notifyListeners();
-    settings.language = id;
-    await _use(id);
-    loading = false;
+    final before = settings.language;
+    try {
+      settings.language = id;
+      await _use(id);
+    } catch (_) {
+      settings.language = before;
+      await _use(before);
+      loading = false;
+      notifyListeners();
+      rethrow;
+    } finally {
+      loading = false;
+    }
+    _compare = null;
+    await _save();
+  }
+
+  void _addNotice(String text) => notice = notice == null ? text : '$notice\n$text';
+
+  // ----- Languages & offline libraries -----
+  /// Downloading or checking the language list right now (one at a time).
+  bool downloading = false;
+
+  /// The full BahaiPrayers.net catalog of languages and what each offers.
+  Future<Map<String, List<Map<String, dynamic>>>> catalog() => repository.catalog();
+
+  /// True when a language can be read without downloading: bundled, or a usable pack in this app's or the GTK app's folder.
+  bool offline(int id) => languages.any((l) => l.id == id);
+
+  /// Downloads (or downloads again) every collection of a language into this app's own folder, then reads it.
+  /// Throws with a sentence for people if it fails; what was there before is kept.
+  Future<void> download(int id, {void Function(String)? progress, Fetch? fetch}) async {
+    if (downloading) return;
+    downloading = true;
+    notifyListeners();
+    try {
+      await downloadLanguage(id, await catalog(), repository.folders, progress: progress, fetch: fetch ?? fetchJson);
+      repository.forget(id);
+      _loaded.remove(id);
+      _compare = null;
+      languages = await repository.languages();
+    } catch (e) {
+      throw DownloadProblem(downloadProblem(e));
+    } finally {
+      downloading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetches the language list again (only when asked).
+  Future<void> checkLanguages({Fetch? fetch}) async {
+    if (downloading) return;
+    downloading = true;
+    notifyListeners();
+    try {
+      await downloads.checkLanguages(repository.folders, fetch: fetch ?? fetchJson);
+      repository.forgetCatalog();
+    } catch (e) {
+      throw DownloadProblem(downloadProblem(e));
+    } finally {
+      downloading = false;
+      notifyListeners();
+    }
+  }
+
+  // ----- Side by side -----
+  (int, Library?)? _compare;
+
+  /// The languages that can be shown beside the passage: English and every other language on this computer, except
+  /// the one being read (GTK `compare_languages()`).
+  List<LanguageInfo> get compareLanguages => [
+    for (final l in languages)
+      if (l.id != settings.language) l,
+  ];
+
+  /// The library shown beside the passage, once loaded; null when Side by side is off, or while it loads.
+  Library? get compareLibrary {
+    final id = settings.compare;
+    if (id == null || id == settings.language) return null;
+    if (_compare?.$1 != id) {
+      _compare = (id, null);
+      repository.load(id).then((lib) {
+        if (_compare?.$1 == id) _compare = (id, lib);
+        notifyListeners();
+      }, onError: (Object _) {
+        if (_compare?.$1 == id) _compare = (id, Library(id, const []));
+        notifyListeners();
+      });
+    }
+    return _compare!.$2;
+  }
+
+  Future<void> setCompare(int? id) async {
+    settings.compare = id;
     await _save();
   }
 
@@ -471,6 +572,36 @@ class AppState extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> setReading({String? font, String? chromeFont, int? spacing, int? margin, bool clearFont = false}) async {
+    if (font != null || clearFont) settings.font = clearFont ? null : font;
+    if (chromeFont != null) settings.chromeFont = chromeFont;
+    if (spacing != null) settings.spacing = spacing.clamp(0, 20);
+    if (margin != null) settings.margin = margin.clamp(24, 160);
+    await _save();
+  }
+
+  List<String>? _fonts;
+
+  /// The font families installed on this computer, for Aa → Reading font (Linux: fontconfig's list); the default
+  /// faces where it cannot be listed.
+  Future<List<String>> installedFonts() async {
+    if (_fonts != null) return _fonts!;
+    final found = <String>{};
+    if (Platform.isLinux) {
+      try {
+        final r = await Process.run('fc-list', [':', 'family']);
+        for (final line in '${r.stdout}'.split('\n')) {
+          final name = line.split(',').first.trim();
+          if (name.isNotEmpty) found.add(name);
+        }
+      } on ProcessException {
+        // No fontconfig tools: the defaults below.
+      }
+    }
+    if (found.isEmpty) found.addAll(readingFonts.where((f) => f != 'serif'));
+    return _fonts = found.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
   Future<void> setTextSize(double size) async {
     settings.textSize = size.clamp(15, 36);
     await _save();
@@ -519,13 +650,108 @@ class AppState extends ChangeNotifier {
   bool isSaved(Passage p) => settings.saved.any((id) => id == p.id || passageOf(id)?.id == p.id);
 
   Future<void> toggleSaved(Passage p) async {
-    if (isSaved(p)) {
-      // Remove the stored id(s) that mean this passage, in whichever language they were saved.
-      settings.saved.removeWhere((id) => id == p.id || passageOf(id)?.id == p.id);
+    final keys = savedKeys(p);
+    if (keys.isNotEmpty) {
+      // Remove the stored id(s) that mean this passage, in whichever language they were saved, and take it out of its
+      // collection too (GTK `bookmark()`).
+      settings.saved.removeWhere(keys.contains);
+      for (final c in settings.collections) {
+        c.items.removeWhere(keys.contains);
+      }
     } else {
       settings.saved.add(p.id);
     }
     await _save();
+  }
+
+  /// The stored ids under which a passage is saved: its own id, or the same passage's id in another language.
+  List<String> savedKeys(Passage p) => [
+    for (final id in settings.saved)
+      if (id == p.id || passageOf(id)?.id == p.id) id,
+  ];
+
+  // ----- collections (GTK `saved.py`) -----
+  /// The collection a stored id is filed in, or null (Unsorted).
+  String? collectionOf(String key) => settings.collections.where((c) => c.items.contains(key)).firstOrNull?.name;
+
+  /// Saved passages by collection, in the collections' own order, then Unsorted; in this language (a passage saved in
+  /// another language is shown as the passage numbered the same here), each once.
+  List<(String, List<Passage>)> filed() {
+    final seen = <String>{};
+    List<Passage> passages(Iterable<String> keys) => [
+      for (final k in keys)
+        if (passageOf(k) case final p? when seen.add(p.id)) p,
+    ];
+    return [
+      for (final c in settings.collections) (c.name, passages(c.items)),
+      (unsorted, passages(settings.saved)),
+    ];
+  }
+
+  /// Files a saved passage in the named collection, or in none (Unsorted).
+  Future<void> moveSaved(String key, String? name) async {
+    if (!settings.saved.contains(key) || name == collectionOf(key)) return;
+    for (final c in settings.collections) {
+      c.items.remove(key);
+      if (c.name == name) c.items.add(key);
+    }
+    await _save();
+  }
+
+  String? _nameProblem(String name, {String? current}) {
+    if (name.isEmpty) return 'Type a name for the collection.';
+    if (name.toLowerCase() == unsorted.toLowerCase()) {
+      return '“$unsorted” is where passages outside a collection go; choose another name.';
+    }
+    if (settings.collections.any((c) => c.name.toLowerCase() == name.toLowerCase() && c.name != current)) {
+      return 'There is already a collection called “$name”.';
+    }
+    return null;
+  }
+
+  /// Returns a problem to show, or null once created.
+  Future<String?> createCollection(String name) async {
+    name = collectionName(name);
+    final problem = _nameProblem(name);
+    if (problem != null) return problem;
+    settings.collections.add(Collection(name));
+    await _save();
+    return null;
+  }
+
+  Future<String?> renameCollection(String old, String name) async {
+    name = collectionName(name);
+    final problem = _nameProblem(name, current: old);
+    if (problem != null) return problem;
+    for (final c in settings.collections) {
+      if (c.name == old) c.name = name;
+    }
+    final open = settings.expanded.remove('saved/$old');
+    if (open != null) settings.expanded['saved/$name'] = open;
+    await _save();
+    return null;
+  }
+
+  /// Removes the collection only; its passages stay saved, under Unsorted.
+  Future<void> deleteCollection(String name) async {
+    settings.collections.removeWhere((c) => c.name == name);
+    settings.expanded.remove('saved/$name');
+    await _save();
+  }
+
+  /// A contents group opened or closed by hand, remembered (GTK `expanded`).
+  void setExpanded(String path, bool open) {
+    settings.expanded[path] = open;
+    _save(notify: false);
+  }
+
+  /// Where the window is, for the next start (GTK `section`, `book`, `last`).
+  void rememberPlace({String? section, String? book, String? last}) {
+    if (section == settings.section && book == settings.book && (last == null || last == settings.last)) return;
+    settings.section = section;
+    settings.book = book;
+    if (last != null) settings.last = last;
+    _save(notify: false);
   }
 
   /// Removes one stored id from the saved list, exactly as stored.
@@ -603,8 +829,22 @@ class AppState extends ChangeNotifier {
   }
 }
 
+/// A failed download, as a sentence for people.
+class DownloadProblem implements Exception {
+  DownloadProblem(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 /// [addHighlight] from the marks module, under a name that does not clash with [AppState.addHighlight].
 List<Highlight> addHighlightTo(List<Highlight> records, Highlight record) => addHighlight(records, record);
+
+/// The reading font as chosen in Aa (or the default faces), for the text, Today and the counter.
+TextStyle readingFace(BuildContext context) {
+  final fonts = readingFontsFor(AppScope.of(context).settings.font);
+  return TextStyle(fontFamily: fonts.first, fontFamilyFallback: fonts.sublist(1));
+}
 
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({super.key, required AppState state, required super.child}) : super(notifier: state);

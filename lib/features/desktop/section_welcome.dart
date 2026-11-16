@@ -19,7 +19,7 @@ class SectionWelcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = ReaderColors.of(context);
-    final serif = TextStyle(fontFamily: readingFonts.first, fontFamilyFallback: readingFonts.sublist(1));
+    final serif = readingFace(context);
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),

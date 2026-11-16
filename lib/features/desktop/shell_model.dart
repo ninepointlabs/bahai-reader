@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../core/app/app_state.dart';
 import '../../core/library/library.dart';
@@ -67,6 +67,15 @@ class ShellModel extends ChangeNotifier {
   /// The sidebar shows one book (or the obligatory prayers), with a Back button.
   bool get inBook => (section == Section.writings && book != null) || section == Section.obligatory;
 
+  /// The sidebar's "Search this section…" field, so Ctrl+F can put the cursor there.
+  final filterFocus = FocusNode();
+
+  @override
+  void dispose() {
+    filterFocus.dispose();
+    super.dispose();
+  }
+
   void navigate(Section to) {
     section = to;
     book = null;
@@ -94,6 +103,7 @@ class ShellModel extends ChangeNotifier {
       case Section.saved:
         openSaved();
     }
+    if (pane != Pane.reading) _remember();
     notifyListeners();
   }
 
@@ -120,17 +130,27 @@ class ShellModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Saved: the first saved passage (or an empty page saying how to save one).
-  void openSaved({int at = 0}) {
+  /// Saved: the passage last read there, else the first saved passage (or an empty page saying how to save one).
+  void openSaved() {
     section = Section.saved;
     book = null;
-    final saved = savedWork();
-    group = saved;
-    index = at.clamp(0, saved.passages.isEmpty ? 0 : saved.passages.length - 1);
+    final groups = savedGroups();
+    final last = app.settings.last;
+    final g = groups.where((g) => g.passages.any((p) => p.id == last)).firstOrNull ?? groups.firstOrNull;
+    group = g ?? Work(title: 'Saved', kind: 'saved', passages: const []);
+    final i = g == null ? 0 : g.passages.indexWhere((p) => p.id == last);
+    index = i < 0 ? 0 : i;
     pane = Pane.reading;
     found = null;
     turn++;
+    _remember();
   }
+
+  /// The saved passages by collection, then Unsorted; each group is what Previous/Next walk (GTK `filed()`).
+  List<Work> savedGroups() => [
+        for (final (name, passages) in app.filed())
+          if (passages.isNotEmpty) Work(title: name, kind: 'saved', passages: passages),
+      ];
 
   Work savedWork() => Work(title: 'Saved', kind: 'saved', passages: app.savedPassages);
 
@@ -211,6 +231,49 @@ class ShellModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Saves where the window is, so the next start opens there (GTK restores `section`, `book` and `last`).
+  void _remember() {
+    final key = switch (section) {
+      Section.writings when book?.title == 'The Hidden Words' => 'hidden',
+      _ => section.name,
+    };
+    app.rememberPlace(section: key, book: section == Section.writings ? book?.title : null, last: current?.id);
+  }
+
+  /// Opens where the window was when the app was last closed: the section, the book, and the passage last read.
+  void restore() {
+    final st = app.settings;
+    final lib = app.library;
+    if (lib == null) return;
+    final last = st.last == null ? null : app.passageOf(st.last!);
+    switch (st.section) {
+      case 'today':
+        navigate(Section.today);
+      case 'prayers' when last != null && last.isPrayer:
+        openPassage(last);
+      case 'prayers':
+        navigate(Section.prayers);
+      case 'obligatory' when last != null && lib.obligatoryGroups.any((g) => g.passages.contains(last)):
+        openObligatory(last);
+      case 'obligatory':
+        navigate(Section.obligatory);
+      case 'hidden' || 'writings':
+        final title = st.section == 'hidden' ? 'The Hidden Words' : st.book;
+        final work = lib.books.where((w) => w.title == title).firstOrNull;
+        if (work == null) {
+          navigate(Section.writings);
+        } else {
+          final i = last == null ? -1 : work.passages.indexWhere((p) => p.id == last.id);
+          openBook(work, at: i < 0 ? null : i);
+        }
+      case 'saved':
+        navigate(Section.saved);
+      default:
+        navigate(Section.home);
+    }
+    showContent = true;
+  }
+
   void _show(Work work, int i, {(int, int)? found, int? scrollTo, String? label}) {
     this.label = label;
     group = work;
@@ -223,6 +286,7 @@ class ShellModel extends ChangeNotifier {
     if (p == null) return;
     if (work.kind == 'writings' || work.kind == 'prayers') app.rememberPosition(work, p);
     if (p.isPrayer) _lastPrayer = p;
+    _remember();
   }
 
   void setFilter(String text) {
@@ -259,14 +323,28 @@ class ShellModel extends ChangeNotifier {
     navigate(section);
   }
 
-  /// Saved changed (a passage saved or unsaved): keep the saved list in step while it is on show.
+  /// Saved changed (a passage saved, unsaved or moved to another collection): keep Saved in step while it is on show.
   void savedChanged() {
-    if (section != Section.saved || group?.kind != 'saved') return;
+    if (section != Section.saved || group?.kind != 'saved' || pane != Pane.reading) return;
     final id = current?.id;
-    final saved = savedWork();
-    group = saved;
-    final i = id == null ? -1 : saved.passages.indexWhere((p) => p.id == id);
-    index = i < 0 ? index.clamp(0, saved.passages.isEmpty ? 0 : saved.passages.length - 1) : i;
+    final groups = savedGroups();
+    final g = groups.where((g) => g.passages.any((p) => p.id == id)).firstOrNull;
+    if (g != null) {
+      group = g;
+      index = g.passages.indexWhere((p) => p.id == id);
+    } else {
+      // The passage on show was unsaved: stay at the same place in the list.
+      final all = [for (final w in groups) ...w.passages];
+      final flat = groups.isEmpty ? null : Work(title: 'Saved', kind: 'saved', passages: all);
+      group = flat == null ? Work(title: 'Saved', kind: 'saved', passages: const []) : groups.first;
+      if (flat != null) {
+        final p = all[index.clamp(0, all.length - 1)];
+        group = groups.firstWhere((w) => w.passages.contains(p));
+        index = group!.passages.indexOf(p);
+      } else {
+        index = 0;
+      }
+    }
     notifyListeners();
   }
 }

@@ -72,6 +72,10 @@ class Library {
     return pool.isEmpty ? null : pool[ordinal % pool.length];
   }
 
+  /// The passages the passage of the day and Random passage choose from: prayers, the Hidden Words, Gleanings and
+  /// Prayers and Meditations of up to 500 words (GTK `reflections()`).
+  late final List<Passage> reflections = [for (final id in _dailyIds) ?byId[id]];
+
   /// The Obligatory prayers section: the three prayers, then the Kitáb-i-Aqdas guidance on them, each as a work.
   late final List<Work> obligatoryGroups = [
     for (final (group, ids) in _obligatoryIds)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
+import '../settings/collections_dialog.dart';
 import '../../core/app/theme.dart';
 import '../../core/calendar/badi.dart' show unpublished;
 import '../../core/calendar/today.dart';
@@ -99,9 +100,18 @@ class _ContentsState extends State<_Contents> {
   final currentKey = GlobalKey();
   final scroll = ScrollController();
 
-  /// Groups the reader opened or closed by hand: {path: expanded}. Otherwise a group is open when it holds the passage
-  /// on show (or while searching).
-  final Map<String, bool> expanded = {};
+  /// Groups the reader opened or closed by hand: {path: expanded}, kept in the settings (GTK `expanded`). Otherwise a
+  /// group is open when it holds the passage on show (or while searching).
+  Map<String, bool> get expanded => AppScope.read(context).settings.expanded;
+
+  /// Groups closed by hand while the passage on show is in them: they stay closed until another passage is shown.
+  final Set<String> _closedHere = {};
+  String? _closedFor;
+
+  void _toggle(String path, bool open) => setState(() {
+        AppScope.read(context).setExpanded(path, !open);
+        open ? _closedHere.add(path) : _closedHere.remove(path);
+      });
   static final Map<String, String> _folded = {};
   String? _scrolledTo;
 
@@ -140,6 +150,10 @@ class _ContentsState extends State<_Contents> {
     final library = state.library;
     final q = state.folder?.fold(model.filter.trim()) ?? '';
     final current = model.current;
+    if (current?.id != _closedFor) {
+      _closedFor = current?.id;
+      _closedHere.clear();
+    }
     final rows = <Widget>[];
     // Passages that match, counted once even when listed under two categories.
     final shownIds = <String>{};
@@ -178,12 +192,16 @@ class _ContentsState extends State<_Contents> {
       shownIds.addAll(visible.map((i) => work.passages[i].id));
       final holdsCurrent = current != null && model.group?.title == work.title && visible.contains(model.index);
       // The obligatory prayers' groups start open, as in the GTK app; elsewhere the group holding the passage on show.
-      final open = q.isNotEmpty || (expanded[path] ?? (holdsCurrent || model.section == Section.obligatory));
+      // As in the GTK app: the group holding the passage on show opens (without remembering that as a choice); others
+      // are as they were left; the obligatory prayers' groups start open.
+      final open = q.isNotEmpty ||
+          (holdsCurrent && !_closedHere.contains(path)) ||
+          (expanded[path] ?? model.section == Section.obligatory);
       rows.add(_Branch(
         title: title,
         count: units(visible.length, u),
         open: open,
-        onToggle: () => setState(() => expanded[path] = !open),
+        onToggle: () => _toggle(path, open),
       ));
       if (open) {
         rows.add(Padding(
@@ -228,7 +246,7 @@ class _ContentsState extends State<_Contents> {
                 title: author,
                 count: units(visible.length, 'book'),
                 open: open,
-                onToggle: () => setState(() => expanded[path] = !open),
+                onToggle: () => _toggle(path, open),
               ));
               if (!open) continue;
               rows.add(Padding(
@@ -260,8 +278,17 @@ class _ContentsState extends State<_Contents> {
             }
           }
         case Section.saved:
-          final saved = model.group?.kind == 'saved' ? model.group! : model.savedWork();
           final count = state.highlights.length;
+          if (q.isEmpty) {
+            rows.add(Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: SideRow(
+                tooltip: 'Create, rename and delete collections',
+                onTap: () => showCollections(context),
+                child: const Row(children: [Expanded(child: Text('Manage collections…')), Icon(Icons.folder_outlined, size: 18)]),
+              ),
+            ));
+          }
           rows.add(Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: SideRow(
@@ -274,10 +301,9 @@ class _ContentsState extends State<_Contents> {
               ]),
             ),
           ));
-          for (var i = 0; i < saved.passages.length; i++) {
-            if (!matches(state, saved.passages[i], q)) continue;
-            shownIds.add(saved.passages[i].id);
-            rows.add(passageRow(saved, i));
+          // A personal prayerbook: the collections in their own order, then whatever is not filed yet.
+          for (final g in model.savedGroups()) {
+            branch('saved/${g.title}', g.title, g, [for (var i = 0; i < g.passages.length; i++) i]);
           }
         case Section.obligatory:
           rows.add(Padding(
@@ -308,7 +334,7 @@ class _ContentsState extends State<_Contents> {
               title: group,
               count: units(visible.length, 'date'),
               open: open,
-              onToggle: () => setState(() => expanded[path] = !open),
+              onToggle: () => _toggle(path, open),
             ));
             if (!open) continue;
             rows.add(Padding(
@@ -355,6 +381,7 @@ class _ContentsState extends State<_Contents> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         TextField(
           controller: search,
+          focusNode: model.filterFocus,
           onChanged: model.setFilter,
           decoration: const InputDecoration(
             hintText: 'Search this section…',

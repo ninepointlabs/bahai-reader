@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
 import '../../core/settings/settings_store.dart';
+import 'languages_dialog.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -38,14 +39,16 @@ class SettingsScreen extends StatelessWidget {
         ),
         const Divider(height: 32),
         Text('Language', style: theme.textTheme.titleMedium),
-        Text('Libraries bundled with this build. Downloading more languages is not part of this experiment.',
-            style: theme.textTheme.bodySmall),
-        RadioGroup<int>(
-          groupValue: state.settings.language,
-          onChanged: (v) => v == null ? null : state.setLanguage(v),
-          child: Column(children: [
-            for (final l in state.languages) RadioListTile<int>(value: l.id, title: Text(l.label)),
-          ]),
+        const SizedBox(height: 4),
+        Text('Reading ${state.language.label}.', style: theme.textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.translate),
+            label: const Text('Languages & offline libraries…'),
+            onPressed: () => showLanguages(context),
+          ),
         ),
         const Divider(height: 32),
         Text('Your highlights and saved passages', style: theme.textTheme.titleMedium),

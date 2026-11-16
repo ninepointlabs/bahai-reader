@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app/app_state.dart';
+
 import '../../core/app/theme.dart';
 
 /// Small pieces in the GTK app's style, shared by the desktop views.
@@ -258,8 +260,8 @@ class IndexCard extends StatelessWidget {
                   maxLines: e.lines,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: readingFonts.first,
-                    fontFamilyFallback: readingFonts.sublist(1),
+                    fontFamily: readingFace(context).fontFamily,
+                    fontFamilyFallback: readingFace(context).fontFamilyFallback,
                     fontSize: 15.5,
                     fontWeight: FontWeight.w600,
                   ),

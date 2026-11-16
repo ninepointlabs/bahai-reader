@@ -184,8 +184,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     final base = TextStyle(
-      fontFamily: readingFonts.first,
-      fontFamilyFallback: readingFonts.sublist(1),
+      fontFamily: readingFace(context).fontFamily,
+      fontFamilyFallback: readingFace(context).fontFamilyFallback,
       fontSize: state.settings.textSize,
       height: 1.6,
       color: theme.colorScheme.onSurface,

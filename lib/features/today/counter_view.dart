@@ -66,7 +66,7 @@ class _CounterViewState extends State<CounterView> {
     final state = AppScope.of(context);
     final p = ReaderColors.of(context);
     final verse = state.library?.byId.values.where((x) => x.id.endsWith('aqdas:Paragraphs:18')).firstOrNull;
-    final serif = TextStyle(fontFamily: readingFonts.first, fontFamilyFallback: readingFonts.sublist(1));
+    final serif = readingFace(context);
     return CallbackShortcuts(
       bindings: {
         // Not while typing a custom target, and holding a key counts once.

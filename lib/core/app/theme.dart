@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 /// The reading text's faces, as the GTK app picks them (Noto Serif, else DejaVu Serif). Nothing is fetched at runtime.
 const readingFonts = ['Noto Serif', 'DejaVu Serif', 'Source Serif 4', 'Georgia', 'serif'];
 
+/// The reading faces with a chosen font first (Aa → Reading font), falling back to the defaults for missing letters.
+List<String> readingFontsFor(String? font) => font == null || font.isEmpty ? readingFonts : [font, ...readingFonts];
+
 /// The interface font: the desktop's own where it is one of these (GNOME's and Omarchy's defaults), else sans-serif.
 const interfaceFonts = ['Adwaita Sans', 'Inter', 'Cantarell', 'Noto Sans', 'sans-serif'];
 
@@ -153,7 +156,8 @@ Palette? parseOmarchyColors(String source) {
 
 /// The palette as a ThemeData, styled like the GTK app's libadwaita window: flat, soft controls with small radii,
 /// one accent-coloured primary button, hairlines in the selection colour.
-ThemeData buildTheme(Palette p) {
+/// [monospace]: Aa → Interface font → Monospace (the fontconfig monospace family, Omarchy's configured font).
+ThemeData buildTheme(Palette p, {bool monospace = false}) {
   final fg = p.foreground, bg = p.background;
   final scheme = ColorScheme(
     brightness: p.brightness,
@@ -186,8 +190,8 @@ ThemeData buildTheme(Palette p) {
     colorScheme: scheme,
     useMaterial3: true,
     brightness: p.brightness,
-    fontFamily: interfaceFonts.first,
-    fontFamilyFallback: interfaceFonts.sublist(1),
+    fontFamily: monospace ? 'monospace' : interfaceFonts.first,
+    fontFamilyFallback: monospace ? interfaceFonts : interfaceFonts.sublist(1),
   );
   return base.copyWith(
     scaffoldBackgroundColor: bg,

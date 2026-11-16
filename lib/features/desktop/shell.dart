@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +9,10 @@ import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
+import '../../core/library/passage.dart';
 import '../about/about_screen.dart';
+import '../settings/collections_dialog.dart';
+import '../settings/languages_dialog.dart';
 import '../settings/settings_screen.dart';
 import '../../core/calendar/badi.dart';
 import '../../core/calendar/today.dart';
@@ -44,7 +48,13 @@ class _DesktopShellState extends State<DesktopShell> {
   late final ShellModel model = ShellModel(widget.state);
   final reading = GlobalKey<ReadingViewState>();
   late int _language = widget.state.settings.language;
-  late int _saved = widget.state.settings.saved.length;
+  late String _saved = _savedSignature();
+
+  /// What Saved shows: the saved ids and how they are filed.
+  String _savedSignature() => [
+        widget.state.settings.saved.join('|'),
+        for (final c in widget.state.settings.collections) '${c.name}:${c.items.join('|')}',
+      ].join('\n');
   StreamSubscription<String>? _opens;
 
   @override
@@ -53,6 +63,8 @@ class _DesktopShellState extends State<DesktopShell> {
     widget.state.addListener(_appChanged);
     _opens = widget.state.openRequests.listen(_openFromNotification);
     final id = widget.openId;
+    // Where the window was last time (GTK restores the section, the book and the passage); a new install opens on Home.
+    if (id == null && !widget.state.loading && widget.state.library != null) model.restore();
     if (id != null) {
       widget.state.marksReady.then((_) {
         final p = widget.state.passageOf(id);
@@ -75,8 +87,9 @@ class _DesktopShellState extends State<DesktopShell> {
       _language = s.settings.language;
       model.languageChanged();
     }
-    if (s.settings.saved.length != _saved) {
-      _saved = s.settings.saved.length;
+    final saved = _savedSignature();
+    if (saved != _saved) {
+      _saved = saved;
       model.savedChanged();
     }
   }
@@ -91,6 +104,16 @@ class _DesktopShellState extends State<DesktopShell> {
       model.navigate(Section.today);
     }
   }
+
+  /// A random passage from the prayers, the Hidden Words, Gleanings and Prayers and Meditations, not the one on show
+  /// (GTK `random_passage()`).
+  void _random() {
+    final pool = [for (final p in widget.state.library?.reflections ?? const <Passage>[]) if (p.id != model.current?.id) p];
+    if (pool.isEmpty) return;
+    model.openPassage(pool[_dice.nextInt(pool.length)], label: 'Random passage');
+  }
+
+  final _dice = Random();
 
   void _toggleSaved() {
     final p = model.current;
@@ -161,6 +184,8 @@ class _DesktopShellState extends State<DesktopShell> {
             model.sidebarShown = true;
           }
           model.setFocusMode(false);
+          // Then into "Search this section…", as in the GTK app.
+          WidgetsBinding.instance.addPostFrameCallback((_) => model.filterFocus.requestFocus());
         },
         const SingleActivator(LogicalKeyboardKey.f11): () => model.setFocusMode(!model.focusMode),
         const SingleActivator(LogicalKeyboardKey.escape): () {
@@ -174,6 +199,8 @@ class _DesktopShellState extends State<DesktopShell> {
         },
         const SingleActivator(LogicalKeyboardKey.f1): () => _dialog(const AboutScreen()),
         const SingleActivator(LogicalKeyboardKey.keyT, control: true): () => model.navigate(Section.today),
+        const SingleActivator(LogicalKeyboardKey.keyR, control: true): _random,
+        const SingleActivator(LogicalKeyboardKey.keyQ, control: true): () => widget.state.window.close(),
         const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true): model.showCounter,
         const SingleActivator(LogicalKeyboardKey.slash, control: true, shift: true): () => _shortcuts(context),
       };
@@ -261,15 +288,19 @@ class _DesktopShellState extends State<DesktopShell> {
       onSelected: (action) => action(),
       itemBuilder: (_) => [
         item('Search the texts…', () => showFinder(context, model), 'Ctrl+K'),
+        item('Random passage', _random, 'Ctrl+R'),
         if (narrow) item('Copy the passage', () => reading.currentState?.copy(), 'Ctrl+Shift+C', onPassage),
         const PopupMenuDivider(),
-        item(Platform.isLinux ? 'Languages, settings & GTK import…' : 'Languages & settings…', () => _dialog(const SettingsScreen())),
         item('Today', () => model.navigate(Section.today), 'Ctrl+T'),
         item('Alláh-u-Abhá counter', model.showCounter, 'Ctrl+Shift+A'),
         item('Location & reminders…', () => showLocationDialog(context)),
+        item('Languages & offline libraries…', () => showLanguages(context)),
+        item('Collections…', () => showCollections(context)),
+        item(Platform.isLinux ? 'Settings & GTK import…' : 'Settings…', () => _dialog(const SettingsScreen())),
         const PopupMenuDivider(),
         item('Keyboard shortcuts', () => _shortcuts(context), 'Ctrl+?'),
         item('About Bahá’í Reader', () => _dialog(const AboutScreen()), 'F1'),
+        item('Quit', () => widget.state.window.close(), 'Ctrl+Q'),
       ],
     );
   }
@@ -311,10 +342,12 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   void _shortcuts(BuildContext context) {
+    // The GTK app's groups (`SHORTCUT_GROUPS`).
     const groups = [
       ('Reading', [
         ('Next passage', 'Alt+→  or  Ctrl+Page Down'),
         ('Previous passage', 'Alt+←  or  Ctrl+Page Up'),
+        ('Scroll the passage', 'Page Up  or  Page Down'),
         ('Save or unsave the passage', 'Ctrl+D'),
         ('Copy the passage (or the selected words) with its citation', 'Ctrl+Shift+C'),
         ('Highlight the selected words and open its note', 'Ctrl+H'),
@@ -322,8 +355,9 @@ class _DesktopShellState extends State<DesktopShell> {
       ]),
       ('Finding', [
         ('Search all the texts, or only the open book', 'Ctrl+K'),
+        ('Search this section’s contents', 'Ctrl+F'),
         ('Today', 'Ctrl+T'),
-        ('Show the sidebar and its contents', 'Ctrl+F'),
+        ('Random passage', 'Ctrl+R'),
       ]),
       ('Alláh-u-Abhá counter', [
         ('Open the counter', 'Ctrl+Shift+A'),
@@ -336,6 +370,7 @@ class _DesktopShellState extends State<DesktopShell> {
         ('Keyboard shortcuts', 'Ctrl+?'),
         ('About Bahá’í Reader', 'F1'),
         ('Show the sidebar again; leave focus mode; close a dialog', 'Esc'),
+        ('Quit (while reminders keep running, closes the window)', 'Ctrl+Q'),
       ]),
     ];
     showDialog<void>(
@@ -396,33 +431,92 @@ class _TextSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final p = ReaderColors.of(context);
+    final st = state.settings;
     final auto = state.omarchy != null ? 'Omarchy' : 'System';
     final themes = [('system', auto), ('light', 'Light'), ('dark', 'Dark'), ('sepia', 'Sepia')];
+    Widget choices<T>(List<(T, String)> options, T current, void Function(T) pick) => Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final (value, label) in options)
+            TextButton(
+              onPressed: () => pick(value),
+              style: TextButton.styleFrom(
+                backgroundColor: current == value ? p.foreground.withValues(alpha: 0.2) : p.foreground.withValues(alpha: 0.07),
+              ),
+              child: Text(label),
+            ),
+        ]);
+    Widget slider(String title, num value, double min, double max, void Function(double) changed) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            Row(children: [Expanded(child: Text(title)), Text('${value.round()}', style: dimStyle(context))]),
+            Slider(
+              min: min,
+              max: max,
+              divisions: (max - min).round(),
+              value: value.toDouble().clamp(min, max),
+              label: '${value.round()}',
+              semanticFormatterCallback: (v) => '$title ${v.round()}',
+              onChanged: changed,
+            ),
+          ],
+        );
+    final compare = st.compare != null && st.compare != st.language ? st.compare : null;
     return Padding(
       padding: const EdgeInsets.all(18),
       child: SizedBox(
         width: 300,
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Appearance'),
-          const SizedBox(height: 8),
-          Wrap(spacing: 6, runSpacing: 6, children: [
-            for (final (value, label) in themes)
-              TextButton(
-                onPressed: () => state.setTheme(value),
-                style: TextButton.styleFrom(
-                  backgroundColor:
-                      state.settings.theme == value ? p.foreground.withValues(alpha: 0.2) : p.foreground.withValues(alpha: 0.07),
-                ),
-                child: Text(label),
-              ),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Appearance'),
+            const SizedBox(height: 8),
+            choices(themes, st.theme, state.setTheme),
+            const SizedBox(height: 14),
+            const Text('Interface font'),
+            const SizedBox(height: 8),
+            choices(const [('System', 'System'), ('Monospace', 'Monospace')], st.chromeFont ?? 'System',
+                (v) => state.setReading(chromeFont: v)),
+            const SizedBox(height: 14),
+            const Text('Reading font'),
+            const SizedBox(height: 8),
+            FutureBuilder<List<String>>(
+              future: state.installedFonts(),
+              builder: (context, snap) {
+                final fonts = snap.data ?? const <String>[];
+                final current = st.font ?? (fonts.contains('Noto Serif') ? 'Noto Serif' : 'DejaVu Serif');
+                return DropdownMenu<String>(
+                  key: ValueKey('fonts-${fonts.length}'),
+                  initialSelection: current,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  expandedInsets: EdgeInsets.zero,
+                  menuHeight: 320,
+                  textStyle: const TextStyle(fontSize: 14),
+                  onSelected: (f) => f == null ? null : state.setReading(font: f),
+                  dropdownMenuEntries: [
+                    for (final f in {...fonts, current}) DropdownMenuEntry(value: f, label: f),
+                  ],
+                );
+              },
+            ),
+            slider('Text size', st.textSize, 15, 36, state.setTextSize),
+            slider('Line spacing', st.spacingOrDefault, 0, 20, (v) => state.setReading(spacing: v.round())),
+            slider('Page margins', st.marginOrDefault, 24, 160, (v) => state.setReading(margin: v.round())),
+            const SizedBox(height: 6),
+            const Text('Side by side'),
+            const SizedBox(height: 8),
+            DropdownMenu<int>(
+              key: ValueKey('compare-$compare-${state.compareLanguages.length}'),
+              initialSelection: compare ?? 0,
+              expandedInsets: EdgeInsets.zero,
+              textStyle: const TextStyle(fontSize: 14),
+              onSelected: (v) => state.setCompare(v == null || v == 0 ? null : v),
+              dropdownMenuEntries: [
+                const DropdownMenuEntry(value: 0, label: 'Off'),
+                for (final l in state.compareLanguages) DropdownMenuEntry(value: l.id, label: l.english),
+              ],
+            ),
           ]),
-          const SizedBox(height: 16),
-          Row(children: [
-            const Expanded(child: Text('Text size')),
-            Text('${state.settings.textSize.round()}', style: dimStyle(context)),
-          ]),
-          Slider(min: 15, max: 36, divisions: 21, value: state.settings.textSize, onChanged: state.setTextSize),
-        ]),
+        ),
       ),
     );
   }

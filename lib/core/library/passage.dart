@@ -66,6 +66,47 @@ class Passage {
 
   bool get isPrayer => section == 'prayers';
 
+  Passage copyWith({List<(int, int)>? directions}) => Passage(
+        id: id,
+        title: title,
+        section: section,
+        tags: tags,
+        text: text,
+        citation: citation,
+        wordCount: wordCount,
+        heading: heading,
+        author: author,
+        subgroup: subgroup,
+        match: match,
+        spans: spans,
+        references: references,
+        official: official,
+        source: source,
+        officialBook: officialBook,
+        directions: directions ?? this.directions,
+      );
+
+  /// The converter's record (`scripts/convert_library.py`), which [Passage.fromJson] reads.
+  Map<String, Object?> toJson() => {
+        'id': id,
+        't': title,
+        'a': ?author,
+        's': section,
+        'g': tags,
+        'sg': ?subgroup,
+        'x': text,
+        'm': ?match,
+        'c': citation,
+        'w': wordCount,
+        'h': ?heading,
+        if (spans.isNotEmpty) 'sp': [for (final s in spans) [s.start, s.end, s.kind]],
+        if (references.isNotEmpty) 'r': [for (final (id, label) in references) [id, label]],
+        if (official) 'o': true,
+        'ob': ?officialBook,
+        'src': ?source,
+        if (directions.isNotEmpty) 'd': [for (final (a, b) in directions) [a, b]],
+      };
+
   /// The text without bahai.org's margin numbers, for plain labels (GTK `unnumbered()`).
   String get unnumbered {
     final numbers = [for (final s in spans) if (s.kind == 'num') (s.start, s.end)]..sort((a, b) => a.$1.compareTo(b.$1));

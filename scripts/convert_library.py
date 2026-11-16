@@ -10,6 +10,8 @@ GTK checkout is written (bytecode writing is turned off; its cache and pack path
 
 Output (assets/library/):
     manifest.json   bundled languages, in display order, with names and direction
+    languages.json  the BahaiPrayers.net language catalog, copied unchanged from the GTK app's data/
+    fold.json       search folding for every BMP character (GTK fold() per character, where it differs from lower())
     <id>.json       one library per language: {"language": id, "items": [...], "daily": [...], "obligatory": [...]}
     (assets/calendar/) badi-dates.json and cities.json, copied unchanged from the GTK app's data/
 
@@ -90,15 +92,15 @@ def main():
     # Search folding: for every character in the bundled texts (plus Latin accented letters a query may use), what the GTK
     # app's search.fold() turns it into, where that differs. Dart applies it per character, which is what fold_map() does.
     from bahai_reader.search import fold
-    chars = set(range(0xC0, 0x250)) | set(range(0x1E00, 0x1F00)) | set(range(0x2010, 0x2020)) | {0x27, 0x60, 0xB4, 0x2BC, 0x2BB}
-    for language, _ in bundled:
-        for row in json.loads((out / f"{language}.json").read_text())["items"]:
-            chars.update(ord(c) for c in row["x"] + row["t"] + " ".join(row["g"]))
+    # Every character of the Basic Multilingual Plane, so a language downloaded later folds exactly as in the GTK app.
+    chars = {c for c in range(0x20, 0x10000) if not 0xD800 <= c < 0xE000}
     table = {chr(c): fold(chr(c)) for c in sorted(chars) if fold(chr(c)) != chr(c).lower()}
     (out / "fold.json").write_text(json.dumps(table, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
     (out / "manifest.json").write_text(json.dumps({"languages": manifest, "bahaiOrg": not args.without_bahai_org}, ensure_ascii=False, indent=1))
     calendar = out.parent / "calendar"; calendar.mkdir(exist_ok=True)
     for name in ("badi-dates.json", "cities.json"): shutil.copyfile(Path(args.gtk) / "data" / name, calendar / name)
+    # The language catalog (which languages offer which collections), for Languages & offline libraries.
+    shutil.copyfile(Path(args.gtk) / "data" / "languages.json", out / "languages.json")
     for m in manifest: print(f"{m['id']:>4} {m['english']}: {m['passages']} passages")
 
 if __name__ == "__main__":

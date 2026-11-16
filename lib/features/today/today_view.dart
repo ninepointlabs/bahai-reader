@@ -69,7 +69,7 @@ class TodayCard extends StatelessWidget {
     final state = AppScope.of(context);
     final p = ReaderColors.of(context);
     final size = state.settings.textSize;
-    final serif = TextStyle(fontFamily: readingFonts.first, fontFamilyFallback: readingFonts.sublist(1));
+    final serif = readingFace(context);
     final tagStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: p.accentText);
     final children = <Widget>[];
     if (tag != null) children.add(Text(tag!.toUpperCase(), style: tagStyle));

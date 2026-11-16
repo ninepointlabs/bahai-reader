@@ -12,6 +12,7 @@ import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
 import '../../core/marks/highlight.dart';
 import '../reader/passage_text.dart';
+import '../settings/collections_dialog.dart';
 import 'shell_model.dart';
 import '../today/said_toggle.dart';
 import 'widgets.dart';
@@ -212,7 +213,7 @@ class ReadingViewState extends State<ReadingView> {
     return Column(children: [
       Expanded(
         child: Stack(key: viewportKey, children: [
-          Positioned.fill(child: p == null ? _empty(context) : _page(context, state, p)),
+          Positioned.fill(child: p == null ? _empty(context) : _pages(context, state, p)),
           // The text fades out just above the footer rather than running under it.
           Positioned(
             left: 0,
@@ -266,10 +267,10 @@ class ReadingViewState extends State<ReadingView> {
     final palette = ReaderColors.of(context);
     final size = state.settings.textSize;
     final base = TextStyle(
-      fontFamily: readingFonts.first,
-      fontFamilyFallback: readingFonts.sublist(1),
+      fontFamily: readingFace(context).fontFamily,
+      fontFamilyFallback: readingFace(context).fontFamilyFallback,
       fontSize: size,
-      height: 1.17 + 8 / size,
+      height: 1.17 + state.settings.spacingOrDefault / size,
       color: palette.foreground,
     );
     final drawn = <DrawnHighlight>[];
@@ -290,7 +291,8 @@ class ReadingViewState extends State<ReadingView> {
     final minutes = (p.wordCount / 230).round().clamp(1, 1 << 30);
     final rtl = state.language.rtl;
     return LayoutBuilder(builder: (context, box) {
-      final margin = ((box.maxWidth - 360) / 2).clamp(12.0, 80.0);
+      // Page margins give way once the text column would get narrower than about 360 px (GTK `fit_margins()`).
+      final margin = ((box.maxWidth - 360) / 2).clamp(12.0, state.settings.marginOrDefault.toDouble());
       return SingleChildScrollView(
         controller: scroll,
         padding: EdgeInsets.fromLTRB(margin, 26, margin, 40),
@@ -371,9 +373,32 @@ class ReadingViewState extends State<ReadingView> {
                 ),
             ]),
           ],
+          // A saved passage: which collection it is in (GTK shows this under the passage too).
+          if (state.savedKeys(p).firstOrNull case final key?) ...[
+            const SizedBox(height: 18),
+            FilingRow(savedKey: key),
+          ],
         ]),
       );
     });
+  }
+
+  /// The passage, and beside it (below it in a narrow window) the same passage in the Side by side language.
+  Widget _pages(BuildContext context, AppState state, Passage p) {
+    final compare = state.settings.compare;
+    if (compare == null || compare == state.settings.language) return _page(context, state, p);
+    final narrow = MediaQuery.sizeOf(context).width < 700;
+    final divider = ReaderColors.of(context).selection;
+    final second = _SecondLanguage(passage: p, language: compare, follow: scroll);
+    return Flex(
+      direction: narrow ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: _page(context, state, p)),
+        narrow ? Divider(height: 1, color: divider) : VerticalDivider(width: 1, color: divider),
+        Expanded(child: second),
+      ],
+    );
   }
 
   Widget _footer(BuildContext context, AppState state, Passage? p) {
@@ -587,5 +612,109 @@ class _MarkCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Side by side: the same passage in another language on this computer, paired by its numbering as BahaiPrayers.net's
+/// Matrix feeds pair them (GTK `show_second()`). It keeps to the same point in the passage as the text is scrolled.
+class _SecondLanguage extends StatefulWidget {
+  const _SecondLanguage({required this.passage, required this.language, required this.follow});
+  final Passage passage;
+  final int language;
+  final ScrollController follow;
+
+  @override
+  State<_SecondLanguage> createState() => _SecondLanguageState();
+}
+
+class _SecondLanguageState extends State<_SecondLanguage> {
+  final scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.follow.addListener(_follow);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SecondLanguage old) {
+    super.didUpdateWidget(old);
+    if (old.follow != widget.follow) {
+      old.follow.removeListener(_follow);
+      widget.follow.addListener(_follow);
+    }
+    if (old.passage.id != widget.passage.id && scroll.hasClients) scroll.jumpTo(0);
+  }
+
+  @override
+  void dispose() {
+    widget.follow.removeListener(_follow);
+    scroll.dispose();
+    super.dispose();
+  }
+
+  /// Proportionally, as the GTK app does.
+  void _follow() {
+    if (!widget.follow.hasClients || !scroll.hasClients) return;
+    final from = widget.follow.position, to = scroll.position;
+    if (from.maxScrollExtent <= 0) return;
+    scroll.jumpTo((from.pixels / from.maxScrollExtent * to.maxScrollExtent).clamp(0, to.maxScrollExtent));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final palette = ReaderColors.of(context);
+    final info = state.languageInfo(widget.language);
+    final lib = state.compareLibrary;
+    final match = widget.passage.match;
+    final item = match == null ? null : lib?.byMatch[match];
+    final size = state.settings.textSize;
+    final base = TextStyle(
+      fontFamily: readingFace(context).fontFamily,
+      fontFamilyFallback: readingFace(context).fontFamilyFallback,
+      fontSize: size,
+      height: 1.17 + state.settings.spacingOrDefault / size,
+      color: palette.foreground,
+    );
+    final note = base.copyWith(fontStyle: FontStyle.italic, fontSize: size * 0.85);
+    String? message;
+    if (lib == null) {
+      message = 'Loading the ${info.english} library…';
+    } else if (lib.passages.isEmpty) {
+      message =
+          'The ${info.english} library is not downloaded or could not be read. Download it in ⋮ → Languages & offline libraries.';
+    } else if (match == null) {
+      message =
+          'Prayers, Days of Remembrance and Riḍván messages are not numbered the same way in every language, so they cannot be shown side by side.';
+    } else if (item == null) {
+      message = 'This passage is not in the downloaded ${info.english} library.';
+    }
+    return LayoutBuilder(builder: (context, box) {
+      final margin = ((box.maxWidth - 360) / 2).clamp(12.0, state.settings.marginOrDefault.toDouble());
+      return SingleChildScrollView(
+        controller: scroll,
+        padding: EdgeInsets.fromLTRB(margin, 26, margin, 40),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Semantics(
+            header: true,
+            child: Text(info.name.toUpperCase(), style: base.copyWith(fontSize: size * 0.7, height: 1.2)),
+          ),
+          const SizedBox(height: 12),
+          if (message != null)
+            Text(message, style: note)
+          else ...[
+            SelectableText.rich(
+              passageSpans(passage: item!, base: base, palette: palette, muted: palette.dim),
+              textDirection: info.rtl ? TextDirection.rtl : TextDirection.ltr,
+            ),
+            if (item.citation.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SelectableText('— ${item.citation}', style: note.copyWith(height: 1.5)),
+            ],
+          ],
+        ]),
+      );
+    });
   }
 }
