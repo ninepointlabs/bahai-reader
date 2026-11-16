@@ -109,6 +109,7 @@ String? phoneHeading(Passage p) {
   final (number, rest) = cut < 0 ? ('', p.title) : (p.title.substring(0, cut), p.title.substring(cut + 3));
   final opening = flat(rest);
   final at = opening.isEmpty ? -1 : flat(p.unnumbered).indexOf(opening);
-  if (at == 0 || (at > 0 && at <= 400 && opening.length >= 40)) return number.isEmpty ? null : number;
+  // A long title found further in is still the opening, after a preface (Hidden Words no. 1, a tablet's name).
+  if (at == 0 || (at > 0 && opening.length >= 40)) return number.isEmpty ? null : number;
   return p.title;
 }

@@ -43,8 +43,11 @@ Follow-up fix: the phone reader headed many passages (655 in English, among them
 title cut off mid-word (“TO BE RECITED DAILY… le”): titles are the opening words worked out without margin numbers and
 the text’s own heading line, but the check compared them with the raw text. `phoneHeading()` (labels.dart) now
 compares with the unnumbered text, so those show no heading (or just their number); real titles (Some Answered
-Questions chapters, Epistle to the Son of the Wolf) stay. Tested in `test/labels_test.dart` (no English prayer is
-headed by an 80+ character title) and seen on the emulator.
+Questions chapters, Epistle to the Son of the Wolf) stay; a long title found further in counts as the opening too
+(Hidden Words no. 1, after its preface). Checked in both bundled languages: English keeps 78 title headings, all names
+(the 9 long ones are Some Answered Questions chapters); Amharic (191 passages) has none and was not affected before
+either. Tested in `test/labels_test.dart` (no English prayer headed by an 80+ character title; in English and
+Amharic no long heading is words from the text) and seen on the emulator.
 
 ## Update 3: reminders (2026-11-15, night)
 

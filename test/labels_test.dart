@@ -13,6 +13,7 @@ void main() {
     expect(h('prayers:13083'), isNull, reason: 'opening words, behind a margin number');
     expect(h('prayers:8255'), isNull, reason: 'opening words, after the tablet’s name');
     expect(h('hidden:2'), '2');
+    expect(h('hidden:1'), '1', reason: 'opening words after the preface');
     expect(h('saq:9'), '7 · Muhammad', reason: 'a chapter name stays');
     expect(h('prayers:13691'), 'Epistle to the Son of the Wolf');
     // No prayer is headed by a title cut off mid-sentence.
@@ -21,5 +22,15 @@ void main() {
         if (p.isPrayer && (phoneHeading(p)?.length ?? 0) >= 80) p.id,
     ];
     expect(cutOff, isEmpty);
+    // In every bundled language, a long heading taken from a title is a real name, never words from the text.
+    for (final lang in [1, 90]) {
+      final l = await LibraryRepository(bundle: DiskBundle()).load(lang);
+      final fromText = [
+        for (final p in l.passages)
+          if (phoneHeading(p) case final t? when t.length >= 60 && p.heading == null && p.unnumbered.contains(t.split(' · ').last))
+            p.id,
+      ];
+      expect(fromText, isEmpty, reason: 'language $lang');
+    }
   });
 }
