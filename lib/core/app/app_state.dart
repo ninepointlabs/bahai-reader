@@ -23,6 +23,7 @@ import '../platform/notifier.dart';
 import '../platform/window_control.dart';
 import '../search/fold.dart';
 import '../search/search_index.dart';
+import '../settings/gtk_import.dart';
 import '../settings/settings_store.dart';
 
 /// The app's shared state: the chosen language's library, settings, highlights and saved passages.
@@ -49,13 +50,32 @@ class AppState extends ChangeNotifier {
   Future<void> marksReady = Future.value();
   String? error;
 
-  static Future<AppState> create({LibraryRepository? repository, SettingsStore? store}) async {
+  /// [gtkSettings]: the GTK app's settings file to import on the first run (default: its real place on Linux; none
+  /// elsewhere). It is only read.
+  static Future<AppState> create({LibraryRepository? repository, SettingsStore? store, File? gtkSettings}) async {
     initTimeZones(); // before the settings, which check a saved location's time zone
     final s = store ?? await SettingsStore.standard();
+    final fresh = await s.isNew();
     final (settings, notice) = await s.load();
     final state = AppState(repository: repository ?? LibraryRepository(), store: s, settings: settings, notice: notice);
+    // Tests never read the real GTK file unless they pass one.
+    final gtk = gtkSettings ?? (Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST') ? gtkSettingsFile() : null);
+    if (gtk != null && settings.gtkImport == null) await state._firstRunImport(gtk, fresh: fresh);
     await state._start();
     return state;
+  }
+
+  /// What the first-run import did, for tests and the settings page.
+  GtkImport? lastImport;
+
+  /// The first-run import from the GTK app (see `gtk_import.dart` for the rule). Done once: a missing GTK file counts as
+  /// done; a damaged one is tried again at the next start and never changed.
+  Future<void> _firstRunImport(File gtk, {required bool fresh}) async {
+    final result = lastImport = await importGtk(settings, source: gtk, fresh: fresh);
+    if (result.done) settings.gtkImport = {'at': DateTime.now().toIso8601String(), 'status': result.status};
+    final message = result.message;
+    if (message != null) notice = notice == null ? message : '$notice\n$message';
+    await store.save(settings);
   }
 
   Future<void> _start() async {
@@ -566,8 +586,11 @@ class AppState extends ChangeNotifier {
     _save(notify: false);
   }
 
-  Future<(int, int)> importGtkMarks() async {
-    final result = await importFromGtk(settings);
+  /// Settings → Import from the GTK app again: merges its marks and fills settings that have no value here; never
+  /// overwrites a setting made here (see `gtk_import.dart`).
+  Future<GtkImport> importGtkAgain({File? source}) async {
+    final result = await importGtk(settings, source: source, fresh: false);
+    if (result.done) settings.gtkImport = {'at': DateTime.now().toIso8601String(), 'status': result.status};
     _followCache.clear();
     await _start();
     await _save();

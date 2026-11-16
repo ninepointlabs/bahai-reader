@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:bahai_reader/core/marks/highlight.dart';
@@ -31,26 +30,6 @@ void main() {
     expect(notice, isNotNull);
     expect(File('${dir.path}/settings.json.bad').readAsStringSync(), 'older');
     expect(File('${dir.path}/settings.json.bad.1').readAsStringSync(), '{broken');
-  });
-
-  test('GTK import copies highlights and saved ids and leaves the GTK file untouched', () async {
-    final gtk = File('${dir.path}/gtk-settings.json');
-    final original = jsonEncode({
-      'theme': 'Omarchy',
-      'saved': ['hidden:2', '4:hidden:687', 5],
-      'highlights': [
-        {'id': 'hidden:2', 'start': 10, 'end': 24, 'words': 'the quoted text', 'color': 'yellow', 'created': '2026-11-15'},
-        {'id': 'bad'},
-      ],
-    });
-    gtk.writeAsStringSync(original);
-    final modified = gtk.lastModifiedSync();
-    final s = Settings(saved: ['hidden:2']);
-    expect(await importFromGtk(s, source: gtk), (1, 1));
-    expect(s.saved, ['hidden:2', '4:hidden:687']);
-    expect(await importFromGtk(s, source: gtk), (0, 0), reason: 'importing twice adds nothing');
-    expect(gtk.readAsStringSync(), original);
-    expect(gtk.lastModifiedSync(), modified);
   });
 
   test('the store never points at the GTK settings file', () async {

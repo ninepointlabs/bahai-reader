@@ -54,8 +54,9 @@ class SettingsScreen extends StatelessWidget {
         if (Platform.isLinux) ...[
           const SizedBox(height: 12),
           Text(
-            'Copy the highlights and saved passages from the GTK Bahá’í Reader (${gtk.path}). '
-            'That file is only read; it is never changed.',
+            'Highlights, notes, saved passages, collections and settings were copied from the GTK Bahá’í Reader '
+            '(${gtk.path}) when this app first started. Importing again adds what is new there and fills settings not '
+            'set here; nothing set here is replaced. That file is only read; it is never changed.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -63,13 +64,13 @@ class SettingsScreen extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.download_for_offline_outlined),
-              label: Text(state.settings.importedGtk ? 'Import from GTK app again' : 'Import from GTK app'),
+              label: Text(state.settings.gtkImport != null ? 'Import from GTK app again' : 'Import from GTK app'),
               onPressed: gtk.existsSync()
                   ? () async {
                       final messenger = ScaffoldMessenger.of(context);
                       try {
-                        final (h, s) = await state.importGtkMarks();
-                        messenger.showSnackBar(SnackBar(content: Text('Copied $h highlights and $s saved passages.')));
+                        final result = await state.importGtkAgain();
+                        messenger.showSnackBar(SnackBar(content: Text(result.message ?? 'There is no GTK settings file.')));
                       } catch (e) {
                         messenger.showSnackBar(SnackBar(content: Text('Could not import: $e')));
                       }
