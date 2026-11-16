@@ -43,7 +43,7 @@ class Sidebar extends StatelessWidget {
       Section.writings: library == null ? '' : '${library.books.length} books',
       Section.saved: state.settings.saved.isEmpty ? '' : '${state.settings.saved.length}',
     };
-    final showContents = model.section != Section.home && !(model.section == Section.writings && book == null);
+    final showContents = model.section != Section.home;
     final nav = navOf(model.section);
     return ColoredBox(
       color: p.sidebar,
@@ -143,7 +143,14 @@ class _ContentsState extends State<_Contents> {
     final rows = <Widget>[];
     // Passages that match, counted once even when listed under two categories.
     final shownIds = <String>{};
-    final unit = model.section == Section.prayers ? 'prayer' : model.section == Section.today ? 'date' : 'passage';
+    final shelf = model.section == Section.writings && model.book == null; // the list of books, under their authors
+    final unit = shelf
+        ? 'book'
+        : model.section == Section.prayers
+            ? 'prayer'
+            : model.section == Section.today
+                ? 'date'
+                : 'passage';
     String units(int n, [String u = 'passage']) => '$n $u${n == 1 ? '' : 's'}';
 
     Widget passageRow(Work work, int i) {
@@ -205,7 +212,31 @@ class _ContentsState extends State<_Contents> {
           }
         case Section.writings:
           final book = model.book;
-          if (book != null) {
+          if (book == null) {
+            // The books, under their authors (the page shows a welcome until one is chosen).
+            for (final (author, books) in booksByAuthor(library.books)) {
+              final visible = [
+                for (final w in books)
+                  if (q.isEmpty || state.folder!.fold('${w.title} $author').contains(q)) w,
+              ];
+              if (visible.isEmpty) continue;
+              rows.add(Padding(
+                padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
+                child: Semantics(header: true, child: Text(author, style: dimStyle(context))),
+              ));
+              for (final w in visible) {
+                shownIds.add('book/${w.title}');
+                rows.add(Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: SideRow(
+                    tooltip: '${w.title} — ${w.summary}',
+                    onTap: () => model.openBook(w),
+                    child: Text(w.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ),
+                ));
+              }
+            }
+          } else {
             for (final (name, indexes) in contentsOf(book)) {
               if (name != null) {
                 branch('writings/${book.title}/$name', name, book, indexes);
@@ -324,7 +355,7 @@ class _ContentsState extends State<_Contents> {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8, bottom: 6),
-          child: Text(units(shownIds.length, unit == 'date' ? 'date' : 'passage'), style: dimStyle(context)),
+          child: Text(units(shownIds.length, unit == 'date' || unit == 'book' ? unit : 'passage'), style: dimStyle(context)),
         ),
         Expanded(
           child: SingleChildScrollView(

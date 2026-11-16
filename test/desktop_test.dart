@@ -170,4 +170,28 @@ void main() {
     expect(find.textContaining('Continue: '), findsOneWidget, reason: 'the prayer last read, as a shortcut');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Writings: the books under their authors in the sidebar; the page shows a welcome until one is chosen',
+      (tester) async {
+    wide(tester);
+    final s = (await tester.runAsync(state))!;
+    await tester.pumpWidget(BahaiReaderApp(state: s, desktop: true));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Writings').first);
+    await tester.pumpAndSettle();
+    expect(find.text('The Hidden Words'), findsOneWidget, reason: 'listed once, in the sidebar');
+    expect(find.text('Shoghi Effendi'), findsOneWidget, reason: 'under their authors');
+    expect(find.text('18 books'), findsWidgets);
+    expect(find.text('Choose a book in the list to read it.'), findsOneWidget);
+    await tester.tap(find.text('The Hidden Words'));
+    await tester.pumpAndSettle();
+    expect(find.text('From the Arabic'), findsOneWidget, reason: 'the book’s contents in the sidebar');
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Continue: The Hidden Words'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'hidden');
+    await tester.pumpAndSettle();
+    expect(find.text('1 book'), findsOneWidget, reason: 'the sidebar filter narrows the books');
+    expect(tester.takeException(), isNull);
+  });
 }

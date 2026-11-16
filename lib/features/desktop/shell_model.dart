@@ -71,8 +71,8 @@ class ShellModel extends ChangeNotifier {
     section = to;
     book = null;
     filter = '';
-    // A narrow window shows Home and the library at once; Prayers and Saved first show their contents list.
-    showContent = to == Section.home || to == Section.writings || to == Section.today;
+    // A narrow window shows Home at once; Prayers, Writings and Saved first show their contents list.
+    showContent = to == Section.home || to == Section.today;
     switch (to) {
       case Section.home:
         pane = Pane.home;

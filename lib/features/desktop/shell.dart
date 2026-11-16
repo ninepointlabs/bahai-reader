@@ -18,7 +18,7 @@ import '../today/location_dialog.dart';
 import '../today/today_view.dart';
 import 'highlights_view.dart';
 import 'home_view.dart';
-import 'prayers_view.dart';
+import 'section_welcome.dart';
 import 'reading_view.dart';
 import 'shell_model.dart';
 import 'sidebar.dart';
@@ -204,7 +204,7 @@ class _DesktopShellState extends State<DesktopShell> {
       Pane.home => HomeView(model: model, onAction: (r) => _act(context, r)),
       Pane.today => TodayView(onAction: (r) => _act(context, r)),
       Pane.counter => CounterView(onBack: model.leaveCounter),
-      Pane.library => HomeView(model: model, libraryOnly: true),
+      Pane.library => WritingsView(model: model),
       Pane.prayers => PrayersView(model: model),
       Pane.highlights => HighlightsView(model: model),
       Pane.reading => ReadingView(key: reading, model: model),
