@@ -9,9 +9,13 @@ const obligatoryPrayers = ['Short Obligatory Prayer', 'Medium Obligatory Prayer'
 /// The Central Figures and the institutions, in the order the library lists their books (GTK `AUTHOR_ORDER`).
 const authorOrder = ['The Báb', 'Bahá’u’lláh', '‘Abdu’l‑Bahá', 'Shoghi Effendi', 'The Universal House of Justice'];
 
+/// Books by more than one author are listed under this, after the authors.
+const compilations = 'Compilations';
+
 (int, String) authorRank(String author) {
   final i = authorOrder.indexOf(author);
-  return (i < 0 ? authorOrder.length : i, author);
+  final n = authorOrder.length;
+  return (i >= 0 ? i : author == compilations ? n + 1 : author == 'Other' ? n + 2 : n, author);
 }
 
 String wordLabel(Passage p) => '${p.wordCount} word${p.wordCount == 1 ? '' : 's'}';
@@ -81,8 +85,27 @@ String listTitle(Passage p) {
 /// The group a search result is listed under: its book, or the prayers' category.
 String placeOf(Passage p) => bookOf(p) ?? 'Prayers · ${p.tags.isNotEmpty ? p.tags.first : 'Prayers'}';
 
-/// The author a book is listed under.
-String authorOf(Work w) => w.passages.map((p) => p.author).whereType<String>().firstOrNull ?? 'Other';
+/// The author a book is listed under: its one author, [compilations] if it has several, or "Other" if none is given.
+String authorOf(Work w) {
+  final authors = {for (final p in w.passages) if (p.author case final a? when a.isNotEmpty) a};
+  return authors.length > 1 ? compilations : authors.firstOrNull ?? 'Other';
+}
+
+/// The library's books under their authors, in the library's order: the Central Figures and the institutions, any other
+/// author, then [compilations] and "Other". Books keep their order within each.
+List<(String, List<Work>)> booksByAuthor(Iterable<Work> books) {
+  final authors = <String, List<Work>>{};
+  for (final w in books) {
+    authors.putIfAbsent(authorOf(w), () => []).add(w);
+  }
+  final order = authors.keys.toList()
+    ..sort((a, b) {
+      final (ra, na) = authorRank(a);
+      final (rb, nb) = authorRank(b);
+      return ra != rb ? ra.compareTo(rb) : na.compareTo(nb);
+    });
+  return [for (final a in order) (a, authors[a]!)];
+}
 
 /// A work's contents as the GTK sidebar shows them: named groups (the Hidden Words' Arabic and Persian, a book's parts)
 /// holding passage indexes, with passages outside any part listed on their own (group null).

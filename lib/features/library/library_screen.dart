@@ -166,38 +166,49 @@ class _WorkList extends StatelessWidget {
     return LayoutBuilder(builder: (context, box) {
       final columns = (box.maxWidth / 380).floor().clamp(1, 4);
       if (index && columns == 1) {
-        final dim = Theme.of(context).textTheme.bodySmall;
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          itemCount: works.length + (first == null ? 0 : 1),
-          separatorBuilder: (_, _) => const Divider(height: 1, indent: 16, endIndent: 16),
-          itemBuilder: (context, i) {
-            if (first case final f?) {
-              if (i == 0) {
-                return ListTile(
-                  leading: const Icon(Icons.auto_stories_outlined),
-                  title: Text(f.$1, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(f.$2, style: dim),
-                  onTap: f.$3,
-                );
-              }
-              i--;
-            }
-            final work = works[i];
-            final (note, at) = continueAt(work);
-            return ListTile(
-              dense: true,
-              visualDensity: VisualDensity.compact,
-              title: Text(work.title, style: const TextStyle(fontSize: 15.5)),
-              subtitle: switch ([if (!work.passages.first.isPrayer) authorOf(work), if (note.isNotEmpty) note]) {
-                [] => null,
-                final parts => Text(parts.join(' · '), style: dim),
-              },
-              trailing: Text('${work.passages.length}', style: dim, semanticsLabel: '${work.passages.length} $unit'),
-              onTap: () => _push(context, ContentsScreen(work: work)),
+        final theme = Theme.of(context);
+        final dim = theme.textTheme.bodySmall;
+        const divider = Divider(height: 1, indent: 16, endIndent: 16);
+        Widget row(Work work) {
+          final (note, _) = continueAt(work);
+          return ListTile(
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            title: Text(work.title, style: const TextStyle(fontSize: 15.5)),
+            subtitle: note.isEmpty ? null : Text(note, style: dim),
+            trailing: Text('${work.passages.length}', style: dim, semanticsLabel: '${work.passages.length} $unit'),
+            onTap: () => _push(context, ContentsScreen(work: work)),
+          );
+        }
+
+        Widget heading(String text) => Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+              child: Semantics(
+                header: true,
+                child: Text(text, style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
+              ),
             );
-          },
-        );
+        final prayers = works.first.passages.first.isPrayer;
+        final rows = <Widget>[
+          if (first case final f?) ...[
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: Text(f.$1, style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(f.$2, style: dim),
+              onTap: f.$3,
+            ),
+            divider,
+          ],
+          // Writings under their authors (several authors: Compilations); prayer categories as one list.
+          if (prayers)
+            for (final (i, w) in works.indexed) ...[if (i > 0) divider, row(w)]
+          else
+            for (final (author, books) in booksByAuthor(works)) ...[
+              heading(author),
+              for (final (i, w) in books.indexed) ...[if (i > 0) divider, row(w)],
+            ],
+        ];
+        return ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: rows);
       }
       return GridView.builder(
         padding: const EdgeInsets.all(16),

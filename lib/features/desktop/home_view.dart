@@ -60,26 +60,11 @@ class HomeView extends StatelessWidget {
       }
       children.add(const _Title('Library', size: 18, top: 16, weight: FontWeight.w800));
     }
-    final authors = <String, List<Work>>{};
-    for (final w in library.books) {
-      authors.putIfAbsent(authorOf(w), () => []).add(w);
-    }
-    final order = authors.keys.toList()
-      ..sort((a, b) {
-        final (ra, na) = authorRank(a);
-        final (rb, nb) = authorRank(b);
-        return ra != rb ? ra.compareTo(rb) : na.compareTo(nb);
-      });
-    for (final author in order) {
+    // The library as an index: each author's books, one row each (as on phones).
+    for (final (author, books) in booksByAuthor(library.books)) {
       children
         ..add(_Title(author, size: 15, top: 10))
-        ..add(LayoutBuilder(builder: (context, box) {
-          final columns = (box.maxWidth / 270).floor().clamp(1, 4);
-          final width = (box.maxWidth - 12 * (columns - 1)) / columns;
-          return Wrap(spacing: 12, runSpacing: 12, children: [
-            for (final w in authors[author]!) SizedBox(width: width, child: _BookCard(work: w, author: author, model: model)),
-          ]);
-        }));
+        ..add(_BookIndex(books: books, author: author, model: model));
     }
     if (library.books.isEmpty) {
       children.add(Padding(
@@ -144,49 +129,48 @@ class _Title extends StatelessWidget {
       );
 }
 
-/// A book in the library: a gold spine, the title in the reading face, its parts and length.
-class _BookCard extends StatelessWidget {
-  const _BookCard({required this.work, required this.author, required this.model});
-  final Work work;
+/// One author's books as index rows in a card: the title in the reading face, its parts and length on the right.
+class _BookIndex extends StatelessWidget {
+  const _BookIndex({required this.books, required this.author, required this.model});
+  final List<Work> books;
   final String author;
   final ShellModel model;
 
   @override
   Widget build(BuildContext context) {
     final p = ReaderColors.of(context);
-    return CardButton(
-      padding: const EdgeInsets.fromLTRB(18, 14, 14, 12),
-      tooltip: '${work.title}, $author',
-      onTap: () => model.openBook(work),
-      child: SizedBox(
-        height: 98,
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(
-            width: 4,
-            decoration: BoxDecoration(color: p.accent.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(2)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.foreground.withValues(alpha: 0.08)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (final w in books)
+          SideRow(
+            tooltip: '${w.title}, ${author == compilations ? 'a compilation' : author}',
+            onTap: () => model.openBook(w),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(children: [
               Expanded(
                 child: Text(
-                  work.title,
-                  maxLines: 3,
+                  w.title,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: readingFonts.first,
                     fontFamilyFallback: readingFonts.sublist(1),
                     fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                    height: 1.15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              Text(work.summary, maxLines: 1, overflow: TextOverflow.ellipsis, style: dimStyle(context)),
+              const SizedBox(width: 12),
+              Text(w.summary, style: dimStyle(context)),
             ]),
           ),
-        ]),
-      ),
+      ]),
     );
   }
 }

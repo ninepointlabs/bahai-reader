@@ -1,4 +1,6 @@
 import 'package:bahai_reader/core/library/labels.dart';
+import 'package:bahai_reader/core/library/library.dart';
+import 'package:bahai_reader/core/library/passage.dart';
 import 'package:bahai_reader/core/library/library_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -6,6 +8,32 @@ import 'disk_bundle.dart';
 
 /// The phone reader's heading: a name or a number, never the passage's opening words cut short.
 void main() {
+  test('books by author: the Central Figures and institutions in order, then others, Compilations, Other', () async {
+    Passage p(String? author) =>
+        Passage(id: 'x', title: 'x', section: 'writings', tags: const [], text: '', citation: '', wordCount: 1, author: author);
+    Work w(String title, List<String?> authors) =>
+        Work(title: title, kind: 'writings', passages: [for (final a in authors) p(a)]);
+    final books = [
+      w('Mixed', ['Bahá’u’lláh', '‘Abdu’l‑Bahá']),
+      w('Unsigned', [null]),
+      w('Talks', ['‘Abdu’l‑Bahá', null]),
+      w('Someone', ['A Scholar']),
+      w('Íqán', ['Bahá’u’lláh']),
+    ];
+    expect(authorOf(books[0]), compilations);
+    expect(authorOf(books[2]), '‘Abdu’l‑Bahá', reason: 'passages without an author do not make a compilation');
+    expect([for (final (a, ws) in booksByAuthor(books)) '$a: ${ws.map((w) => w.title).join(', ')}'], [
+      'Bahá’u’lláh: Íqán',
+      '‘Abdu’l‑Bahá: Talks',
+      'A Scholar: Someone',
+      'Compilations: Mixed',
+      'Other: Unsigned',
+    ]);
+    final english = booksByAuthor((await LibraryRepository(bundle: DiskBundle()).load(1)).books);
+    expect(english.map((e) => e.$1), ['Bahá’u’lláh', '‘Abdu’l‑Bahá', 'Shoghi Effendi', 'The Universal House of Justice'],
+        reason: 'no bundled English book has more than one author');
+  });
+
   test('phone headings', () async {
     final lib = await LibraryRepository(bundle: DiskBundle()).load(1);
     String? h(String id) => phoneHeading(lib.byId[id]!);

@@ -82,6 +82,8 @@ void main() {
     await tester.tap(find.text('Writings'));
     await tester.pumpAndSettle();
     expect(find.byType(Card), findsNothing, reason: 'narrow: the books are a compact index');
+    expect(find.text('Bahá’u’lláh'), findsOneWidget, reason: 'books under their authors');
+    expect(tester.getTopLeft(find.text('Bahá’u’lláh')).dy, lessThan(tester.getTopLeft(find.text('The Hidden Words')).dy));
     await tester.tap(find.text('The Hidden Words'));
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('O SON OF SPIRIT').first);
