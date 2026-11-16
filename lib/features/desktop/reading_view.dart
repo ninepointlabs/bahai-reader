@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
+import '../../core/calendar/badi.dart' show Window, saidLabel;
 import '../../core/library/citations.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
@@ -294,7 +295,8 @@ class ReadingViewState extends State<ReadingView> {
         controller: scroll,
         padding: EdgeInsets.fromLTRB(margin, 26, margin, 40),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(subtitle(p, context0), textAlign: TextAlign.center, style: _eyebrow(context)),
+          Text([if (model.label != null) model.label!, subtitle(p, context0)].where((s) => s.isNotEmpty).join(' · '),
+              textAlign: TextAlign.center, style: _eyebrow(context)),
           const SizedBox(height: 6),
           Text(heading(p, context0), textAlign: TextAlign.center, style: _heading(context)),
           if (book != null) ...[
@@ -418,6 +420,10 @@ class ReadingViewState extends State<ReadingView> {
                     Semantics(label: percent.isEmpty ? where : percent, child: Bar(value: fraction)),
                   ]),
           ),
+          if (state.saidWindow(p) case final w?) ...[
+            const SizedBox(width: 12),
+            _SaidToggle(window: w),
+          ],
           const SizedBox(width: 12),
           FilledButton(
             onPressed: canNext ? () => model.step(1) : null,
@@ -434,6 +440,28 @@ class ReadingViewState extends State<ReadingView> {
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// "Said today" (or this morning, at noon, this evening) for the obligatory prayer being read: the same mark as on Today.
+class _SaidToggle extends StatelessWidget {
+  const _SaidToggle({required this.window});
+  final Window window;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final p = ReaderColors.of(context);
+    final said = state.settings.said.contains(window.key);
+    final label = saidLabel(window);
+    return TextButton(
+      onPressed: () => window.prayer == 'long' ? state.markLong(!said) : state.markSaid(window.key, !said),
+      style: TextButton.styleFrom(
+        backgroundColor: said ? p.selection : p.foreground.withValues(alpha: 0.07),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+      child: Text(said ? '✓ $label' : label),
     );
   }
 }

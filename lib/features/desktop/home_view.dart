@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
+import '../../core/calendar/today.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import 'shell_model.dart';
+import 'today_view.dart';
 import 'widgets.dart';
 
 /// Home: Continue reading (the books read most recently) and the library. With [libraryOnly], the Writings page: the
 /// library alone. As the GTK app's Home, without its Today cards (not part of this experiment).
 class HomeView extends StatelessWidget {
-  const HomeView({super.key, required this.model, this.libraryOnly = false});
+  const HomeView({super.key, required this.model, this.libraryOnly = false, this.onAction});
   final ShellModel model;
   final bool libraryOnly;
+
+  /// Carries out a Today card's button (Home shows the date, the obligatory prayer and the passage of the day).
+  final void Function(TodayRow row)? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +25,21 @@ class HomeView extends StatelessWidget {
     final library = state.library;
     if (library == null) return const SizedBox.shrink();
     final children = <Widget>[];
+    final c = libraryOnly ? null : state.todayContext();
+    if (c != null && onAction != null) {
+      final today = homeCards(c);
+      children.add(LayoutBuilder(builder: (context, box) {
+        final cards = [
+          for (final (_, tag, rows) in today) TodayCard(rows: rows, tag: tag, onAction: onAction!, compact: true),
+        ];
+        if (box.maxWidth < 600) {
+          return Column(children: [for (final w in cards) Padding(padding: const EdgeInsets.only(bottom: 12), child: w)]);
+        }
+        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (var i = 0; i < cards.length; i++) ...[if (i > 0) const SizedBox(width: 12), Expanded(child: cards[i])],
+        ]);
+      }));
+    }
     if (!libraryOnly) {
       final cards = _continueCards(context, state, library);
       if (cards.isNotEmpty) {

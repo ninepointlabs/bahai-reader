@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
+import '../../core/calendar/badi.dart' show unpublished;
+import '../../core/calendar/today.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
@@ -11,9 +13,12 @@ import 'widgets.dart';
 /// The sidebar: Home, Prayers, Writings and Saved, then the open section's contents with its own search.
 /// When a book is open the sections give way to the book's title and a Back button, as in the GTK app.
 class Sidebar extends StatelessWidget {
-  const Sidebar({super.key, required this.model, required this.onSearch});
+  const Sidebar({super.key, required this.model, required this.onSearch, required this.onAction});
   final ShellModel model;
   final VoidCallback onSearch;
+
+  /// Carries out a Today calendar row's action (its readings or prayers).
+  final void Function(TodayRow row) onAction;
 
   static const rows = [
     (Section.home, 'Home', Icons.home_outlined),
@@ -27,33 +32,41 @@ class Sidebar extends StatelessWidget {
     final state = AppScope.of(context);
     final p = ReaderColors.of(context);
     final book = model.inBook ? model.book : null;
+    final inBook = model.inBook;
     final library = state.library;
+    final obligatory = Work(
+        title: 'Obligatory prayers',
+        kind: 'obligatory',
+        passages: [for (final g in library?.obligatoryGroups ?? const <Work>[]) ...g.passages]);
     final counts = {
       Section.prayers: library == null ? '' : '${library.passages.where((x) => x.isPrayer).length}',
       Section.writings: library == null ? '' : '${library.books.length} books',
       Section.saved: state.settings.saved.isEmpty ? '' : '${state.settings.saved.length}',
     };
     final showContents = model.section != Section.home && !(model.section == Section.writings && book == null);
+    final nav = navOf(model.section);
     return ColoredBox(
       color: p.sidebar,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         HeaderBar(
           color: p.sidebar,
           start: [
-            if (book != null) HeaderButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Back', onPressed: model.leaveBook),
+            if (inBook) HeaderButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Back', onPressed: model.leaveBook),
           ],
           title: book != null
               ? WindowTitle(title: book.title, subtitle: '${authorOf(book)} · ${book.summary}')
-              : const WindowTitle(title: 'Bahá’í Reader'),
+              : inBook
+                  ? WindowTitle(title: 'Obligatory prayers', subtitle: obligatory.summary)
+                  : const WindowTitle(title: 'Bahá’í Reader'),
           end: [HeaderButton(icon: Icons.search, tooltip: 'Search the texts (Ctrl+K)', onPressed: onSearch)],
         ),
-        if (book == null)
+        if (!inBook)
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
             child: Column(children: [
               for (final (section, label, icon) in rows)
                 SideRow(
-                  selected: model.section == section,
+                  selected: nav == section,
                   onTap: () => model.navigate(section),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Row(children: [
@@ -65,7 +78,7 @@ class Sidebar extends StatelessWidget {
                 ),
             ]),
           ),
-        if (showContents) Expanded(child: _Contents(model: model)),
+        if (showContents) Expanded(child: _Contents(model: model, onAction: onAction)),
       ]),
     );
   }
@@ -73,8 +86,9 @@ class Sidebar extends StatelessWidget {
 
 /// The open section's contents: a search field, how many passages match, and the tree of groups and passages.
 class _Contents extends StatefulWidget {
-  const _Contents({required this.model});
+  const _Contents({required this.model, required this.onAction});
   final ShellModel model;
+  final void Function(TodayRow row) onAction;
 
   @override
   State<_Contents> createState() => _ContentsState();
@@ -129,7 +143,7 @@ class _ContentsState extends State<_Contents> {
     final rows = <Widget>[];
     // Passages that match, counted once even when listed under two categories.
     final shownIds = <String>{};
-    final unit = model.section == Section.prayers ? 'prayer' : 'passage';
+    final unit = model.section == Section.prayers ? 'prayer' : model.section == Section.today ? 'date' : 'passage';
     String units(int n, [String u = 'passage']) => '$n $u${n == 1 ? '' : 's'}';
 
     Widget passageRow(Work work, int i) {
@@ -156,7 +170,8 @@ class _ContentsState extends State<_Contents> {
       if (visible.isEmpty) return;
       shownIds.addAll(visible.map((i) => work.passages[i].id));
       final holdsCurrent = current != null && model.group?.title == work.title && visible.contains(model.index);
-      final open = q.isNotEmpty || (expanded[path] ?? holdsCurrent);
+      // The obligatory prayers' groups start open, as in the GTK app; elsewhere the group holding the passage on show.
+      final open = q.isNotEmpty || (expanded[path] ?? (holdsCurrent || model.section == Section.obligatory));
       rows.add(_Branch(
         title: title,
         count: units(visible.length, u),
@@ -174,6 +189,17 @@ class _ContentsState extends State<_Contents> {
     if (library != null) {
       switch (model.section) {
         case Section.prayers:
+          // The obligatory prayers are the first entry of Prayers, opening a section of their own.
+          if (library.obligatoryGroups.isNotEmpty && q.isEmpty) {
+            rows.add(Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: SideRow(
+                tooltip: 'The three obligatory prayers, their guidance, and the Alláh-u-Abhá counter',
+                onTap: () => model.navigate(Section.obligatory),
+                child: const Row(children: [Expanded(child: Text('Obligatory prayers')), Icon(Icons.chevron_right, size: 20)]),
+              ),
+            ));
+          }
           for (final cat in library.prayerCategories) {
             branch('prayers/${cat.title}', cat.title, cat, [for (var i = 0; i < cat.passages.length; i++) i], u: 'prayer');
           }
@@ -212,6 +238,56 @@ class _ContentsState extends State<_Contents> {
             shownIds.add(saved.passages[i].id);
             rows.add(passageRow(saved, i));
           }
+        case Section.obligatory:
+          rows.add(Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: SideRow(
+              selected: model.pane == Pane.counter,
+              onTap: model.showCounter,
+              child: const Text('Alláh-u-Abhá counter'),
+            ),
+          ));
+          for (final g in library.obligatoryGroups) {
+            branch('obligatory/${g.title}', g.title, g, [for (var i = 0; i < g.passages.length; i++) i]);
+          }
+        case Section.today:
+          final c = state.todayContext();
+          final entries = c == null ? const <CalendarRow>[] : calendarRows(c);
+          if (entries.isEmpty) rows.add(Text(unpublished, style: dimStyle(context)));
+          for (final group in {for (final e in entries) e.group}) {
+            final visible = [
+              for (final e in entries)
+                if (e.group == group && (q.isEmpty || state.folder!.fold('${e.name} ${e.detail}').contains(q))) e,
+            ];
+            if (visible.isEmpty) continue;
+            shownIds.addAll(visible.map((e) => '${e.group}/${e.name}'));
+            final path = 'today/${group.split(',').first}';
+            final open = q.isNotEmpty || (expanded[path] ?? true);
+            rows.add(_Branch(
+              title: group,
+              count: units(visible.length, 'date'),
+              open: open,
+              onToggle: () => setState(() => expanded[path] = !open),
+            ));
+            if (!open) continue;
+            rows.add(Padding(
+              padding: const EdgeInsets.only(left: 14, top: 4, bottom: 6),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (final e in visible)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: SideRow(
+                      onTap: e.action == null ? null : () => widget.onAction(TodayRow(RowKind.button, e.name, action: e.action)),
+                      tooltip: e.name,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(e.name),
+                        Text(e.detail, style: dimStyle(context)),
+                      ]),
+                    ),
+                  ),
+              ]),
+            ));
+          }
         case Section.home:
           break;
       }
@@ -248,7 +324,7 @@ class _ContentsState extends State<_Contents> {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8, bottom: 6),
-          child: Text(units(shownIds.length), style: dimStyle(context)),
+          child: Text(units(shownIds.length, unit == 'date' ? 'date' : 'passage'), style: dimStyle(context)),
         ),
         Expanded(
           child: SingleChildScrollView(

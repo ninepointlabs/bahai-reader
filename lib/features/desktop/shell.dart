@@ -9,7 +9,11 @@ import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import '../about/about_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../core/calendar/today.dart';
+import 'counter_view.dart';
 import 'finder.dart';
+import 'location_dialog.dart';
+import 'today_view.dart';
 import 'highlights_view.dart';
 import 'home_view.dart';
 import 'reading_view.dart';
@@ -98,7 +102,7 @@ class _DesktopShellState extends State<DesktopShell> {
         return LayoutBuilder(builder: (context, box) {
           final narrow = box.maxWidth < narrowWidth;
           final content = _content(context, state, narrow);
-          final sidebar = Sidebar(model: model, onSearch: () => showFinder(context, model));
+          final sidebar = Sidebar(model: model, onSearch: () => showFinder(context, model), onAction: (r) => _act(context, r));
           Widget body;
           if (narrow) {
             body = model.showContent || model.focusMode ? content : sidebar;
@@ -152,6 +156,8 @@ class _DesktopShellState extends State<DesktopShell> {
           }
         },
         const SingleActivator(LogicalKeyboardKey.f1): () => _dialog(const AboutScreen()),
+        const SingleActivator(LogicalKeyboardKey.keyT, control: true): () => model.navigate(Section.today),
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true): model.showCounter,
         const SingleActivator(LogicalKeyboardKey.slash, control: true, shift: true): () => _shortcuts(context),
       };
 
@@ -159,18 +165,27 @@ class _DesktopShellState extends State<DesktopShell> {
     final p = model.current;
     var (title, sub) = switch (model.pane) {
       Pane.home => ('Home', ''),
+      Pane.today => ('Today', state.settings.place?.label ?? ''),
+      Pane.counter => ('Alláh-u-Abhá', 'Kitáb-i-Aqdas ¶18'),
       Pane.library => ('Library', '${state.library!.books.length} books'),
       Pane.highlights => ('Highlights & notes', ''),
       Pane.reading => p == null
           ? (model.section == Section.saved ? 'Saved' : 'Prayers', '')
           : (
-              bookOf(p) ?? (model.section == Section.saved ? 'Saved' : 'Prayers'),
+              bookOf(p) ??
+                  switch (model.section) {
+                    Section.saved => 'Saved',
+                    Section.obligatory => 'Obligatory prayers',
+                    _ => 'Prayers',
+                  },
               heading(p, model.group?.kind == 'prayers' ? model.group!.title : null)
             ),
     };
     final saved = p != null && state.isSaved(p);
     final view = switch (model.pane) {
-      Pane.home => HomeView(model: model),
+      Pane.home => HomeView(model: model, onAction: (r) => _act(context, r)),
+      Pane.today => TodayView(onAction: (r) => _act(context, r)),
+      Pane.counter => CounterView(onBack: model.leaveCounter),
       Pane.library => HomeView(model: model, libraryOnly: true),
       Pane.highlights => HighlightsView(model: model),
       Pane.reading => ReadingView(key: reading, model: model),
@@ -230,10 +245,50 @@ class _DesktopShellState extends State<DesktopShell> {
         if (narrow) item('Copy the passage', () => reading.currentState?.copy(), 'Ctrl+Shift+C', onPassage),
         const PopupMenuDivider(),
         item(Platform.isLinux ? 'Languages, settings & GTK import…' : 'Languages & settings…', () => _dialog(const SettingsScreen())),
+        item('Today', () => model.navigate(Section.today), 'Ctrl+T'),
+        item('Alláh-u-Abhá counter', model.showCounter, 'Ctrl+Shift+A'),
+        item('Location & obligatory prayer…', () => showLocationDialog(context)),
+        const PopupMenuDivider(),
         item('Keyboard shortcuts', () => _shortcuts(context), 'Ctrl+?'),
         item('About Bahá’í Reader', () => _dialog(const AboutScreen()), 'F1'),
       ],
     );
+  }
+
+  /// Carries out a button on Today, Home's cards or the Today calendar.
+  void _act(BuildContext context, TodayRow row) {
+    final state = widget.state;
+    final library = state.library;
+    if (library == null) return;
+    switch (row.action) {
+      case OpenToday():
+        model.navigate(Section.today);
+      case OpenLocation():
+        showLocationDialog(context);
+      case OpenCounter():
+        model.showCounter();
+      case OpenObligatory(:final passage, :final label):
+        model.openObligatory(passage, label: label);
+      case OpenPassage(:final passage, :final label):
+        model.openPassage(passage, label: label);
+      case OpenGroup(:final passages, :final label):
+        final first = passages.first;
+        if (first.isPrayer) {
+          final work = Work(title: label, kind: 'prayers', passages: passages);
+          model.openFromToday(work, 0, section: Section.prayers, label: label);
+        } else {
+          // Readings of a Holy Day: among the readings, in Days of Remembrance.
+          final book = library.workOf(first)?.$1;
+          model.openFromToday(Work(title: label, kind: 'readings', passages: passages), 0,
+              section: Section.writings, book: book, label: label);
+        }
+      case MarkSaid(:final key, :final long):
+        long ? state.markLong(!row.active) : state.markSaid(key, !row.active);
+      case MarkFasted(:final key):
+        state.markFasted(key, !row.active);
+      case null:
+        break;
+    }
   }
 
   void _shortcuts(BuildContext context) {
@@ -248,7 +303,15 @@ class _DesktopShellState extends State<DesktopShell> {
       ]),
       ('Finding', [
         ('Search all the texts, or only the open book', 'Ctrl+K'),
+        ('Today', 'Ctrl+T'),
         ('Show the sidebar and its contents', 'Ctrl+F'),
+      ]),
+      ('Alláh-u-Abhá counter', [
+        ('Open the counter', 'Ctrl+Shift+A'),
+        ('Count one', 'Space  or  Enter'),
+        ('Undo one', 'Backspace'),
+        ('Start over', 'Ctrl+0'),
+        ('Back to where you were', 'Esc'),
       ]),
       ('The app', [
         ('Keyboard shortcuts', 'Ctrl+?'),

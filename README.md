@@ -24,6 +24,11 @@ Offline-first: the library is bundled, and the app makes **no network calls**, h
   open section's contents; a header bar with Search, Aa, Copy, Save and ⋮; the reading pane with the book and part, the
   heading, Previous / progress / Next; a Ctrl+K search dialog with This book / Everything; Highlights & notes under Saved;
   the GTK app's keyboard shortcuts. Phones and tablets keep the touch layout.
+- **Today and the obligatory prayers** (desktop layout): the Badí‘ date (changing at sunset), sun times for a saved
+  city, the chosen obligatory prayer's times with a private "Said today", the next Feast and Holy Day, the Fast, the
+  passage of the day and the Today calendar; an Obligatory prayers section under Prayers with the Kitáb-i-Aqdas guidance;
+  the Alláh-u-Abhá counter; Location & obligatory prayer (city search, clock times, Long prayer period). Ported from the
+  GTK app's `badi.py` and `today.py` and checked against them. The GTK app's reminders are not included.
 
 See [STATUS.md](STATUS.md) for what works, what doesn’t, and how it was tested.
 
@@ -53,15 +58,19 @@ lib/
     app/        app_state.dart  shared state + AppScope; theme.dart (GTK palettes, Omarchy theme follow)
     library/    passage.dart, library.dart (works, grouping), library_repository.dart (assets), citations.dart,
                 labels.dart (headings, subtitles, progress: port of GTK labels.py)
+    calendar/   badi.dart (Badí‘ calendar, sun, prayer windows: port of GTK badi.py), today.dart (Today's cards as data),
+                cities.dart (city search), zones.dart (bundled time-zone database)
     marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
   features/
     desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
-                Highlights & notes (shell_model.dart holds where the window is)
+                Highlights & notes, Today, the counter, Location & obligatory prayer
+                (shell_model.dart holds where the window is)
     library/  reader/  search/  marks/    the touch layout (phones, tablets)
     settings/  about/                     shared by both
-scripts/convert_library.py     rebuilds assets/library/ from the GTK app's data/
+scripts/convert_library.py     rebuilds assets/library/ and assets/calendar/ from the GTK app's data/
+scripts/calendar_fixtures.py   expected answers from the GTK app's badi.py, for test/calendar_test.dart
 assets/library/                converted library (checked in), manifest, search fold table
 test/                          marks, conversion, search, settings, app/widget tests
 ```

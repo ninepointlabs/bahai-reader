@@ -70,11 +70,45 @@ Each passage records its source URL, the SHA-256 of the downloaded file and the 
 The GTK app's scripts/import-bahai-library.py downloads and rebuilds them by hand; neither app ever connects to bahai.org,
 and this experiment makes no network connections at all at runtime.
 
-# Data not included
+# Badí‘ calendar dates
 
-The GTK app also ships Badí‘ calendar dates (data/badi-dates.json, credited to the Bahá’í World Centre and the
-Universal House of Justice; Copyright © Bahá’í International Community) and a GeoNames city list (CC BY 4.0).
-This experiment does not include or use them. See the GTK app's DATA-NOTICE.md for their notices.
+assets/calendar/badi-dates.json is the GTK app's data/badi-dates.json, copied unchanged. It transcribes table A of
+"Badí‘ dates 172 to 221 B.E.", prepared by an ad hoc committee at the Bahá’í World Centre using data provided by Her
+Majesty’s Nautical Almanac Office, and sent with the letter of the Universal House of Justice of 11 December 2014. It
+was transcribed from the copy at
+https://bahai-library.com/pdf/uhj/uhj_bahai_dates_172-221.pdf
+and every row was compared, with no differences, with a second copy of the table,
+50-year-Holy-Day-Calendar.pdf (file created 11 December 2014):
+https://drive.google.com/open?id=1wdXQI4mc23_aMdfDOAFe22q1tQWtZU-2
+The rules for the other dates are in the message of the Universal House of Justice of 10 July 2014:
+https://www.bahai.org/library/authoritative-texts/the-universal-house-of-justice/messages/20140710_001/20140710_001.xhtml
+Copyright © Bahá’í International Community. The dates are credited to the Bahá’í World Centre and the Universal House
+of Justice; they are not covered by this project's MIT software license.
+
+The Today card quotes a letter written on behalf of the Universal House of Justice, dated 17 December 1990, on the Long
+Obligatory Prayer, as reproduced in a memorandum of 2 January 1998:
+https://bahai-library.com/uhj_contacting_obligatory_exemptions
+Copyright © Bahá’í International Community.
+
+The clock times setting rests on ¶10 and Note 17 of the Kitáb-i-Aqdas, and on a letter written on behalf of the
+Universal House of Justice to a National Spiritual Assembly, dated 27 July 1976, which leaves the matter to the
+Assembly. The app paraphrases it and sets no hours of its own.
+
+# City list
+
+assets/calendar/cities.json is the GTK app's data/cities.json, copied unchanged: a trimmed copy of the GeoNames
+cities15000 list (name, ASCII name, country, region, latitude, longitude and time zone, with coordinates rounded to
+2 decimals and everything else removed). City data © GeoNames (https://www.geonames.org/), licensed under the Creative
+Commons Attribution 4.0 License:
+https://creativecommons.org/licenses/by/4.0/
+GeoNames provides the data "as is" and does not endorse this app. The list is searched on this device only.
+
+# Sun times and time zones
+
+Sunrise, solar noon and sunset use the public-domain NOAA solar calculation
+(https://gml.noaa.gov/grad/solcalc/calcdetails.html), computed on this device.
+Time zones come from the IANA time zone database (public domain), bundled through the Dart `timezone` package
+(BSD-3-Clause, Copyright (c) 2014, timezone project authors). Nothing is downloaded.
 
 # This experiment
 

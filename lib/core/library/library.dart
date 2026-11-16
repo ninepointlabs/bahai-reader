@@ -43,8 +43,10 @@ String? bookOf(Passage p) {
 
 /// One language's library, with the indexes the app needs.
 class Library {
-  Library(this.language, this.passages)
+  Library(this.language, this.passages, {List<String> daily = const [], List<(String, List<String>)> obligatory = const []})
       : byId = {for (final p in passages) p.id: p},
+        _dailyIds = daily,
+        _obligatoryIds = obligatory,
         byMatch = {for (final p in passages) if (p.match != null) p.match!: p} {
     for (final p in passages) {
       final book = bookOf(p);
@@ -61,6 +63,32 @@ class Library {
 
   final int language;
   final List<Passage> passages;
+  final List<String> _dailyIds;
+  final List<(String, List<String>)> _obligatoryIds;
+
+  /// The passage of the day, the same one the GTK app shows (its shuffled order, precomputed by the converter).
+  Passage? passageOfTheDay(int ordinal) {
+    final pool = [for (final id in _dailyIds) if (byId[id] != null) byId[id]!];
+    return pool.isEmpty ? null : pool[ordinal % pool.length];
+  }
+
+  /// The Obligatory prayers section: the three prayers, then the Kitáb-i-Aqdas guidance on them, each as a work.
+  late final List<Work> obligatoryGroups = [
+    for (final (group, ids) in _obligatoryIds)
+      Work(title: group, kind: 'obligatory', passages: [for (final id in ids) if (byId[id] != null) byId[id]!]),
+  ];
+
+  /// The Days of Remembrance readings for a Holy Day's part name.
+  List<Passage> readingsFor(String part) =>
+      [for (final p in passages) if (p.tags.contains('Days of Remembrance') && p.subgroup == part) p];
+
+  /// The prayers of a category, in order.
+  List<Passage> prayersIn(String category) => [for (final p in passages) if (p.isPrayer && p.tags.contains(category)) p];
+
+  /// A Kitáb-i-Aqdas passage by its part (`Text`, `Questions and Answers`, `Notes`) and printed number.
+  Passage? aqdas(String part, int number) => passages
+      .where((p) => p.tags.contains('The Kitáb-i-Aqdas') && p.subgroup == part && p.title.startsWith('$number · '))
+      .firstOrNull;
   final Map<String, Passage> byId;
   final Map<String, Passage> byMatch;
   final Map<String, Work> _books = {};

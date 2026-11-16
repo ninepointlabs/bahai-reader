@@ -23,6 +23,9 @@ TextSpan passageSpans({
   for (final s in passage.spans) {
     cuts..add(s.start.clamp(0, text.length))..add(s.end.clamp(0, text.length));
   }
+  for (final (a, b) in passage.directions) {
+    cuts..add(a.clamp(0, text.length))..add(b.clamp(0, text.length));
+  }
   for (final (_, a, b) in highlights) {
     cuts..add(a)..add(b);
   }
@@ -33,6 +36,8 @@ TextSpan passageSpans({
     final a = points[i], b = points[i + 1];
     if (a >= b) continue;
     var style = base;
+    // An obligatory prayer's directions are in italics, so the prayer itself stands out.
+    if (passage.directions.any((d) => d.$1 <= a && b <= d.$2)) style = style.copyWith(fontStyle: FontStyle.italic);
     for (final s in passage.spans) {
       if (s.start <= a && b <= s.end) {
         style = switch (s.kind) {

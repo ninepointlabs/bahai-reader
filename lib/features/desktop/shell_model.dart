@@ -5,10 +5,17 @@ import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
 
 /// The sidebar's sections, as in the GTK app's libadwaita window.
-enum Section { home, prayers, writings, saved }
+enum Section { home, today, prayers, obligatory, writings, saved }
 
 /// What the content pane shows.
-enum Pane { home, library, reading, highlights }
+enum Pane { home, today, library, reading, highlights, counter }
+
+/// The sidebar row each section belongs to: Today is part of Home, the obligatory prayers of Prayers (GTK `NAV_OF`).
+Section navOf(Section s) => switch (s) {
+      Section.today => Section.home,
+      Section.obligatory => Section.prayers,
+      _ => s,
+    };
 
 /// Where the desktop window is: the sidebar section, the book open in it, the passage on show and its group.
 /// Kept apart from [AppState], which holds what is saved; this is only the window's state.
@@ -32,6 +39,12 @@ class ShellModel extends ChangeNotifier {
   /// A highlight to scroll to in the passage on show (opened from Highlights & notes).
   int? scrollTo;
 
+  /// What the passage was opened as ("Passage of the day", "Prayers for Naw-Rúz"), shown before its place.
+  String? label;
+
+  /// Where the counter goes back to.
+  Pane _counterReturn = Pane.home;
+
   /// The sidebar's own filter ("Search this section…").
   String filter = '';
 
@@ -50,17 +63,28 @@ class ShellModel extends ChangeNotifier {
     return g.passages[index.clamp(0, g.passages.length - 1)];
   }
 
-  bool get inBook => section == Section.writings && book != null;
+  /// The sidebar shows one book (or the obligatory prayers), with a Back button.
+  bool get inBook => (section == Section.writings && book != null) || section == Section.obligatory;
 
   void navigate(Section to) {
     section = to;
     book = null;
     filter = '';
     // A narrow window shows Home and the library at once; Prayers and Saved first show their contents list.
-    showContent = to == Section.home || to == Section.writings;
+    showContent = to == Section.home || to == Section.writings || to == Section.today;
     switch (to) {
       case Section.home:
         pane = Pane.home;
+      case Section.today:
+        pane = Pane.today;
+      case Section.obligatory:
+        final groups = app.library?.obligatoryGroups ?? const [];
+        if (groups.isNotEmpty && groups.first.passages.isNotEmpty) {
+          _show(groups.first, 0);
+        } else {
+          pane = Pane.reading;
+          group = null;
+        }
       case Section.writings:
         pane = Pane.library;
       case Section.prayers:
@@ -96,7 +120,7 @@ class ShellModel extends ChangeNotifier {
   }
 
   void leaveBook() {
-    navigate(Section.writings);
+    navigate(section == Section.obligatory ? Section.prayers : Section.writings);
     showContent = false;
     notifyListeners();
   }
@@ -130,7 +154,7 @@ class ShellModel extends ChangeNotifier {
   }
 
   /// Opens any passage of the library where it belongs: its book (in Writings) or its prayer category (in Prayers).
-  void openPassage(Passage p, {(int, int)? found, int? scrollTo}) {
+  void openPassage(Passage p, {(int, int)? found, int? scrollTo, String? label}) {
     final place = app.library?.workOf(p);
     if (place == null) return;
     final (work, i) = place;
@@ -142,7 +166,9 @@ class ShellModel extends ChangeNotifier {
       book = null;
     }
     filter = '';
-    openIn(work, i, found: found, scrollTo: scrollTo);
+    _show(work, i, found: found, scrollTo: scrollTo, label: label);
+    showContent = true;
+    notifyListeners();
   }
 
   void step(int delta) {
@@ -154,7 +180,44 @@ class ShellModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _show(Work work, int i, {(int, int)? found, int? scrollTo}) {
+  /// A passage of the Obligatory prayers section, among its group (so Next stays among them).
+  void openObligatory(Passage p, {String? label}) {
+    final groups = app.library?.obligatoryGroups ?? const [];
+    final g = groups.where((g) => g.passages.any((q) => q.id == p.id)).firstOrNull;
+    section = Section.obligatory;
+    book = null;
+    filter = '';
+    final work = g ?? Work(title: 'Obligatory prayers', kind: 'obligatory', passages: [p]);
+    _show(work, work.passages.indexWhere((q) => q.id == p.id), label: label);
+    showContent = true;
+    notifyListeners();
+  }
+
+  /// A passage opened from Today: [work] is the group Previous/Next walk, [label] says why it was opened.
+  void openFromToday(Work work, int i, {required Section section, Work? book, String? label}) {
+    this.section = section;
+    this.book = book;
+    filter = '';
+    _show(work, i, label: label);
+    showContent = true;
+    notifyListeners();
+  }
+
+  void showCounter() {
+    if (pane != Pane.counter) _counterReturn = pane;
+    pane = Pane.counter;
+    showContent = true;
+    notifyListeners();
+  }
+
+  void leaveCounter() {
+    pane = _counterReturn == Pane.reading && current == null ? Pane.home : _counterReturn;
+    if (pane == Pane.counter) pane = Pane.home;
+    notifyListeners();
+  }
+
+  void _show(Work work, int i, {(int, int)? found, int? scrollTo, String? label}) {
+    this.label = label;
     group = work;
     index = i.clamp(0, work.passages.isEmpty ? 0 : work.passages.length - 1);
     pane = Pane.reading;
@@ -163,7 +226,7 @@ class ShellModel extends ChangeNotifier {
     turn++;
     final p = current;
     if (p == null) return;
-    if (work.kind != 'saved') app.rememberPosition(work, p);
+    if (work.kind == 'writings' || work.kind == 'prayers') app.rememberPosition(work, p);
     if (p.isPrayer) _lastPrayer = p;
   }
 

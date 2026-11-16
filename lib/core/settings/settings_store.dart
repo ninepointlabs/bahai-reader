@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../calendar/badi.dart';
 import '../marks/highlight.dart';
 
 /// This experiment's own settings file. It never reads from or writes to the GTK app's `~/.config/bahai-reader/`
@@ -21,7 +22,17 @@ class Settings {
     Map<String, String>? positions,
     List<String>? recent,
     this.importedGtk = false,
-  })  : highlights = highlights ?? [],
+    this.location,
+    this.clockHours,
+    this.prayer,
+    this.longPeriod,
+    this.keepRecords = true,
+    List<String>? said,
+    List<String>? fasted,
+    this.counterTarget,
+  })  : said = said ?? [],
+        fasted = fasted ?? [],
+        highlights = highlights ?? [],
         saved = saved ?? [],
         positions = positions ?? {},
         recent = recent ?? [];
@@ -43,6 +54,30 @@ class Settings {
   List<String> recent;
   bool importedGtk;
 
+  // ----- Today and the obligatory prayers (same keys and meanings as the GTK app's settings) -----
+  /// Where sunrise, noon and sunset are worked out for; it stays on this device.
+  Place? location;
+
+  /// Hours entered to stand in for the sun (where days and nights vary greatly).
+  ClockHours? clockHours;
+
+  /// Which obligatory prayer is said: `short`, `medium`, `long`, `none` (don't track), or null (not chosen yet).
+  String? prayer;
+
+  /// The Long prayer's twenty-four hours: `sunset`, `noon`, `midnight` or `rolling`.
+  String? longPeriod;
+
+  /// Keep a private record of "Said today" and "Fasted today"; off keeps only what the current day needs.
+  bool keepRecords;
+
+  /// Marks: `<date>:<prayer>:<part>` for Said, `<date>` for Fasted.
+  List<String> said;
+  List<String> fasted;
+  int? counterTarget;
+
+  /// Where the day's times come from: the location, with entered clock hours in place of the sun if any.
+  Place? get place => clockHours != null ? Place.withClock(location, clockHours!) : location;
+
   static const themes = ['system', 'light', 'dark', 'sepia'];
   static const recentBooks = 6;
 
@@ -56,6 +91,13 @@ class Settings {
         'positions': positions,
         'recent': recent,
         'imported_gtk': importedGtk,
+        'location': ?location?.toJson(),
+        'clock_hours': ?clockHours?.toJson(),
+        'prayer': ?prayer,
+        'long_period': ?longPeriod,
+        'keep_records': keepRecords,
+        'records': {'said': said, 'fasted': fasted},
+        'counter_target': ?counterTarget,
       };
 
   /// Drops or replaces values of the wrong type, keeping everything usable (like GTK `clean_settings()`).
@@ -65,6 +107,8 @@ class Settings {
     final saved = j['saved'];
     final positions = j['positions'];
     final recent = j['recent'];
+    final records = j['records'] is Map ? j['records'] as Map : const {};
+    List<String> strings(Object? v) => v is List ? [for (final s in v) if (s is String) s] : [];
     return Settings(
       theme: themes.contains(j['theme']) ? j['theme'] as String : 'system',
       language: j['language'] is int ? j['language'] as int : 1,
@@ -77,6 +121,14 @@ class Settings {
           : {},
       recent: recent is List ? [...{for (final r in recent) if (r is String) r}].take(recentBooks).toList() : [],
       importedGtk: j['imported_gtk'] == true,
+      location: Place.clean(j['location']),
+      clockHours: ClockHours.clean(j['clock_hours']),
+      prayer: const ['short', 'medium', 'long', 'none'].contains(j['prayer']) ? j['prayer'] as String : null,
+      longPeriod: longPeriods.any((p) => p.$1 == j['long_period']) ? j['long_period'] as String : null,
+      keepRecords: j['keep_records'] is bool ? j['keep_records'] as bool : true,
+      said: strings(records['said']),
+      fasted: strings(records['fasted']),
+      counterTarget: Counter.validTarget(j['counter_target']),
     );
   }
 }

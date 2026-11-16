@@ -30,6 +30,7 @@ class Passage {
     this.official = false,
     this.source,
     this.officialBook,
+    this.directions = const [],
   });
 
   /// Stable id: `hidden:2`, `aqdas:Paragraphs:6`, or `4:hidden:687` outside English.
@@ -60,7 +61,23 @@ class Passage {
   /// The bahai.org book an official prayer's text was taken from (its citation already names it).
   final String? officialBook;
 
+  /// An obligatory prayer's directions (when and how to say it), shown in italics: (start, end) offsets.
+  final List<(int, int)> directions;
+
   bool get isPrayer => section == 'prayers';
+
+  /// The text without bahai.org's margin numbers, for plain labels (GTK `unnumbered()`).
+  String get unnumbered {
+    final numbers = [for (final s in spans) if (s.kind == 'num') (s.start, s.end)]..sort((a, b) => a.$1.compareTo(b.$1));
+    if (numbers.isEmpty) return text;
+    final out = StringBuffer();
+    var at = 0;
+    for (final (a, b) in numbers) {
+      out.write(text.substring(at, a));
+      at = b < text.length && text[b] == ' ' ? b + 1 : b;
+    }
+    return (out..write(text.substring(at))).toString();
+  }
 
   factory Passage.fromJson(Map<String, dynamic> j) => Passage(
         id: j['id'] as String,
@@ -84,6 +101,9 @@ class Passage {
         official: j['o'] == true,
         source: j['src'] as String?,
         officialBook: j['ob'] as String?,
+        directions: [
+          for (final d in (j['d'] as List? ?? const [])) ((d[0] as num).toInt(), (d[1] as num).toInt()),
+        ],
       );
 }
 

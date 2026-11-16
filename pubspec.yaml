@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   path_provider: ^2.1.5
+  timezone: ^0.11.2
 
 dev_dependencies:
   flutter_test:
@@ -20,5 +21,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/library/
+    - assets/calendar/
     - DATA-NOTICE.md
     - LICENSE

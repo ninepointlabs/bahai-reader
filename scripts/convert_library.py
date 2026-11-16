@@ -10,16 +10,22 @@ GTK checkout is written (bytecode writing is turned off; its cache and pack path
 
 Output (assets/library/):
     manifest.json   bundled languages, in display order, with names and direction
-    <id>.json       one library per language: {"language": id, "items": [...]}
+    <id>.json       one library per language: {"language": id, "items": [...], "daily": [...], "obligatory": [...]}
+    (assets/calendar/) badi-dates.json and cities.json, copied unchanged from the GTK app's data/
+
+"daily" is the passage-of-the-day order (GTK passage_of_the_day(): the reflections, shuffled with random.Random(1844)), so
+the app picks daily[date.toordinal() % len] and shows the same passage as the GTK app. "obligatory" is the Obligatory
+prayers section's contents (GTK obligatory()) as [[group, [ids]], ...].
 
 Item keys: id, t (title), h (heading, official texts only), a (author), s (section: prayers|hidden|writings),
 g (tags), sg (subgroup), x (text), sp (spans [[start,end,kind],...]), m (match), c (citation),
 r (references [[id,label],...]), w (word count), o (true if the text is bahai.org's), src (bahai.org page URL),
-ob (the bahai.org book an official prayer was taken from).
+ob (the bahai.org book an official prayer was taken from), d (an obligatory prayer's directions [[start,end],...],
+shown in italics: GTK directions()).
 Offsets are code points into x; the converter checks that x has no characters outside the BMP, so they are also
 UTF-16 offsets in Dart.
 """
-import argparse, json, sys
+import argparse, json, random, shutil, sys
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -56,10 +62,17 @@ def main():
             if i.get("official_id"): row["o"] = True
             if i.get("official_book"): row["ob"] = i["official_book"]
             if i.get("source"): row["src"] = i["source"]
+            directions = library.directions(i)
+            if directions: row["d"] = [list(d) for d in directions]
             rows.append({k: v for k, v in row.items() if v is not None})
         ids = [r["id"] for r in rows]
         if len(ids) != len(set(ids)): raise SystemExit(f"duplicate ids in language {language}")
-        (out / f"{language}.json").write_text(json.dumps({"language": language, "items": rows}, ensure_ascii=False, separators=(",", ":")))
+        pool = library.reflections(items)
+        order = list(range(len(pool))); random.Random(1844).shuffle(order)
+        daily = [pool[k]["id"] for k in order]
+        obligatory = [[group, [p["id"] for p in passages]] for group, passages in library.obligatory(items).items()]
+        (out / f"{language}.json").write_text(json.dumps({"language": language, "items": rows, "daily": daily, "obligatory": obligatory},
+                                                         ensure_ascii=False, separators=(",", ":")))
         return len(rows)
 
     bundled = []
@@ -84,6 +97,8 @@ def main():
     table = {chr(c): fold(chr(c)) for c in sorted(chars) if fold(chr(c)) != chr(c).lower()}
     (out / "fold.json").write_text(json.dumps(table, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
     (out / "manifest.json").write_text(json.dumps({"languages": manifest, "bahaiOrg": not args.without_bahai_org}, ensure_ascii=False, indent=1))
+    calendar = out.parent / "calendar"; calendar.mkdir(exist_ok=True)
+    for name in ("badi-dates.json", "cities.json"): shutil.copyfile(Path(args.gtk) / "data" / name, calendar / name)
     for m in manifest: print(f"{m['id']:>4} {m['english']}: {m['passages']} passages")
 
 if __name__ == "__main__":

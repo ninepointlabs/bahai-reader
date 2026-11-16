@@ -25,6 +25,9 @@ class LibraryRepository {
         return compute(parseLibrary, raw);
       });
 
+  Future<String> calendarTable() => _bundle.loadString('assets/calendar/badi-dates.json');
+  Future<String> cityList() => _bundle.loadString('assets/calendar/cities.json', cache: false);
+
   Future<Map<String, String>> foldTable() async =>
       (jsonDecode(await _bundle.loadString('assets/library/fold.json')) as Map).cast<String, String>();
 }
@@ -34,5 +37,9 @@ Library parseLibrary(String raw) {
   return Library(
     (data['language'] as num).toInt(),
     [for (final item in data['items'] as List) Passage.fromJson(item as Map<String, dynamic>)],
+    daily: [for (final id in data['daily'] as List? ?? const []) id as String],
+    obligatory: [
+      for (final g in data['obligatory'] as List? ?? const []) (g[0] as String, [for (final id in g[1] as List) id as String]),
+    ],
   );
 }

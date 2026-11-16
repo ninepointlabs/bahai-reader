@@ -1,9 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
 
+import 'package:timezone/timezone.dart' as tz;
+
+import '../calendar/badi.dart';
+import '../calendar/cities.dart';
+import '../calendar/today.dart';
+import '../calendar/zones.dart';
 import '../library/library.dart';
 import '../library/library_repository.dart';
 import '../library/passage.dart';
@@ -37,6 +46,7 @@ class AppState extends ChangeNotifier {
   String? error;
 
   static Future<AppState> create({LibraryRepository? repository, SettingsStore? store}) async {
+    initTimeZones(); // before the settings, which check a saved location's time zone
     final s = store ?? await SettingsStore.standard();
     final (settings, notice) = await s.load();
     final state = AppState(repository: repository ?? LibraryRepository(), store: s, settings: settings, notice: notice);
@@ -48,6 +58,7 @@ class AppState extends ChangeNotifier {
     try {
       languages = await repository.languages();
       folder = Folder(await repository.foldTable());
+      calendar = BadiCalendar.fromJson(jsonDecode(await repository.calendarTable()));
       if (!languages.any((l) => l.id == settings.language)) settings.language = 1;
       await _use(settings.language);
       // Libraries that hold marks made in other languages, so they can follow into this one. Loaded in the background;
@@ -91,6 +102,104 @@ class AppState extends ChangeNotifier {
     loading = false;
     await _save();
   }
+
+  // ----- Today, the calendar and the obligatory prayers -----
+  BadiCalendar calendar = BadiCalendar(const []);
+
+  /// A fixed time for tests; otherwise the clock.
+  DateTime? fixedNow;
+
+  /// The time now at the saved place, or on this computer.
+  tz.TZDateTime now() => localNow(settings.place, fixedNow);
+
+  /// Times as the desktop's clock shows them (12-hour in the US and a few other regions, else 24-hour).
+  late bool twelveHour = twelveHourRegions.contains(_region(Platform.localeName));
+  static String _region(String locale) {
+    final parts = locale.split(RegExp(r'[_.@-]'));
+    return parts.length > 1 ? parts[1].toUpperCase() : '';
+  }
+
+  String clock(tz.TZDateTime m) => formatClock(m, twelveHour: twelveHour);
+
+  TodayContext? todayContext() {
+    final lib = library;
+    if (lib == null) return null;
+    return TodayContext(calendar: calendar, library: lib, settings: settings, moment: now(), clock: clock);
+  }
+
+  /// "Said" for an obligatory prayer's window: the one place it changes (the Today card and the reading view).
+  Future<void> markSaid(String key, bool active) async {
+    if (active && !settings.said.contains(key)) settings.said.add(key);
+    if (!active) settings.said.remove(key);
+    settings.said = pruneSaid(settings.said, dayOf(now()), keepHistory: settings.keepRecords);
+    await _save();
+  }
+
+  /// The long prayer's mark, worked out at the click: with "24 hours since last said" the 24 hours run from now.
+  Future<void> markLong(bool active) =>
+      markSaid(longWindow(settings.longPeriod, now(), settings.place, settings.said).key, active);
+
+  Future<void> markFasted(String key, bool active) async {
+    if (active && !settings.fasted.contains(key)) settings.fasted.add(key);
+    if (!active) settings.fasted.remove(key);
+    settings.fasted = pruneSaid(settings.fasted, dayOf(now()), keepHistory: settings.keepRecords);
+    await _save();
+  }
+
+  /// The window to mark for the obligatory prayer being read, or null for other passages and "Don't track".
+  Window? saidWindow(Passage? p) {
+    final chosen = settings.prayer;
+    if (p == null || chosen == 'none') return null;
+    final prayer = prayerNames.entries.where((e) => p.tags.contains(e.value)).firstOrNull?.key;
+    if (prayer == null) return null;
+    if (prayer == 'long') return longWindow(settings.longPeriod, now(), settings.place, settings.said);
+    return currentWindow(prayer, now(), settings.place);
+  }
+
+  Future<void> setLocation(Place? place) async {
+    settings.location = place;
+    await _save();
+  }
+
+  Future<void> setClockHours(ClockHours? hours) async {
+    settings.clockHours = hours;
+    await _save();
+  }
+
+  Future<void> setPrayer(String prayer) async {
+    settings.prayer = prayer;
+    await _save();
+  }
+
+  Future<void> setLongPeriod(String period) async {
+    settings.longPeriod = period;
+    await _save();
+  }
+
+  Future<void> setKeepRecords(bool keep) async {
+    settings.keepRecords = keep;
+    if (!keep) {
+      settings.said = pruneSaid(settings.said, dayOf(now()), keepHistory: false);
+      settings.fasted = pruneSaid(settings.fasted, dayOf(now()), keepHistory: false);
+    }
+    await _save();
+  }
+
+  Future<void> clearRecords() async {
+    settings.said = [];
+    settings.fasted = [];
+    await _save();
+  }
+
+  Future<void> setCounterTarget(int target) async {
+    settings.counterTarget = target;
+    await _save();
+  }
+
+  Future<List<City>>? _cities;
+
+  /// The bundled city list, loaded when first searched.
+  Future<List<City>> cities() => _cities ??= repository.cityList().then((raw) => compute(parseCities, raw));
 
   // ----- appearance -----
   /// The live Omarchy theme's palette, when there is one (Linux only; see [watchOmarchyTheme]).
