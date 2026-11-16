@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.ninepointlabs" "\0"
-            VALUE "FileDescription", "bahai_reader" "\0"
+            VALUE "CompanyName", "Nine Point Labs" "\0"
+            VALUE "FileDescription", "Bahai Reader" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "bahai_reader" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.ninepointlabs. All rights reserved." "\0"
-            VALUE "OriginalFilename", "bahai_reader.exe" "\0"
-            VALUE "ProductName", "bahai_reader" "\0"
+            VALUE "InternalName", "bahai-reader" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Nine Point Labs" "\0"
+            VALUE "OriginalFilename", "bahai-reader.exe" "\0"
+            VALUE "ProductName", "Bahai Reader" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

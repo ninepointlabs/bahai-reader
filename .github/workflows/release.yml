@@ -1,0 +1,211 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  FLUTTER_VERSION: 3.47.9
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev zsync desktop-file-utils appstream xvfb
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build linux --release
+      - run: desktop-file-validate packaging/org.bahai.Reader.desktop
+      - run: appstreamcli validate --no-net packaging/org.bahai.Reader.metainfo.xml
+      - run: grep -q "<release version=\"$(scripts/version.sh)\"" packaging/org.bahai.Reader.metainfo.xml
+      - run: scripts/get-nfpm.sh "$RUNNER_TEMP/nfpm"
+      - run: NFPM="$RUNNER_TEMP/nfpm/nfpm" scripts/build-packages.sh
+      - run: scripts/build-appimage.sh "dist/bahai-reader-$(scripts/version.sh)-x86_64.AppImage"
+      # The AppImage starts and keeps running (a crash at start would end it before the timeout).
+      - name: Start the AppImage
+        run: |
+          APPIMAGE_EXTRACT_AND_RUN=1 ./dist/bahai-reader-*.AppImage --version
+          set +e; APPIMAGE_EXTRACT_AND_RUN=1 timeout 20 xvfb-run -a dbus-run-session -- ./dist/bahai-reader-*.AppImage; code=$?; set -e
+          test "$code" = 124 || { echo "The app exited with $code before 20 s" >&2; exit 1; }
+      - run: tar -C build/linux/x64/release -czf bundle.tar.gz bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundle
+          path: bundle.tar.gz
+
+  flatpak:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-bundle
+      - run: mkdir -p build/linux/x64/release && tar -C build/linux/x64/release -xzf bundle.tar.gz
+      - run: scripts/build-flatpak.sh "dist/bahai-reader-$(scripts/version.sh)-x86_64.flatpak"
+      - name: Install the bundle and start it inside the sandbox
+        run: |
+          flatpak install --user -y --noninteractive dist/*.flatpak
+          flatpak run org.bahai.Reader --version
+          Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2
+          set +e; timeout 20 dbus-run-session -- flatpak run org.bahai.Reader; code=$?; set -e
+          test "$code" = 124 || { echo "The app exited with $code before 20 s" >&2; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: dist/*
+
+  install:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [debian, ubuntu, fedora, arch]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: dist
+      # Installs the package, prints the version, then starts the app and expects it still running after 20 s.
+      # Xvfb runs directly: as a container's PID 1, xvfb-run never sees Xvfb's readiness signal.
+      - name: Install the package and start the app
+        env:
+          DISTRO: ${{ matrix.distro }}
+        run: |
+          check='bahai-reader --version; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; set +e; timeout 20 dbus-run-session -- bahai-reader; code=$?; test "$code" = 124 || { echo "exited with $code" >&2; exit 1; }'
+          case "$DISTRO" in
+            debian) docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libegl1 libgl1-mesa-dri; $check" ;;
+            ubuntu) docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libegl1 libgl1-mesa-dri; $check" ;;
+            fedora) docker run --rm -v "$PWD:/work:ro" fedora:43 bash -ec "dnf install -y /work/dist/*.rpm xorg-x11-server-Xvfb mesa-libGL mesa-libEGL dbus-daemon; $check" ;;
+            arch) docker run --rm -v "$PWD:/work:ro" archlinux:base bash -ec "pacman -Syu --noconfirm; pacman -U --noconfirm /work/dist/*.pkg.tar.zst; pacman -S --noconfirm xorg-server-xvfb dbus mesa; $check" ;;
+          esac
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      # The release key comes from the repository secrets. A tag build must be signed with it; other builds fall back
+      # to the debug key when the secrets are not there (pull requests from forks).
+      - name: Release key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          elif [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            echo "A release needs the ANDROID_KEYSTORE_BASE64 secret" >&2; exit 1
+          fi
+      - run: flutter build apk --release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: bahai-reader
+      - run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/bahai-reader-$(scripts/version.sh).apk"
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs dist/*.apk | grep SHA-256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter test
+      - run: flutter build windows --release
+      # The app starts and keeps running (a crash at start would end it before the timeout).
+      - name: Start the app
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath build\windows\x64\runner\Release\bahai-reader.exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) { Write-Error "The app exited with $($p.ExitCode) before 20 s"; exit 1 }
+          Stop-Process -Id $p.Id
+      - run: |
+          v=$(scripts/version.sh)
+          mkdir -p dist
+          cp LICENSE DATA-NOTICE.md build/windows/x64/runner/Release/
+          (cd build/windows/x64/runner/Release && 7z a -tzip "../../../../../dist/bahai-reader-$v-windows-x64.zip" . >/dev/null)
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - name: Installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\build\windows\x64\runner\Release" "/DOutputDir=$PWD\dist" packaging\windows\bahai-reader.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, linux, flatpak, install, android, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: rm -f dist/bundle.tar.gz
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$(scripts/version.sh)"
+          (cd dist && sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.AppImage ./*.flatpak ./*.apk ./*.zip ./*.exe > SHA256SUMS)
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Bahá’í Reader $GITHUB_REF_NAME" --notes-file RELEASE-NOTES.md --verify-tag
