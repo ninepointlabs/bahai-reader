@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import '../about/about_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../core/calendar/badi.dart';
 import '../../core/calendar/today.dart';
 import 'counter_view.dart';
 import 'finder.dart';
@@ -42,11 +44,13 @@ class _DesktopShellState extends State<DesktopShell> {
   final reading = GlobalKey<ReadingViewState>();
   late int _language = widget.state.settings.language;
   late int _saved = widget.state.settings.saved.length;
+  StreamSubscription<String>? _opens;
 
   @override
   void initState() {
     super.initState();
     widget.state.addListener(_appChanged);
+    _opens = widget.state.openRequests.listen(_openFromNotification);
     final id = widget.openId;
     if (id != null) {
       widget.state.marksReady.then((_) {
@@ -59,6 +63,7 @@ class _DesktopShellState extends State<DesktopShell> {
   @override
   void dispose() {
     widget.state.removeListener(_appChanged);
+    _opens?.cancel();
     model.dispose();
     super.dispose();
   }
@@ -72,6 +77,17 @@ class _DesktopShellState extends State<DesktopShell> {
     if (s.settings.saved.length != _saved) {
       _saved = s.settings.saved.length;
       model.savedChanged();
+    }
+  }
+
+  /// A reminder's "Open": its obligatory prayer, or Today.
+  void _openFromNotification(String target) {
+    final name = target.startsWith('prayer:') ? target.substring(7) : null;
+    final item = name != null && prayerNames.containsKey(name) ? widget.state.todayContext()?.prayerItem(name) : null;
+    if (item != null) {
+      model.openObligatory(item);
+    } else {
+      model.navigate(Section.today);
     }
   }
 
@@ -247,7 +263,7 @@ class _DesktopShellState extends State<DesktopShell> {
         item(Platform.isLinux ? 'Languages, settings & GTK import…' : 'Languages & settings…', () => _dialog(const SettingsScreen())),
         item('Today', () => model.navigate(Section.today), 'Ctrl+T'),
         item('Alláh-u-Abhá counter', model.showCounter, 'Ctrl+Shift+A'),
-        item('Location & obligatory prayer…', () => showLocationDialog(context)),
+        item('Location & reminders…', () => showLocationDialog(context)),
         const PopupMenuDivider(),
         item('Keyboard shortcuts', () => _shortcuts(context), 'Ctrl+?'),
         item('About Bahá’í Reader', () => _dialog(const AboutScreen()), 'F1'),

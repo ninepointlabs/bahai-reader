@@ -80,7 +80,10 @@ class TodayCard extends StatelessWidget {
           actions = [];
           children.add(Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Wrap(spacing: 8, runSpacing: 8, direction: compact ? Axis.vertical : Axis.horizontal, children: actions),
+            // Home's narrow cards stack their buttons, each as wide as the card at most, so long labels wrap.
+            child: compact
+                ? Column(crossAxisAlignment: CrossAxisAlignment.start, spacing: 8, children: actions)
+                : Wrap(spacing: 8, runSpacing: 8, children: actions),
           ));
         }
         actions.add(_action(context, row));

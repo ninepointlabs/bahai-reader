@@ -1,6 +1,7 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <string.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -10,20 +11,65 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  // The one window. A second launch brings it forward instead of opening another.
+  GtkWindow* window;
+  // Started by the login entry (--background): the window stays hidden until the app is launched again.
+  gboolean background;
+  // "Keep reminders running when the window is closed": closing hides the window instead of quitting.
+  gboolean keep_running;
+  FlMethodChannel* channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
-  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  if (!self->background) gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+static void present_window(MyApplication* self) {
+  self->background = FALSE;
+  gtk_widget_show(GTK_WIDGET(self->window));
+  gtk_window_present(self->window);
+}
+
+// With reminders kept running, closing the window only hides it; the app quits at logout, or after the setting is
+// turned off and the window is closed again.
+static gboolean delete_event_cb(GtkWidget* widget, GdkEvent* event, MyApplication* self) {
+  if (!self->keep_running) return FALSE;
+  gtk_widget_hide(widget);
+  return TRUE;
+}
+
+// bahai_reader/window (lib/core/platform/window_control.dart): present, setKeepRunning(bool).
+static void method_call_cb(FlMethodChannel* channel, FlMethodCall* call, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* name = fl_method_call_get_name(call);
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (strcmp(name, "present") == 0) {
+    present_window(self);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (strcmp(name, "setKeepRunning") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    self->keep_running = args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_BOOL && fl_value_get_bool(args);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(call, response, nullptr);
 }
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  if (self->window != nullptr) {
+    present_window(self);
+    return;
+  }
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->window = window;
+  g_signal_connect(window, "delete-event", G_CALLBACK(delete_event_cb), self);
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -82,6 +128,11 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->channel = fl_method_channel_new(fl_engine_get_binary_messenger(fl_view_get_engine(view)), "bahai_reader/window",
+                                        FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->channel, method_call_cb, self, nullptr);
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -92,6 +143,9 @@ static gboolean my_application_local_command_line(GApplication* application,
   MyApplication* self = MY_APPLICATION(application);
   // Strip out the first argument as it is the binary name.
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+  for (gchar** arg = *arguments + 1; *arg != nullptr; arg++) {
+    if (strcmp(*arg, "--background") == 0) self->background = TRUE;
+  }
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
@@ -100,6 +154,12 @@ static gboolean my_application_local_command_line(GApplication* application,
     return TRUE;
   }
 
+  // Already running: a login start has nothing to add; a normal launch brings the window forward (activate is sent
+  // to the running app).
+  if (g_application_get_is_remote(application) && self->background) {
+    *exit_status = 0;
+    return TRUE;
+  }
   g_application_activate(application);
   *exit_status = 0;
 
@@ -128,6 +188,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
@@ -149,7 +210,10 @@ MyApplication* my_application_new() {
   // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
+  // One running copy, so reminders are not sent twice and a launch finds the window kept for reminders.
+  // BAHAI_READER_SEPARATE=1 runs a separate copy (for screenshots and tests with their own settings).
+  const gchar* separate = g_getenv("BAHAI_READER_SEPARATE");
+  GApplicationFlags flags = separate != nullptr && separate[0] != '\0' ? G_APPLICATION_NON_UNIQUE : G_APPLICATION_DEFAULT_FLAGS;
   return MY_APPLICATION(g_object_new(my_application_get_type(),
-                                     "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     "application-id", APPLICATION_ID, "flags", flags, nullptr));
 }

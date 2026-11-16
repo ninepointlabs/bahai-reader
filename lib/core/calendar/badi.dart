@@ -1,4 +1,4 @@
-/// The Badí‘ calendar, sun times and obligatory prayer times: a port of the GTK app's `badi.py` (without its reminders).
+/// The Badí‘ calendar, sun times and obligatory prayer times: a port of the GTK app's `badi.py` (its reminders are in reminders.dart).
 ///
 /// Dates come from two sources of the Universal House of Justice: the message of 10 July 2014 fixes the Holy Days within
 /// the Badí‘ calendar; the table "Badí‘ dates 172 to 221 B.E." (`assets/calendar/badi-dates.json`, copied from the GTK app)
@@ -557,7 +557,7 @@ class Window {
   bool isPast(DateTime moment) => !_before(moment, closes);
 }
 
-tz.TZDateTime _clockTime(DateTime date, int hour) => tz.TZDateTime(tz.local, date.year, date.month, date.day, hour);
+tz.TZDateTime clockTime(DateTime date, int hour) => tz.TZDateTime(tz.local, date.year, date.month, date.day, hour);
 
 /// The windows of a prayer on a day: empty for the long prayer, and where the sun does not rise or set.
 List<Window> prayerWindows(String prayer, DateTime date, Place? place) {
@@ -568,7 +568,7 @@ List<Window> prayerWindows(String prayer, DateTime date, Place? place) {
     if (sun == null || sun.sunrise == null || sun.sunset == null) return [];
     (sunrise, noon, sunset) = (sun.sunrise!, sun.noon, sun.sunset!);
   } else {
-    (sunrise, noon, sunset) = (_clockTime(date, clockSunrise), _clockTime(date, clockNoon), _clockTime(date, clockSunset));
+    (sunrise, noon, sunset) = (clockTime(date, clockSunrise), clockTime(date, clockNoon), clockTime(date, clockSunset));
   }
   final afternoon = Window(prayer, 'noon', date, noon, sunset);
   if (prayer == 'short') return [afternoon];
@@ -595,15 +595,15 @@ Window? currentWindow(String prayer, tz.TZDateTime moment, Place? place) {
 
 bool isTracked(String? prayer) => prayer == 'short' || prayer == 'medium' || prayer == 'long';
 
-tz.TZDateTime _atHour(DateTime date, int hour, Place? place) =>
-    place?.zone != null ? tz.TZDateTime(place!.location, date.year, date.month, date.day, hour) : _clockTime(date, hour);
+tz.TZDateTime atHour(DateTime date, int hour, Place? place) =>
+    place?.zone != null ? tz.TZDateTime(place!.location, date.year, date.month, date.day, hour) : clockTime(date, hour);
 
 tz.TZDateTime _periodEnd(DateTime date, Place? place) {
   final sun = placeSun(place, date);
-  return sun?.sunset ?? _atHour(addDays(date, 1), 0, place);
+  return sun?.sunset ?? atHour(addDays(date, 1), 0, place);
 }
 
-tz.TZDateTime _noonOf(DateTime date, Place? place) => placeSun(place, date)?.noon ?? _atHour(date, clockNoon, place);
+tz.TZDateTime _noonOf(DateTime date, Place? place) => placeSun(place, date)?.noon ?? atHour(date, clockNoon, place);
 
 String longPeriod(String? chosen) => longPeriods.any((p) => p.$1 == chosen) ? chosen! : longDefaultPeriod;
 
@@ -637,7 +637,7 @@ Window longWindow(String? period, tz.TZDateTime moment, Place? place, Iterable<S
     final d = !_before(moment, _noonOf(today, place)) ? today : addDays(today, -1);
     return Window('long', mode, d, _noonOf(d, place), _noonOf(addDays(d, 1), place));
   }
-  return Window('long', mode, today, _atHour(today, 0, place), _atHour(addDays(today, 1), 0, place));
+  return Window('long', mode, today, atHour(today, 0, place), atHour(addDays(today, 1), 0, place));
 }
 
 String longLine(String? period, Window w, bool marked, String Function(tz.TZDateTime) clock) {

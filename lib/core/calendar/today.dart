@@ -1,6 +1,6 @@
 /// What the Today page and Home's cards say, as plain data: a port of the GTK app's `today.py` (`today_content()`,
 /// `prayer_card()`, `fast_card()`) and the Today calendar in the sidebar (`contents.py` `build_calendar()`).
-/// Reminders are not part of this experiment, so their buttons are left out.
+/// "Reminders…" buttons open Location & reminders, as in the GTK app.
 library;
 
 import 'package:timezone/timezone.dart' as tz;
@@ -20,7 +20,7 @@ class OpenToday extends TodayAction {
   const OpenToday();
 }
 
-/// Opens Location & obligatory prayer.
+/// Opens Location & reminders.
 class OpenLocation extends TodayAction {
   const OpenLocation();
 }
@@ -222,7 +222,11 @@ Map<String, List<TodayRow>> todayContent(TodayContext c) {
     final opener = c.prayerOpener(ayyamPrayers, 'Prayers for $ayyamIHa');
     if (opener != null) events.add(button('Prayers for $ayyamIHa', opener));
   }
-  if (feast == null && holy == null) events.add(t(unpublished));
+  if (feast == null && holy == null) {
+    events.add(t(unpublished));
+  } else {
+    events.add(button('Reminders…', const OpenLocation()));
+  }
   cards['events'] = events;
 
   final fast = fastCard(c);
@@ -272,7 +276,7 @@ List<TodayRow>? prayerCard(TodayContext c) {
       ..add(TodayRow(RowKind.text, longLine(c.settings.longPeriod, w, marked, c.clock)))
       ..add(TodayRow(RowKind.toggle, saidLabel(w), action: MarkSaid(w.key, long: true), active: marked))
       ..add(const TodayRow(RowKind.dim, longGuidance))
-      ..add(const TodayRow(RowKind.dim, 'So the period is your choice, in Location & obligatory prayer. This app makes no ruling.'));
+      ..add(const TodayRow(RowKind.dim, 'So the period is your choice, in Location & reminders. This app makes no ruling.'));
   } else {
     final windows = prayerWindows(chosen, prayerDay(chosen, moment, place), place);
     if (windows.isEmpty) {
@@ -305,6 +309,7 @@ List<TodayRow>? prayerCard(TodayContext c) {
   }
   final item = c.prayerItem(chosen);
   if (item != null) rows.add(TodayRow(RowKind.button, 'Open the $name', action: OpenObligatory(item)));
+  if (isTracked(chosen)) rows.add(const TodayRow(RowKind.button, 'Reminders…', action: OpenLocation()));
   return rows;
 }
 
@@ -345,6 +350,7 @@ List<TodayRow>? fastCard(TodayContext c) {
   if (prayers != null) rows.add(TodayRow(RowKind.button, 'Prayers for the Fast', action: prayers));
   final about = c.aqdasOpener('Text', 16);
   if (about != null) rows.add(TodayRow(RowKind.button, 'Read about the Fast (¶16)', action: about));
+  rows.add(const TodayRow(RowKind.button, 'Reminders…', action: OpenLocation()));
   return rows;
 }
 

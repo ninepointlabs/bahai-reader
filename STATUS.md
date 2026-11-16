@@ -6,6 +6,53 @@ user-local install; nothing was reinstalled and no sudo was used).
 **This is an experiment, not a replacement.** The real app: https://github.com/ninepointlabs/bahai-reader ·
 https://bahaireader.org
 
+## Update 3: reminders (2026-11-15, night)
+
+Asked for: “add the reminders too”. Ported from the GTK app’s `badi.py` (reminders), `reminders.py` and `location.py`,
+read-only.
+
+- **What is sent** (`lib/core/calendar/reminders.dart`, a line-by-line port): the obligatory prayer when its time opens
+  and 30 minutes before it closes unless said; the Long prayer, once 1–12 hours (default 2) before its period resets if
+  not marked (with “24 hours since last said”, before those 24 hours end); Feasts on the afternoon (15:00, or an hour
+  before an earlier sunset) of the day they begin; Holy Days the afternoon before and at 9:00 on the day; the Fast 5, 3
+  and 1 days before; each fasting day 30 minutes before sunrise and at sunset. Clock times without a location. Each is
+  sent once, only while still current (stale ones after a sleep are skipped), the latest per group; sent ids are kept 3
+  days (`reminders_sent`). Checked every 30 s, like GTK’s tick. Everything is off until turned on.
+- **Notifications** (`lib/core/platform/notifier.dart`): the freedesktop `org.freedesktop.Notifications` service over
+  the local session bus (pure-Dart `dbus` package, already in the dependency tree via `path_provider_linux`). Buttons:
+  “Said today” (marks it without opening the window and withdraws the notification) and “Open” (brings the window
+  forward on Today or the prayer). A later reminder of the same group replaces the shown one. Windows/macOS/phones:
+  not sent (`NoNotifier`); the dialog says so.
+- **Location & reminders** (renamed from Location & obligatory prayer): “Remind me when its time opens and before it
+  closes”, the Long prayer’s nudge and hours, “Feasts, Holy Days and the Fast” (four switches), “Keep reminders running
+  when the window is closed” with its note and status. “Reminders…” buttons are back on Today’s prayer, events and
+  Fast cards.
+- **Keep running** (Linux runner, `linux/runner/my_application.cc`): the app is now single-instance (a second launch
+  presents the window; `BAHAI_READER_SEPARATE=1` opts out for tests); with the setting on, closing the window hides it
+  and the process keeps sending reminders; a login entry `~/.config/autostart/com.ninepointlabs.bahai_reader-reminders.desktop`
+  starts it with `--background` (window hidden). Turning it off removes the entry; then closing quits. A
+  `--background` start with the setting off exits at once. No Flatpak/Background portal path (there is no Flatpak).
+- Settings use the GTK keys: `reminders`, `long_lead_hours`, `reminders_sent`, `keep_running`.
+- Fixed on the way: two settings saves close together could collide on `settings.json.tmp` (“Cannot rename file”);
+  saves now run one after another. Home’s narrow cards clipped long buttons (“Open the Short Obligatory Pra…”); their
+  buttons now stack and wrap.
+
+Verified: `flutter analyze` clean; `flutter test` **50 passed**. New: `test/reminders_test.dart` compares every
+candidate reminder (id, group, title, body, times to the second, Said mark, target) and the due/marked lists with the GTK
+code for 1,152 cases (Haifa, Chicago, clock hours, no location × 8 prayer/switch settings × 9 dates around the Fast,
+Twin Holy Days and Feasts × 4 hours): 11,420 reminders, all equal (`scripts/reminder_fixtures.py`).
+`test/reminders_app_test.dart` (4): sent once, “Said today” marks and stops the closing nudge, a bad mark is ignored,
+“Open” routes to the prayer in the window, settings cleaning, the login entry’s text/quoting and removal, the dialog’s
+switches. On this machine (Linux release build, quickshell as notification server, scratch config): the prayer
+reminder arrived with the right text and buttons (seen on the bus); its “Said today” action recorded the mark and
+closed the notification; with keep-running on, closing the window via Hyprland hid it while the process kept running,
+and a second launch exited and brought the same window back, redrawn.
+
+Not verified / differs: “Open” from a notification bringing a hidden window forward was only covered by the widget
+test (the live try failed because the app forgot a notification once its popup expired; fixed, not re-run live — test
+windows were opening over a game on the active workspace, so live window tests stopped). Login autostart was not
+tested by logging in. If the GTK app’s reminders are also on, both apps notify. The phone layout has no reminders.
+
 ## Update 2: Today and the obligatory prayers (2026-11-15, evening)
 
 Asked for: “add the Today page and obligatory prayers too”. Ported from the GTK app’s `badi.py`, `today.py`,
@@ -206,7 +253,7 @@ permission beyond the published terms has been sought or obtained; nobody was co
   profiled.
 - Touch layout only: the contents list does not auto-scroll to the current passage (the desktop sidebar does).
 - A highlight cannot span two passages (same as GTK).
-- No collections, compare, reminders, packaging or CI. (Continue reading, Today/calendar, the counter and the Omarchy
+- No collections, compare, packaging or CI. (Continue reading, Today/calendar, the counter, reminders and the Omarchy
   theme follow were added later; see the updates above.)
 - Windows/macOS/iOS untested; Android built but untested on a device.
 

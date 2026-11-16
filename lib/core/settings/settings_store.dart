@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../calendar/badi.dart';
+import '../calendar/reminders.dart';
 import '../marks/highlight.dart';
 
 /// This experiment's own settings file. It never reads from or writes to the GTK app's `~/.config/bahai-reader/`
@@ -30,7 +31,13 @@ class Settings {
     List<String>? said,
     List<String>? fasted,
     this.counterTarget,
-  })  : said = said ?? [],
+    Map<String, bool>? reminders,
+    this.longLeadHours,
+    List<String>? remindersSent,
+    this.keepRunning = false,
+  })  : reminders = reminders ?? {},
+        remindersSent = remindersSent ?? [],
+        said = said ?? [],
         fasted = fasted ?? [],
         highlights = highlights ?? [],
         saved = saved ?? [],
@@ -75,6 +82,22 @@ class Settings {
   List<String> fasted;
   int? counterTarget;
 
+  // ----- Reminders (GTK keys) -----
+  /// Which reminders are on, by [reminderSwitches] key. All are off until turned on.
+  Map<String, bool> reminders;
+
+  /// Hours before the Long prayer's period resets for its nudge (1–12; null is the default, 2).
+  int? longLeadHours;
+
+  /// Ids of reminders already sent (or skipped), for the last few days, so none is sent twice.
+  List<String> remindersSent;
+
+  /// Keep reminders running when the window is closed (Linux: an autostart entry and a hidden window).
+  bool keepRunning;
+
+  ReminderSettings get reminderSettings =>
+      ReminderSettings(switches: reminders, prayer: prayer, longPeriod: longPeriod, longLeadHours: longLeadHours);
+
   /// Where the day's times come from: the location, with entered clock hours in place of the sun if any.
   Place? get place => clockHours != null ? Place.withClock(location, clockHours!) : location;
 
@@ -98,6 +121,10 @@ class Settings {
         'keep_records': keepRecords,
         'records': {'said': said, 'fasted': fasted},
         'counter_target': ?counterTarget,
+        'reminders': reminders,
+        'long_lead_hours': ?longLeadHours,
+        'reminders_sent': remindersSent,
+        'keep_running': keepRunning,
       };
 
   /// Drops or replaces values of the wrong type, keeping everything usable (like GTK `clean_settings()`).
@@ -129,6 +156,15 @@ class Settings {
       said: strings(records['said']),
       fasted: strings(records['fasted']),
       counterTarget: Counter.validTarget(j['counter_target']),
+      reminders: j['reminders'] is Map
+          ? {
+              for (final e in (j['reminders'] as Map).entries)
+                if (reminderSwitches.contains(e.key) && e.value is bool) e.key as String: e.value as bool,
+            }
+          : {},
+      longLeadHours: longLead(j['long_lead_hours']) == j['long_lead_hours'] ? j['long_lead_hours'] as int : null,
+      remindersSent: [for (final k in strings(j['reminders_sent'])) if (RegExp(r'^\d{4}-\d\d-\d\d').hasMatch(k)) k],
+      keepRunning: j['keep_running'] == true,
     );
   }
 }
@@ -168,12 +204,18 @@ class SettingsStore {
     return (Settings(), 'Your settings file could not be read, so default settings are in use. It was kept as ${backup.path}.');
   }
 
-  /// Writes atomically: a temporary file in the same folder, then a rename.
-  Future<void> save(Settings settings) async {
-    await file.parent.create(recursive: true);
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(const JsonEncoder.withIndent(' ').convert(settings.toJson()), flush: true);
-    await tmp.rename(file.path);
+  Future<void> _last = Future.value();
+
+  /// Writes atomically: a temporary file in the same folder, then a rename. Saves run one after another (each with the
+  /// settings as they were when asked), so two close together never share the temporary file.
+  Future<void> save(Settings settings) {
+    final text = const JsonEncoder.withIndent(' ').convert(settings.toJson());
+    return _last = _last.catchError((Object _) {}).then((_) async {
+      await file.parent.create(recursive: true);
+      final tmp = File('${file.path}.tmp');
+      await tmp.writeAsString(text, flush: true);
+      await tmp.rename(file.path);
+    });
   }
 }
 

@@ -5,11 +5,12 @@ import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
 import '../../core/calendar/badi.dart';
 import '../../core/calendar/cities.dart';
+import '../../core/calendar/reminders.dart';
 import 'widgets.dart';
 
-/// Location & obligatory prayer (the GTK app's "Location & reminders" window, without the reminders): where the sun
-/// times are worked out for, clock hours in place of the sun, which obligatory prayer is said, the Long prayer's
-/// twenty-four hours, and the private record of Said and Fasted.
+/// Location & reminders (GTK `location.py`): where the sun times are worked out for, clock hours in place of the sun,
+/// which obligatory prayer is said and its reminders, the Long prayer's twenty-four hours, the private record of Said
+/// and Fasted, reminders of Feasts, Holy Days and the Fast, and keeping reminders running with the window closed.
 Future<void> showLocationDialog(BuildContext context) => showDialog<void>(
       context: context,
       builder: (_) => Dialog(
@@ -121,11 +122,22 @@ class _LocationPageState extends State<_LocationPage> {
           child: Text(text, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: p.accentText)),
         );
     Widget gap([double h = 8]) => SizedBox(height: h);
+    Widget check(String label, bool value, ValueChanged<bool>? onChanged) => CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+          value: value,
+          title: Text(label, style: const TextStyle(fontSize: 14.5)),
+          onChanged: onChanged == null ? null : (v) => onChanged(v ?? false),
+        );
+    Widget reminder(String key, String label, {bool enabled = true}) =>
+        check(label, s.reminders[key] ?? false, enabled ? (v) => state.setReminder(key, v) : null);
+    final unavailable = state.notifier.unavailable;
     return Scaffold(
       backgroundColor: p.background,
       body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         HeaderBar(
-          title: const WindowTitle(title: 'Location & obligatory prayer'),
+          title: const WindowTitle(title: 'Location & reminders'),
           end: [HeaderButton(icon: Icons.close, tooltip: 'Close', onPressed: () => Navigator.pop(context))],
         ),
         Expanded(
@@ -193,7 +205,7 @@ class _LocationPageState extends State<_LocationPage> {
               ),
             heading('Clock times'),
             const Text('$clockAssembly This app sets no hours of its own. Once set, they replace the sun for prayer times, '
-                'the Fast and when the Badí‘ date changes.'),
+                'the Fast, reminders and when the Badí‘ date changes.'),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
@@ -228,6 +240,8 @@ class _LocationPageState extends State<_LocationPage> {
                   child: Text(label),
                 ),
             ]),
+            if (s.prayer != 'long')
+              reminder('prayer', 'Remind me when its time opens and before it closes', enabled: isTracked(s.prayer)),
             if (s.prayer == 'long') ...[
               gap(12),
               const Text('No text says which twenty-four hours are meant, and the House of Justice has made no ruling, so this '
@@ -240,7 +254,21 @@ class _LocationPageState extends State<_LocationPage> {
                     RadioListTile<String>(value: key, title: Text(label), contentPadding: EdgeInsets.zero, dense: true),
                 ]),
               ),
+              reminder('long', 'Remind me once before the period resets, if it isn’t marked'),
+              Row(children: [
+                DropdownButton<int>(
+                  value: longLead(s.longLeadHours),
+                  underline: const SizedBox(),
+                  items: [for (var h = longLeadMin; h <= longLeadMax; h++) DropdownMenuItem(value: h, child: Text('$h'))],
+                  onChanged: (h) => h == null ? null : state.setLongLead(h),
+                ),
+                const SizedBox(width: 8),
+                const Text('hours before'),
+              ]),
             ],
+            gap(4),
+            Text('Without a location, reminders use clock times. Add a location and they follow the sun.',
+                style: dimStyle(context, size: 13.5)),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
@@ -264,9 +292,19 @@ class _LocationPageState extends State<_LocationPage> {
                 OutlinedButton(onPressed: () => setState(() => confirmClear = false), child: const Text('Keep them')),
               ],
             ]),
-            heading('Reminders'),
-            Text('The GTK app’s reminders (notifications for prayer times, Feasts, Holy Days and the Fast) are not part of this '
-                'experiment.', style: dimStyle(context, size: 13.5)),
+            heading('Feasts, Holy Days and the Fast'),
+            reminder('feast', 'Nineteen Day Feasts, on the afternoon of the day each begins'),
+            reminder('holy', 'Holy Days, the day before and on the day'),
+            reminder('fast', 'The Fast, 5, 3 and 1 days before it begins'),
+            reminder('fast_daily', 'During the Fast, before sunrise and at sunset each day'),
+            if (unavailable != null) Text(unavailable, style: dimStyle(context, size: 13.5)),
+            if (state.autostart != null) ...[
+              check('Keep reminders running when the window is closed', s.keepRunning, state.setKeepRunning),
+              Text('A quiet background process starts when you log in and has no tray icon. Turn this off to stop it.',
+                  style: dimStyle(context, size: 13.5)),
+              if (state.keepRunningMessage case final m?)
+                Padding(padding: const EdgeInsets.only(top: 6), child: Text(m, style: dimStyle(context, size: 13.5))),
+            ],
           ]),
         ),
       ]),

@@ -13,7 +13,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'app_test.dart' show settle;
 import 'disk_bundle.dart';
 
-/// Today, the obligatory prayers section, the counter and Location & obligatory prayer, in the desktop window.
+/// Today, the obligatory prayers section, the counter and Location & reminders, in the desktop window.
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-today'));
@@ -115,7 +115,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Location & obligatory prayer: a city sets the place; the prayer choice shows on Today', (tester) async {
+  testWidgets('Location & reminders: a city sets the place; the prayer choice shows on Today', (tester) async {
     final s = await start(tester, chicago: false);
     expect(find.text('Add location…'), findsNothing, reason: 'Home does not show the sun card');
     await tester.runAsync(() => s.cities());

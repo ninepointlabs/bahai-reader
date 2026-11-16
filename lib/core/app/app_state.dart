@@ -11,12 +11,15 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../calendar/badi.dart';
 import '../calendar/cities.dart';
+import '../calendar/reminders.dart';
 import '../calendar/today.dart';
 import '../calendar/zones.dart';
 import '../library/library.dart';
 import '../library/library_repository.dart';
 import '../library/passage.dart';
 import '../marks/highlight.dart';
+import '../platform/notifier.dart';
+import '../platform/window_control.dart';
 import '../search/fold.dart';
 import '../search/search_index.dart';
 import '../settings/settings_store.dart';
@@ -196,6 +199,90 @@ class AppState extends ChangeNotifier {
     await _save();
   }
 
+  // ----- reminders -----
+  /// Where reminders are shown; [NoNotifier] until [startReminders] (and on platforms without notifications).
+  Notifier notifier = const NoNotifier();
+  WindowControl window = const WindowControl();
+
+  /// The login entry for keeping reminders running (Linux), or null where there is none.
+  Autostart? autostart;
+
+  /// Why the login entry could not be changed, or "Starts when you log in.", for Location & reminders.
+  String? keepRunningMessage;
+  Timer? _reminderTimer;
+  StreamSubscription<NotificationAction>? _clicks;
+  final _openRequests = StreamController<String>.broadcast();
+
+  /// What a notification asked to open: `today` or `prayer:<name>`. The window listens and goes there.
+  Stream<String> get openRequests => _openRequests.stream;
+
+  /// Checks every 30 seconds what is due (GTK `tick()`): a long timer would not survive suspend or a clock change.
+  void startReminders(Notifier n, {Autostart? autostart}) {
+    notifier = n;
+    this.autostart = autostart;
+    _clicks?.cancel();
+    _clicks = n.actions.listen(notificationAction);
+    _reminderTimer?.cancel();
+    _reminderTimer = Timer.periodic(const Duration(seconds: 30), (_) => sendDueReminders());
+    window.setKeepRunning(settings.keepRunning);
+    sendDueReminders();
+  }
+
+  static final _saidKey = RegExp(r'^\d{4}-\d\d-\d\d:((short|medium):(morning|noon|evening)|long:(sunset|noon|midnight|at:\d+))$');
+
+  /// Sends what is due now, each at most once; what went stale (after a sleep) is marked and skipped.
+  Future<void> sendDueReminders() async {
+    final moment = now();
+    final (due, marked) = dueReminders(
+        calendar, settings.reminderSettings, moment, settings.place, clock, settings.remindersSent, settings.said);
+    if (marked.isEmpty) return;
+    settings.remindersSent = pruneSent([...settings.remindersSent, ...marked], dayOf(moment));
+    final before = notifier.unavailable;
+    for (final r in due) {
+      await notifier.send(r);
+    }
+    await _save(notify: notifier.unavailable != before);
+  }
+
+  /// A click on a notification: "Said today" marks it without opening the window; anything else opens the window.
+  Future<void> notificationAction(NotificationAction action) async {
+    if (action.startsWith('said:')) {
+      final key = action.substring(5);
+      if (!_saidKey.hasMatch(key)) return;
+      await markSaid(key, true);
+      await notifier.withdraw('prayer:${key.split(':')[1]}');
+    } else if (action.startsWith('open:')) {
+      await window.present();
+      _openRequests.add(action.substring(5));
+    }
+  }
+
+  Future<void> setReminder(String key, bool on) async {
+    if (!reminderSwitches.contains(key)) return;
+    settings.reminders[key] = on;
+    await _save();
+    await sendDueReminders();
+  }
+
+  Future<void> setLongLead(int hours) async {
+    settings.longLeadHours = longLead(hours);
+    await _save();
+    await sendDueReminders();
+  }
+
+  /// Keep reminders running when the window is closed: closing then hides the window, and a login entry starts the
+  /// app hidden. Off removes the entry and closing quits again.
+  Future<void> setKeepRunning(bool keep) async {
+    settings.keepRunning = keep;
+    await _save();
+    await window.setKeepRunning(keep);
+    final entry = autostart;
+    keepRunningMessage = entry == null
+        ? (keep ? 'There is no login entry on this system, so reminders run while the app is open.' : null)
+        : await entry.set(keep) ?? (keep ? 'Starts when you log in.' : null);
+    notifyListeners();
+  }
+
   Future<List<City>>? _cities;
 
   /// The bundled city list, loaded when first searched.
@@ -226,6 +313,9 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _themeTimer?.cancel();
+    _reminderTimer?.cancel();
+    _clicks?.cancel();
+    _openRequests.close();
     super.dispose();
   }
 

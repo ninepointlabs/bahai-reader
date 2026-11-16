@@ -27,8 +27,13 @@ Offline-first: the library is bundled, and the app makes **no network calls**, h
 - **Today and the obligatory prayers** (desktop layout): the Badí‘ date (changing at sunset), sun times for a saved
   city, the chosen obligatory prayer's times with a private "Said today", the next Feast and Holy Day, the Fast, the
   passage of the day and the Today calendar; an Obligatory prayers section under Prayers with the Kitáb-i-Aqdas guidance;
-  the Alláh-u-Abhá counter; Location & obligatory prayer (city search, clock times, Long prayer period). Ported from the
-  GTK app's `badi.py` and `today.py` and checked against them. The GTK app's reminders are not included.
+  the Alláh-u-Abhá counter; Location & reminders (city search, clock times, Long prayer period). Ported from the
+  GTK app's `badi.py` and `today.py` and checked against them.
+- **Reminders** (Linux): desktop notifications when the obligatory prayer's time opens and before it closes (with
+  "Said today" and "Open" on the notification), a nudge before the Long prayer's period resets, Feasts, Holy Days, the
+  Fast's approach and each fasting day's sunrise and sunset. All off until turned on in Location & reminders. Optionally
+  they keep running with the window closed: closing hides the window and a login entry starts the app hidden
+  (`--background`). Worked out on this computer and sent to the desktop's own notification service; nothing leaves it.
 
 See [STATUS.md](STATUS.md) for what works, what doesn’t, and how it was tested.
 
@@ -46,6 +51,9 @@ flutter test
 
 Windows, macOS and iOS project scaffolding is included; those targets must be built on their own platforms.
 
+On Linux only one copy runs at a time (a second launch brings the window forward), so reminders are never sent twice.
+`BAHAI_READER_SEPARATE=1` runs a separate copy, e.g. with its own `XDG_CONFIG_HOME` for testing.
+
 ## Layout
 
 The app is split so pieces can be changed or added independently. `lib/core/` has no UI code except `app/`;
@@ -59,18 +67,22 @@ lib/
     library/    passage.dart, library.dart (works, grouping), library_repository.dart (assets), citations.dart,
                 labels.dart (headings, subtitles, progress: port of GTK labels.py)
     calendar/   badi.dart (Badí‘ calendar, sun, prayer windows: port of GTK badi.py), today.dart (Today's cards as data),
+                reminders.dart (which reminders are due: port of GTK badi.py's reminders),
                 cities.dart (city search), zones.dart (bundled time-zone database)
+    platform/   notifier.dart (desktop notifications over the session bus), window_control.dart (hide/present the
+                Linux window, the login entry)
     marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
   features/
     desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
-                Highlights & notes, Today, the counter, Location & obligatory prayer
+                Highlights & notes, Today, the counter, Location & reminders
                 (shell_model.dart holds where the window is)
     library/  reader/  search/  marks/    the touch layout (phones, tablets)
     settings/  about/                     shared by both
 scripts/convert_library.py     rebuilds assets/library/ and assets/calendar/ from the GTK app's data/
 scripts/calendar_fixtures.py   expected answers from the GTK app's badi.py, for test/calendar_test.dart
+scripts/reminder_fixtures.py   expected reminders from the GTK app's badi.py, for test/reminders_test.dart
 assets/library/                converted library (checked in), manifest, search fold table
 test/                          marks, conversion, search, settings, app/widget tests
 ```
