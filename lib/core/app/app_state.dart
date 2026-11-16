@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import 'theme.dart';
 
 import '../library/library.dart';
 import '../library/library_repository.dart';
@@ -88,11 +92,47 @@ class AppState extends ChangeNotifier {
     await _save();
   }
 
-  ThemeMode get themeMode => switch (settings.theme) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
+  // ----- appearance -----
+  /// The live Omarchy theme's palette, when there is one (Linux only; see [watchOmarchyTheme]).
+  Palette? omarchy;
+  String? _omarchySource;
+  Timer? _themeTimer;
+
+  /// Follows the Omarchy theme as the GTK app does: its `colors.toml` is re-read every two seconds and the palette
+  /// changes when the file does. Only a local file is read.
+  void watchOmarchyTheme() {
+    void tick() {
+      final found = readOmarchyPalette();
+      if (found?.$2 == _omarchySource) return;
+      _omarchySource = found?.$2;
+      omarchy = found?.$1;
+      notifyListeners();
+    }
+
+    tick();
+    _themeTimer?.cancel();
+    _themeTimer = Timer.periodic(const Duration(seconds: 2), (_) => tick());
+  }
+
+  @override
+  void dispose() {
+    _themeTimer?.cancel();
+    super.dispose();
+  }
+
+  /// The palette chosen in settings, or null to follow the system's light or dark.
+  Palette? get fixedPalette => switch (settings.theme) {
+        'light' => Palette.light,
+        'dark' => Palette.dark,
+        'sepia' => Palette.sepia,
+        _ => omarchy,
       };
+
+  ThemeMode get themeMode {
+    final fixed = fixedPalette;
+    if (fixed != null) return fixed.isDark ? ThemeMode.dark : ThemeMode.light;
+    return ThemeMode.system;
+  }
 
   Future<void> setTheme(String theme) async {
     settings.theme = theme;
@@ -107,10 +147,24 @@ class AppState extends ChangeNotifier {
   Future<SearchIndex> searchIndex() => _search ??= SearchIndex.build(library!, folder!);
 
   // ----- positions -----
+  /// Where a work was left, and (for books) the Continue reading order, newest first.
   void rememberPosition(Work work, Passage p) {
-    if (settings.positions[work.title] == p.id) return;
+    final recent = work.kind == 'writings'
+        ? [work.title, ...settings.recent.where((b) => b != work.title)].take(Settings.recentBooks).toList()
+        : settings.recent;
+    if (settings.positions[work.title] == p.id && (recent.isEmpty || settings.recent.firstOrNull == recent.first)) return;
     settings.positions[work.title] = p.id;
+    settings.recent = recent;
     _save(notify: false);
+  }
+
+  /// Saved passages that are in this language's library (following ids saved in another language), in saved order.
+  List<Passage> get savedPassages {
+    final seen = <String>{};
+    return [
+      for (final id in settings.saved)
+        if (passageOf(id) case final p? when seen.add(p.id)) p,
+    ];
   }
 
   // ----- following stored ids into the current language -----

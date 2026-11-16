@@ -98,7 +98,7 @@ class _HighlightList extends StatelessWidget {
                     ? p.title
                     : 'The text changed; kept but not drawn · ${p.title}';
         return ListTile(
-          leading: Icon(Icons.format_color_fill, color: swatchColor(h.color)),
+          leading: Icon(Icons.format_color_fill, color: ReaderColors.of(context).swatch(h.color)),
           title: Text('“${excerpt(h.words, 200)}”', maxLines: 3, overflow: TextOverflow.ellipsis),
           subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (h.note != null) Text(h.note!, maxLines: 3, overflow: TextOverflow.ellipsis),

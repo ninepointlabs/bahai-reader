@@ -42,6 +42,13 @@ static void my_application_activate(GApplication* application) {
     }
   }
 #endif
+  // On Omarchy, Hyprland draws the border and there are no window buttons, as in the GTK Bahá’í Reader: the app's own
+  // header bars are the only title bars.
+  g_autofree gchar* omarchy = g_find_program_in_path("omarchy");
+  if (omarchy != nullptr) {
+    use_header_bar = FALSE;
+    gtk_window_set_decorated(window, FALSE);
+  }
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
@@ -52,7 +59,7 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Bahá’í Reader (Flutter experiment)");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  gtk_window_set_default_size(window, 1160, 790);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

@@ -6,6 +6,49 @@ user-local install; nothing was reinstalled and no sudo was used).
 **This is an experiment, not a replacement.** The real app: https://github.com/ninepointlabs/bahai-reader ·
 https://bahaireader.org
 
+## Update: desktop layout matched to the GTK app (2026-11-15, later)
+
+Asked for: “make the desktop version match the GTK version’s UI more”. Built from the GTK app’s own code
+(`shell.py`, `theme.py`, `contents.py`, `reading.py`, `highlights.py`, `finder.py`, `labels.py`) and its
+screenshots in `docs/screenshots/`, read-only.
+
+- **Window** (`lib/features/desktop/`, used on Linux/Windows/macOS; phones keep the touch layout): sidebar with Home,
+  Prayers (count), Writings (“18 books”), Saved (count); a book replaces them with Back + title + “author · parts ·
+  words”; “Search this section…”, passage count and the contents tree (Hidden Words by Arabic/Persian, books by part,
+  prayers by category with word counts), opened at and scrolled to the passage on show. Header bar: sidebar toggle,
+  centred title/subtitle, Search, Aa (appearance + text size), Copy, Save star, ⋮ (search, settings & GTK import,
+  shortcuts, About). Narrow windows (<700 px) take turns between sidebar and content, as the GTK window does.
+- **Home**: Continue reading (last three books, % of the book) and the library as cards with the gold spine, grouped by
+  author in the GTK order. Writings shows the library alone. Today/obligatory-prayer cards are not built (out of scope).
+- **Reading pane**: eyebrow (“From the Arabic · Bahá’u’lláh”), accent heading (“Arabic no. 12”), “Passage 12 of 153 ·
+  about 1 minute”, the text with GTK margins, italic citation; footer with ← Previous, “book · n of m” + “% of the book”
+  + bar, the Next pill, and “English · Available offline · Texts: …”.
+- **Highlights**: selecting words shows a small bar (four colour swatches · Note… · Copy) after the selection settles;
+  clicking a highlight opens colour, note (with “n / 5,000”), Remove highlight and Done; Saved → “Highlights & notes · n”
+  page with cards that open the passage at the highlight.
+- **Search dialog** (Ctrl+K): This book · n / Everything · n, “Ignores accents and apostrophes · offline”, results
+  grouped by book or prayer category, Enter opens the first; the opened passage marks the match and **scrolls to it**.
+- **Look**: the GTK palettes (Dark `#161b19/#e6e1d3/#c9ab70`, Light, Sepia) and derived sidebar/card/popover colours,
+  Adwaita Sans for the interface, Noto Serif for the text, default text size 22 as in GTK. The default appearance
+  follows the live Omarchy theme (`~/.local/state/omarchy/current/theme/colors.toml`, re-read every 2 s, local file only),
+  labelled “Omarchy” in Aa; elsewhere it follows the system. On Omarchy the window has no GTK title bar
+  (`linux/runner/my_application.cc`), like the GTK app.
+- **Keys**: Ctrl+K, Ctrl+D, Ctrl+Shift+C, Ctrl+H, Alt+←/→, Ctrl+PgUp/PgDn, Ctrl+F, F11 focus mode, Esc, F1, Ctrl+?.
+- New settings key `recent` (Continue reading order). Existing settings files load unchanged.
+
+Verified: `flutter analyze` clean; `flutter test` **36 passed** (the 32 below plus `test/desktop_test.dart` (4): home
+and library by author, open a book, Ctrl+D, Next, Continue reading; selection bar → green highlight → click → recolour
++ note → Saved → Highlights & notes → open; Ctrl+K This book/Everything, Enter opens; narrow window turn-taking).
+Linux release build launched with a scratch `XDG_CONFIG_HOME` and checked by screenshot against the GTK screenshots:
+Home, Hidden Words reader with a highlight (dark and light), Prayers in the Omarchy palette, Ctrl+K dialog typed via
+`wtype`, Enter jumping to and marking “Kitáb-i-Íqán” in Epistle to the Son of the Wolf, Ctrl+D toggling the star.
+Not checked by hand: the selection bar and highlight popover with a real mouse (widget tests only), Windows/macOS builds.
+
+Known differences from the GTK app: no Today, obligatory prayers section, counter, collections, side-by-side compare,
+reading font/line spacing/margin settings, or random passage; a highlight’s background shows faint notches between
+words (Flutter paints it per glyph run); the selection bar appears where the pointer was released rather than pointing
+exactly at the selected words.
+
 ## Summary
 
 | Goal | State |
@@ -18,9 +61,9 @@ https://bahaireader.org
 | Switch languages | ✅ English + Amharic (the only pack already downloaded on TUF) |
 | Search | ✅ Full current-language library, accent/apostrophe/hyphen-insensitive |
 | Highlights, notes, bookmarks | ✅ GTK record format and anchoring rules; cross-language follow by `match` |
-| Light/dark | ✅ Follows system by default; manual Light/Dark in Settings |
+| Light/dark | ✅ GTK palettes (Light/Dark/Sepia); follows the Omarchy theme, else the system |
 | Offline | ✅ No network code in `lib/`; release APK has no INTERNET permission |
-| Tests | ✅ 32 tests, all passing |
+| Tests | ✅ 36 tests, all passing (32 in v0 + 4 desktop) |
 
 ## How to run
 
@@ -112,12 +155,12 @@ permission beyond the published terms has been sought or obtained; nobody was co
 
 ## Known gaps / not done
 
-- Search marks the match in the opened passage but does not scroll to it in long passages.
+- Touch layout only: search marks the match in the opened passage but does not scroll to it (the desktop layout does).
 - bahai.org styling: italics, bold, underline and headings are rendered; indented quotations are shown in a muted
   colour rather than indented; paragraph numbers are shown small, not as margin numbers.
 - Very long passages (up to ~257k characters, e.g. some Shoghi Effendi chapters) render as one selectable text; not
   profiled.
-- The contents list does not auto-scroll to the current passage in long works (Tablets has 660 passages).
+- Touch layout only: the contents list does not auto-scroll to the current passage (the desktop sidebar does).
 - A highlight cannot span two passages (same as GTK).
 - No “Continue reading”, collections, compare, Today/calendar, reminders, counter, Omarchy theme follow, packaging,
   CI (all out of scope for v0).

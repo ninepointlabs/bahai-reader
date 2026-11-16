@@ -54,7 +54,7 @@ Future<void> showHighlightSheet(BuildContext context, Highlight record, Passage 
               IconButton(
                 tooltip: c,
                 isSelected: c == record.color,
-                icon: Icon(c == record.color ? Icons.check_circle : Icons.circle, color: swatchColor(c)),
+                icon: Icon(c == record.color ? Icons.check_circle : Icons.circle, color: ReaderColors.of(sheet).swatch(c)),
                 onPressed: () {
                   Navigator.pop(sheet);
                   state.updateHighlight(record, color: c);

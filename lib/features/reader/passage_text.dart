@@ -12,7 +12,7 @@ typedef DrawnHighlight = (Highlight record, int start, int end);
 TextSpan passageSpans({
   required Passage passage,
   required TextStyle base,
-  required Brightness brightness,
+  required Palette palette,
   required Color muted,
   List<DrawnHighlight> highlights = const [],
   (int, int)? hit,
@@ -48,12 +48,11 @@ TextSpan passageSpans({
     }
     for (final (record, ha, hb) in highlights) {
       if (ha <= a && b <= hb) {
-        style = style.copyWith(backgroundColor: highlightColor(record.color, brightness));
+        style = style.copyWith(backgroundColor: palette.highlight(record.color));
         if (record.note != null) {
+          // A highlight with a note is underlined, as in the GTK app.
           style = style.copyWith(
-              decoration: TextDecoration.combine([if (style.decoration != null) style.decoration!, TextDecoration.underline]),
-              decorationStyle: TextDecorationStyle.dotted,
-              decorationColor: swatchColor(record.color));
+              decoration: TextDecoration.combine([if (style.decoration != null) style.decoration!, TextDecoration.underline]));
         }
       }
     }

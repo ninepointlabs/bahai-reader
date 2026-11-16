@@ -1,0 +1,294 @@
+import 'package:flutter/material.dart';
+
+import '../../core/app/app_state.dart';
+import '../../core/app/theme.dart';
+import '../../core/library/labels.dart';
+import '../../core/library/library.dart';
+import '../../core/library/passage.dart';
+import 'shell_model.dart';
+import 'widgets.dart';
+
+/// The sidebar: Home, Prayers, Writings and Saved, then the open section's contents with its own search.
+/// When a book is open the sections give way to the book's title and a Back button, as in the GTK app.
+class Sidebar extends StatelessWidget {
+  const Sidebar({super.key, required this.model, required this.onSearch});
+  final ShellModel model;
+  final VoidCallback onSearch;
+
+  static const rows = [
+    (Section.home, 'Home', Icons.home_outlined),
+    (Section.prayers, 'Prayers', Icons.local_florist_outlined),
+    (Section.writings, 'Writings', Icons.menu_book_outlined),
+    (Section.saved, 'Saved', Icons.star_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final p = ReaderColors.of(context);
+    final book = model.inBook ? model.book : null;
+    final library = state.library;
+    final counts = {
+      Section.prayers: library == null ? '' : '${library.passages.where((x) => x.isPrayer).length}',
+      Section.writings: library == null ? '' : '${library.books.length} books',
+      Section.saved: state.settings.saved.isEmpty ? '' : '${state.settings.saved.length}',
+    };
+    final showContents = model.section != Section.home && !(model.section == Section.writings && book == null);
+    return ColoredBox(
+      color: p.sidebar,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        HeaderBar(
+          color: p.sidebar,
+          start: [
+            if (book != null) HeaderButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Back', onPressed: model.leaveBook),
+          ],
+          title: book != null
+              ? WindowTitle(title: book.title, subtitle: '${authorOf(book)} · ${book.summary}')
+              : const WindowTitle(title: 'Bahá’í Reader'),
+          end: [HeaderButton(icon: Icons.search, tooltip: 'Search the texts (Ctrl+K)', onPressed: onSearch)],
+        ),
+        if (book == null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+            child: Column(children: [
+              for (final (section, label, icon) in rows)
+                SideRow(
+                  selected: model.section == section,
+                  onTap: () => model.navigate(section),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Row(children: [
+                    Icon(icon, size: 19),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+                    if (counts[section] case final c? when c.isNotEmpty) Text(c, style: dimStyle(context)),
+                  ]),
+                ),
+            ]),
+          ),
+        if (showContents) Expanded(child: _Contents(model: model)),
+      ]),
+    );
+  }
+}
+
+/// The open section's contents: a search field, how many passages match, and the tree of groups and passages.
+class _Contents extends StatefulWidget {
+  const _Contents({required this.model});
+  final ShellModel model;
+
+  @override
+  State<_Contents> createState() => _ContentsState();
+}
+
+class _ContentsState extends State<_Contents> {
+  final search = TextEditingController();
+  final currentKey = GlobalKey();
+  final scroll = ScrollController();
+
+  /// Groups the reader opened or closed by hand: {path: expanded}. Otherwise a group is open when it holds the passage
+  /// on show (or while searching).
+  final Map<String, bool> expanded = {};
+  static final Map<String, String> _folded = {};
+  String? _scrolledTo;
+
+  ShellModel get model => widget.model;
+
+  @override
+  void initState() {
+    super.initState();
+    search.text = model.filter;
+  }
+
+  @override
+  void didUpdateWidget(covariant _Contents old) {
+    super.didUpdateWidget(old);
+    if (search.text != model.filter) search.text = model.filter;
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    scroll.dispose();
+    super.dispose();
+  }
+
+  bool matches(AppState state, Passage p, String q) {
+    if (q.isEmpty) return true;
+    final f = state.folder;
+    if (f == null) return true;
+    final folded = _folded.putIfAbsent(p.id, () => f.fold('${p.title} ${p.text} ${p.tags.join(' ')}'));
+    return folded.contains(q);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final library = state.library;
+    final q = state.folder?.fold(model.filter.trim()) ?? '';
+    final current = model.current;
+    final rows = <Widget>[];
+    // Passages that match, counted once even when listed under two categories.
+    final shownIds = <String>{};
+    final unit = model.section == Section.prayers ? 'prayer' : 'passage';
+    String units(int n, [String u = 'passage']) => '$n $u${n == 1 ? '' : 's'}';
+
+    Widget passageRow(Work work, int i) {
+      final p = work.passages[i];
+      final isCurrent = current != null && current.id == p.id && model.group?.title == work.title;
+      return Padding(
+        key: isCurrent ? currentKey : null,
+        padding: const EdgeInsets.only(bottom: 2),
+        child: SideRow(
+          selected: isCurrent,
+          tooltip: p.isPrayer ? '${p.title} — ${wordLabel(p)}' : p.title,
+          onTap: () => model.openIn(work, i),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(listTitle(p), maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false),
+            if (p.isPrayer) Text(wordLabel(p), style: dimStyle(context)),
+          ]),
+        ),
+      );
+    }
+
+    void branch(String path, String title, Work work, List<int> indexes, {String u = 'passage'}) {
+      final visible = [for (final i in indexes) if (matches(state, work.passages[i], q)) i];
+      if (visible.isEmpty) return;
+      shownIds.addAll(visible.map((i) => work.passages[i].id));
+      final holdsCurrent = current != null && model.group?.title == work.title && visible.contains(model.index);
+      final open = q.isNotEmpty || (expanded[path] ?? holdsCurrent);
+      rows.add(_Branch(
+        title: title,
+        count: units(visible.length, u),
+        open: open,
+        onToggle: () => setState(() => expanded[path] = !open),
+      ));
+      if (open) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(left: 14, top: 4, bottom: 6),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final i in visible) passageRow(work, i)]),
+        ));
+      }
+    }
+
+    if (library != null) {
+      switch (model.section) {
+        case Section.prayers:
+          for (final cat in library.prayerCategories) {
+            branch('prayers/${cat.title}', cat.title, cat, [for (var i = 0; i < cat.passages.length; i++) i], u: 'prayer');
+          }
+        case Section.writings:
+          final book = model.book;
+          if (book != null) {
+            for (final (name, indexes) in contentsOf(book)) {
+              if (name != null) {
+                branch('writings/${book.title}/$name', name, book, indexes);
+              } else {
+                for (final i in indexes) {
+                  if (!matches(state, book.passages[i], q)) continue;
+                  shownIds.add(book.passages[i].id);
+                  rows.add(passageRow(book, i));
+                }
+              }
+            }
+          }
+        case Section.saved:
+          final saved = model.group?.kind == 'saved' ? model.group! : model.savedWork();
+          final count = state.highlights.length;
+          rows.add(Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: SideRow(
+              selected: model.pane == Pane.highlights,
+              tooltip: 'Every highlight and note',
+              onTap: model.showHighlights,
+              child: Row(children: [
+                Expanded(child: Text(count > 0 ? 'Highlights & notes · $count' : 'Highlights & notes')),
+                const Icon(Icons.chevron_right, size: 20),
+              ]),
+            ),
+          ));
+          for (var i = 0; i < saved.passages.length; i++) {
+            if (!matches(state, saved.passages[i], q)) continue;
+            shownIds.add(saved.passages[i].id);
+            rows.add(passageRow(saved, i));
+          }
+        case Section.home:
+          break;
+      }
+    }
+    if (q.isNotEmpty && shownIds.isEmpty) {
+      rows.add(Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text('No ${unit}s match “${model.filter.trim()}”.', style: dimStyle(context)),
+      ));
+    }
+
+    // Keep the passage on show in view in the contents (once per passage, not on every rebuild).
+    final key = current == null ? null : '${model.group?.title}/${current.id}';
+    if (key != null && key != _scrolledTo) {
+      _scrolledTo = key;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final c = currentKey.currentContext;
+        if (c != null && c.mounted) Scrollable.ensureVisible(c, alignment: 0.4, duration: const Duration(milliseconds: 150));
+      });
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        TextField(
+          controller: search,
+          onChanged: model.setFilter,
+          decoration: const InputDecoration(
+            hintText: 'Search this section…',
+            prefixIcon: Icon(Icons.search, size: 20),
+            prefixIconConstraints: BoxConstraints(minWidth: 36),
+            contentPadding: EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 6),
+          child: Text(units(shownIds.length), style: dimStyle(context)),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: scroll,
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Branch extends StatelessWidget {
+  const _Branch({required this.title, required this.count, required this.open, required this.onToggle});
+  final String title;
+  final String count;
+  final bool open;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onToggle,
+          child: Tooltip(
+            message: title,
+            waitDuration: const Duration(seconds: 1),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(children: [
+                Icon(open ? Icons.expand_more : Icons.chevron_right, size: 18),
+                const SizedBox(width: 2),
+                Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
+                Padding(padding: const EdgeInsets.only(right: 12), child: Text(count, style: dimStyle(context))),
+              ]),
+            ),
+          ),
+        ),
+      );
+}

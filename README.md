@@ -18,7 +18,12 @@ Offline-first: the library is bundled, and the app makes **no network calls**, h
   (“Bahaullah” finds “Bahá’u’lláh”).
 - **Highlights, notes and saved passages**, stored the same way as the GTK app (passage id + character offsets + the
   quoted words), and following passages across languages by their `match`.
-- **Light and dark** themes; follows the system by default.
+- **Light, Dark and Sepia** palettes from the GTK app; by default it follows the live Omarchy theme where there is one,
+  else the system's light or dark.
+- **Desktop layout like the GTK app** (Linux, Windows, macOS): a sidebar with Home, Prayers, Writings and Saved and the
+  open section's contents; a header bar with Search, Aa, Copy, Save and ⋮; the reading pane with the book and part, the
+  heading, Previous / progress / Next; a Ctrl+K search dialog with This book / Everything; Highlights & notes under Saved;
+  the GTK app's keyboard shortcuts. Phones and tablets keep the touch layout.
 
 See [STATUS.md](STATUS.md) for what works, what doesn’t, and how it was tested.
 
@@ -45,13 +50,17 @@ each feature under `lib/features/` is a self-contained screen that talks to `App
 lib/
   main.dart                    entry point (--open <passage id>)
   core/
-    app/        app_state.dart  shared state + AppScope; theme.dart
-    library/    passage.dart, library.dart (works, grouping), library_repository.dart (assets), citations.dart
+    app/        app_state.dart  shared state + AppScope; theme.dart (GTK palettes, Omarchy theme follow)
+    library/    passage.dart, library.dart (works, grouping), library_repository.dart (assets), citations.dart,
+                labels.dart (headings, subtitles, progress: port of GTK labels.py)
     marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
   features/
-    library/  reader/  search/  marks/  settings/  about/
+    desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
+                Highlights & notes (shell_model.dart holds where the window is)
+    library/  reader/  search/  marks/    the touch layout (phones, tablets)
+    settings/  about/                     shared by both
 scripts/convert_library.py     rebuilds assets/library/ from the GTK app's data/
 assets/library/                converted library (checked in), manifest, search fold table
 test/                          marks, conversion, search, settings, app/widget tests

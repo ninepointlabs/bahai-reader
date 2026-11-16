@@ -14,17 +14,19 @@ class Settings {
   Settings({
     this.theme = 'system',
     this.language = 1,
-    this.textSize = 20,
+    this.textSize = 22,
     this.highlightColor = 'yellow',
     List<Highlight>? highlights,
     List<String>? saved,
     Map<String, String>? positions,
+    List<String>? recent,
     this.importedGtk = false,
   })  : highlights = highlights ?? [],
         saved = saved ?? [],
-        positions = positions ?? {};
+        positions = positions ?? {},
+        recent = recent ?? [];
 
-  /// `system`, `light` or `dark`.
+  /// `system` (the Omarchy theme where there is one, else the system's light or dark), `light`, `dark` or `sepia`.
   String theme;
   int language;
   double textSize;
@@ -36,9 +38,13 @@ class Settings {
 
   /// The last passage read in each work: {work title: passage id}.
   Map<String, String> positions;
+
+  /// Books read most recently, newest first (GTK `prefs["recent"]`), for Continue reading.
+  List<String> recent;
   bool importedGtk;
 
-  static const themes = ['system', 'light', 'dark'];
+  static const themes = ['system', 'light', 'dark', 'sepia'];
+  static const recentBooks = 6;
 
   Map<String, Object> toJson() => {
         'theme': theme,
@@ -48,6 +54,7 @@ class Settings {
         'highlights': [for (final h in highlights) h.toJson()],
         'saved': saved,
         'positions': positions,
+        'recent': recent,
         'imported_gtk': importedGtk,
       };
 
@@ -57,16 +64,18 @@ class Settings {
     final size = j['size'];
     final saved = j['saved'];
     final positions = j['positions'];
+    final recent = j['recent'];
     return Settings(
       theme: themes.contains(j['theme']) ? j['theme'] as String : 'system',
       language: j['language'] is int ? j['language'] as int : 1,
-      textSize: size is num && size.isFinite ? size.toDouble().clamp(15, 36) : 20,
+      textSize: size is num && size.isFinite ? size.toDouble().clamp(15, 36) : 22,
       highlightColor: highlightColors.contains(j['highlight_color']) ? j['highlight_color'] as String : 'yellow',
       highlights: cleanHighlights(j['highlights']),
       saved: saved is List ? [...{for (final s in saved) if (s is String) s}] : [],
       positions: positions is Map
           ? {for (final e in positions.entries) if (e.key is String && e.value is String) e.key as String: e.value as String}
           : {},
+      recent: recent is List ? [...{for (final r in recent) if (r is String) r}].take(recentBooks).toList() : [],
       importedGtk: j['imported_gtk'] == true,
     );
   }

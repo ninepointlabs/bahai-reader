@@ -160,7 +160,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         for (final c in highlightColors)
           IconButton(
             tooltip: 'Highlight $c',
-            icon: Icon(Icons.circle, color: swatchColor(c)),
+            icon: Icon(Icons.circle, color: ReaderColors.of(context).swatch(c)),
             onPressed: () => highlightSelection(color: c),
           ),
         IconButton(
@@ -229,7 +229,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     passageSpans(
                       passage: passage,
                       base: base,
-                      brightness: theme.brightness,
+                      palette: ReaderColors.of(context),
                       muted: muted,
                       highlights: drawn,
                       hit: hit,
@@ -317,7 +317,7 @@ class _MarkCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: IntrinsicHeight(
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(width: 6, color: swatchColor(record.color)),
+          Container(width: 6, color: ReaderColors.of(context).swatch(record.color)),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(12),
