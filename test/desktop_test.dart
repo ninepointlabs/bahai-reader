@@ -179,8 +179,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Writings').first);
     await tester.pumpAndSettle();
-    expect(find.text('The Hidden Words'), findsOneWidget, reason: 'listed once, in the sidebar');
-    expect(find.text('Shoghi Effendi'), findsOneWidget, reason: 'under their authors');
+    expect(find.text('Shoghi Effendi'), findsOneWidget, reason: 'the authors, folded');
+    expect(find.text('The Hidden Words'), findsNothing);
+    await tester.tap(find.text('Bahá’u’lláh'));
+    await tester.pumpAndSettle();
+    expect(find.text('The Hidden Words'), findsOneWidget, reason: 'an author opens to their books; listed once');
     expect(find.text('18 books'), findsWidgets);
     expect(find.text('Choose a book in the list to read it.'), findsOneWidget);
     await tester.tap(find.text('The Hidden Words'));
@@ -191,7 +194,8 @@ void main() {
     expect(find.text('Continue: The Hidden Words'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, 'hidden');
     await tester.pumpAndSettle();
-    expect(find.text('1 book'), findsOneWidget, reason: 'the sidebar filter narrows the books');
+    expect(find.text('1 book'), findsNWidgets(2), reason: 'the filter narrows the books: the count, and the one author open');
+    expect(find.text('The Hidden Words'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -220,21 +220,31 @@ class _ContentsState extends State<_Contents> {
                   if (q.isEmpty || state.folder!.fold('${w.title} $author').contains(q)) w,
               ];
               if (visible.isEmpty) continue;
-              rows.add(Padding(
-                padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
-                child: Semantics(header: true, child: Text(author, style: dimStyle(context))),
+              shownIds.addAll(visible.map((w) => 'book/${w.title}'));
+              // Each author folds open to their books, like the prayers' topics; all open while searching.
+              final path = 'authors/$author';
+              final open = q.isNotEmpty || (expanded[path] ?? false);
+              rows.add(_Branch(
+                title: author,
+                count: units(visible.length, 'book'),
+                open: open,
+                onToggle: () => setState(() => expanded[path] = !open),
               ));
-              for (final w in visible) {
-                shownIds.add('book/${w.title}');
-                rows.add(Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: SideRow(
-                    tooltip: '${w.title} — ${w.summary}',
-                    onTap: () => model.openBook(w),
-                    child: Text(w.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ),
-                ));
-              }
+              if (!open) continue;
+              rows.add(Padding(
+                padding: const EdgeInsets.only(left: 14, top: 4, bottom: 6),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  for (final w in visible)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: SideRow(
+                        tooltip: '${w.title} — ${w.summary}',
+                        onTap: () => model.openBook(w),
+                        child: Text(w.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                ]),
+              ));
             }
           } else {
             for (final (name, indexes) in contentsOf(book)) {
