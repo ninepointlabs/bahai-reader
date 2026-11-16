@@ -35,8 +35,8 @@ class WindowControl {
 /// The XDG autostart entry that starts the app hidden at login, so reminders run without a window. Linux only.
 class Autostart {
   Autostart({Map<String, String>? environment, String? executable})
-      : _env = environment ?? Platform.environment,
-        _exe = executable ?? Platform.resolvedExecutable;
+    : _env = environment ?? Platform.environment,
+      _exe = executable ?? Platform.resolvedExecutable;
   final Map<String, String> _env;
   final String _exe;
 
@@ -51,7 +51,7 @@ class Autostart {
   /// The desktop entry's text. The path is quoted as the Desktop Entry spec asks.
   String get entry {
     final quoted = '"${_exe.replaceAllMapped(RegExp(r'["`$\\]'), (m) => '\\${m[0]}')}"';
-    return '[Desktop Entry]\nType=Application\nName=Bahá’í Reader reminders (Flutter experiment)\n'
+    return '[Desktop Entry]\nType=Application\nName=Bahá’í Reader reminders\n'
         'Comment=Keeps reminders running when the Bahá’í Reader window is closed\n'
         'Exec=$quoted --background\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n';
   }

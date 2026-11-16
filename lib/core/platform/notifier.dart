@@ -54,11 +54,11 @@ abstract class Notifier {
       : const NoNotifier();
 }
 
-/// Where this experiment has no notifications yet (Windows, macOS, Android, iOS).
+/// Where the app has no notifications yet (Windows, macOS, iOS).
 class NoNotifier extends Notifier {
   const NoNotifier();
   @override
-  String? get unavailable => 'Reminders are only sent on Linux and Android in this experiment.';
+  String? get unavailable => 'Reminders are only sent on Linux and Android for now.';
   @override
   Stream<NotificationAction> get actions => const Stream.empty();
   @override
@@ -69,7 +69,7 @@ class NoNotifier extends Notifier {
 
 /// The freedesktop notification spec (`org.freedesktop.Notifications`), which mako, dunst, GNOME and KDE all serve.
 class LinuxNotifier extends Notifier {
-  LinuxNotifier({this.appName = 'Bahá’í Reader', this.desktopEntry = 'com.ninepointlabs.bahai_reader'});
+  LinuxNotifier({this.appName = 'Bahá’í Reader', this.desktopEntry = 'org.bahai.Reader'});
   final String appName, desktopEntry;
 
   static const _iface = 'org.freedesktop.Notifications';

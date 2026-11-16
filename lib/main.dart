@@ -56,9 +56,9 @@ Future<void> main(List<String> args) async {
 
 /// Desktops get the GTK app's window layout (sidebar, header bar, reading pane); phones and tablets the touch layout.
 bool get isDesktop => switch (defaultTargetPlatform) {
-      TargetPlatform.linux || TargetPlatform.windows || TargetPlatform.macOS => true,
-      _ => false,
-    };
+  TargetPlatform.linux || TargetPlatform.windows || TargetPlatform.macOS => true,
+  _ => false,
+};
 
 class BahaiReaderApp extends StatelessWidget {
   const BahaiReaderApp({super.key, required this.state, this.openId, this.desktop});
@@ -77,7 +77,7 @@ class BahaiReaderApp extends StatelessWidget {
         builder: (context, _) {
           final fixed = state.fixedPalette;
           return MaterialApp(
-            title: 'Bahá’í Reader (Flutter experiment)',
+            title: 'Bahá’í Reader',
             debugShowCheckedModeBanner: false,
             theme: buildTheme(fixed ?? Palette.light, monospace: state.settings.chromeFont == 'Monospace'),
             darkTheme: buildTheme(fixed ?? Palette.dark, monospace: state.settings.chromeFont == 'Monospace'),

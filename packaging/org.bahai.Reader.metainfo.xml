@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.bahai.Reader</id>
+  <name>Bahá’í Reader</name>
+  <summary>Offline Bahá’í prayers and writings</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.ninepointlabs">
+    <name>Nine Point Labs</name>
+  </developer>
+  <description>
+    <p>A quiet reader for Bahá’í prayers, the Hidden Words and the Writings. Ten English collections are included for offline reading, and other languages can be downloaded.</p>
+    <ul>
+      <li>Collapsible contents, saved passages and offline search</li>
+      <li>Adjustable fonts, text size, spacing and reading palettes</li>
+      <li>Follows the active Omarchy theme live, with light, dark and sepia palettes elsewhere</li>
+      <li>A Today view with the Badí‘ date, sunrise, noon and sunset for a place you type in, the next Feast and Holy Day, obligatory prayer times and the Fast</li>
+      <li>An Alláh-u-Abhá counter, and optional reminders, with records that stay on your computer</li>
+      <li>Highlights, notes, saved passages in collections, and two languages side by side</li>
+    </ul>
+    <p>Texts are supplied by BahaiPrayers.net, and English shows the official text of the Bahá’í Reference Library at bahai.org wherever it has the passage, including messages of the Universal House of Justice and works of Shoghi Effendi (Copyright © Bahá’í International Community). This is an independent community app, not an official publication of a Bahá’í institution.</p>
+  </description>
+  <launchable type="desktop-id">org.bahai.Reader.desktop</launchable>
+  <categories>
+    <category>Education</category>
+    <category>Literature</category>
+  </categories>
+  <keywords>
+    <keyword>Bahai</keyword>
+    <keyword>Prayer</keyword>
+    <keyword>Writings</keyword>
+  </keywords>
+  <url type="homepage">https://bahaireader.org/</url>
+  <url type="bugtracker">https://github.com/ninepointlabs/bahai-reader/issues</url>
+  <url type="vcs-browser">https://github.com/ninepointlabs/bahai-reader</url>
+  <provides>
+    <binary>bahai-reader</binary>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-11-16">
+      <description><p>Bahá’í Reader is rebuilt with Flutter, so the same app now also runs on Android and Windows. On Linux it brings over your highlights, notes, saved passages, collections, reading places and settings from earlier versions the first time it starts, and reads languages you already downloaded. Earlier versions’ files are only read, never changed.</p></description>
+    </release>
+    <release version="0.2.3" date="2026-11-15">
+      <description><p>Highlights, notes and saved passages now follow you to the same passage in another language. A very long note with no spaces no longer breaks the window, and the note editor counts characters up to its 5,000-character limit.</p></description>
+    </release>
+    <release version="0.2.2" date="2026-11-15">
+      <description><p>Notes, the highlight bar and menus now stand out from the page in dark themes. Before, they had the page’s own background, so a note opened over the text looked like a hole in it.</p></description>
+    </release>
+    <release version="0.2.1" date="2026-11-11">
+      <description><p>After an update, the app now opens as the new version even if the old one was still running in the background for reminders. Before, it kept showing the old version until you logged out.</p></description>
+    </release>
+    <release version="0.2.0" date="2026-11-11">
+      <description><p>A redesign. On systems with libadwaita 1.4 or newer, the app opens in a new window: Home with the day at a glance and Continue reading, the Writings as a library of books with each book’s contents, search across all the texts (Ctrl+K), progress through each book, highlights and notes, and focus mode. The interface uses the desktop’s own font; the reading text is unchanged. Debian 12 keeps the earlier window, with the same texts and features it had.</p></description>
+    </release>
+    <release version="0.1.9" date="2026-11-09">
+      <description><p>In English, the books and prayers now show the official text from the Bahá’í Reference Library at bahai.org wherever it has the same passage, and 515 messages of the Universal House of Justice and seven works of Shoghi Effendi are added. Also new: grouping Writings by author, and narrow windows down to 320 px.</p></description>
+    </release>
+    <release version="0.1.8" date="2026-11-01">
+      <description><p>A new Today view brings together the Badí‘ date, sun times, obligatory prayer times, the next Feast and Holy Day, the Fast and the passage of the day. Also new: an Alláh-u-Abhá counter, optional reminders, a typed-in location and clock times.</p></description>
+    </release>
+    <release version="0.1.7" date="2026-10-31">
+      <description><p>The Obligatory prayers section now has every Kitáb-i-Aqdas paragraph on obligatory prayer, with their notes and Questions and Answers.</p></description>
+    </release>
+    <release version="0.1.6" date="2026-10-30">
+      <description><p>The directions in the obligatory prayers are shown in italics, so the words of the prayer stand out.</p></description>
+    </release>
+    <release version="0.1.5" date="2026-10-30">
+      <description><p>Copy with citation, an Obligatory prayers section, collections for saved passages, a passage of the day, and two languages side by side.</p></description>
+    </release>
+    <release version="0.1.4" date="2026-10-19">
+      <description><p>An AppImage that adds itself to your app menu, and a Flatpak bundle for any Linux.</p></description>
+    </release>
+    <release version="0.1.3" date="2026-10-17">
+      <description><p>Adds an About screen.</p></description>
+    </release>
+    <release version="0.1.2" date="2026-10-14">
+      <description><p>Fedora RPM fix and passage citations.</p></description>
+    </release>
+    <release version="0.1.1" date="2026-09-13"/>
+    <release version="0.1.0" date="2026-09-13"/>
+  </releases>
+</component>

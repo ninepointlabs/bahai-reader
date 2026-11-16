@@ -1,0 +1,60 @@
+name: bahai-reader
+arch: amd64
+platform: linux
+version: ${VERSION}
+release: 1
+section: education
+priority: optional
+maintainer: Tim Apple <179739321+ninepointlabs@users.noreply.github.com>
+description: |
+  Offline Bahá’í prayers and writings
+  Ten English collections, downloadable languages, highlights and notes, a Today
+  view with the Badí‘ calendar, and live Omarchy theme integration.
+homepage: https://bahaireader.org/
+license: MIT AND LicenseRef-BahaiPrayers-Content
+archlinux:
+  packager: Tim Apple <179739321+ninepointlabs@users.noreply.github.com>
+contents:
+  # The Flutter bundle: the binary, its lib/ and data/ (texts included).
+  - src: build/linux/x64/release/bundle/
+    dst: /usr/lib/bahai-reader/
+    type: tree
+  - src: packaging/bahai-reader
+    dst: /usr/bin/bahai-reader
+    file_info:
+      mode: 0755
+  - src: packaging/org.bahai.Reader.desktop
+    dst: /usr/share/applications/org.bahai.Reader.desktop
+  - src: packaging/org.bahai.Reader.metainfo.xml
+    dst: /usr/share/metainfo/org.bahai.Reader.metainfo.xml
+  - src: packaging/org.bahai.Reader.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/org.bahai.Reader.svg
+  - src: packaging/icons/hicolor/
+    dst: /usr/share/icons/hicolor/
+    type: tree
+  - src: LICENSE
+    dst: /usr/share/licenses/bahai-reader/LICENSE
+  - src: DATA-NOTICE.md
+    dst: /usr/share/licenses/bahai-reader/DATA-NOTICE.md
+  - src: README.md
+    dst: /usr/share/doc/bahai-reader/README.md
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0t64 | libgtk-3-0
+      - fontconfig
+    recommends:
+      - fonts-dejavu-core
+      - fonts-noto-core
+  rpm:
+    depends:
+      - gtk3
+      - fontconfig
+    recommends:
+      - dejavu-serif-fonts
+  archlinux:
+    depends:
+      - gtk3
+      - fontconfig
+    recommends:
+      - noto-fonts

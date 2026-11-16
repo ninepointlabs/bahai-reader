@@ -1,0 +1,77 @@
+#!/bin/sh
+# AppImage launcher. The Flutter bundle (binary, its libraries and the texts) and the
+# desktop metadata are bundled; GTK 3 comes from the host, as on any desktop. Nothing is
+# exported here, so programs the app opens (mail client, browser) get a clean host
+# environment.
+set -eu
+appdir=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+app_id=org.bahai.Reader
+data_home=${XDG_DATA_HOME:-$HOME/.local/share}
+icons=$data_home/icons/hicolor
+entry=$data_home/applications/$app_id.desktop
+
+bundled_icons() {
+    (cd "$appdir/usr/share/icons/hicolor" && ls -d -- */apps/$app_id.png */apps/$app_id.svg 2>/dev/null)
+}
+
+refresh_caches() {
+    if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$data_home/applications" 2>/dev/null || true; fi
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache -f -t "$icons" 2>/dev/null || true; fi
+}
+
+install_entry() {
+    if [ -z "${APPIMAGE:-}" ]; then
+        echo "Run the .AppImage file itself to add it to the menu; this copy was started from an extracted folder." >&2
+        exit 1
+    fi
+    mkdir -p "$data_home/applications"
+    # Desktop Entry quoting: escape \ " ` $ inside the quoted path, and % for field codes.
+    exec_path=$(printf '%s' "$APPIMAGE" | sed -e 's/\\/\\\\\\\\/g' -e 's/["`$]/\\\\&/g' -e 's/%/%%/g')
+    try_exec=$(printf '%s' "$APPIMAGE" | sed -e 's/\\/\\\\/g')
+    # GIO checks that the program exists before expanding %%, so a path with % would
+    # never load there. Start it through env instead; env then gets the expanded path.
+    launcher=
+    case $APPIMAGE in *%*) launcher="env " ;; esac
+    LAUNCHER=$launcher EXEC_PATH=$exec_path TRY_EXEC=$try_exec awk '
+        /^Exec=/ { print "Exec=" ENVIRON["LAUNCHER"] "\"" ENVIRON["EXEC_PATH"] "\""; print "TryExec=" ENVIRON["TRY_EXEC"]; next }
+        /^TryExec=/ { next }
+        { print }
+    ' "$appdir/$app_id.desktop" > "$entry.tmp"
+    mv "$entry.tmp" "$entry"
+    echo "Installed $entry"
+    for icon in $(bundled_icons); do
+        mkdir -p "$icons/$(dirname "$icon")"
+        cp "$appdir/usr/share/icons/hicolor/$icon" "$icons/$icon"
+        echo "Installed $icons/$icon"
+    done
+    refresh_caches
+    echo "Bahá’í Reader is now in your application menu. Remove it with: $APPIMAGE --remove-desktop-entry"
+}
+
+remove_entry() {
+    if [ -f "$entry" ] && grep -q '^X-AppImage-Version=' "$entry"; then
+        rm -f "$entry"
+        echo "Removed $entry"
+    elif [ -f "$entry" ]; then
+        echo "Left $entry alone: it was not created by the AppImage." >&2
+        echo "Left the icons alone too: they belong with that entry." >&2
+        refresh_caches
+        return
+    fi
+    # Only icons identical to the bundled ones are ours; another install may share the name.
+    for icon in $(bundled_icons); do
+        if [ -f "$icons/$icon" ] && cmp -s "$appdir/usr/share/icons/hicolor/$icon" "$icons/$icon"; then
+            rm -f "$icons/$icon"; echo "Removed $icons/$icon"
+        elif [ -f "$icons/$icon" ]; then
+            echo "Left $icons/$icon alone: it differs from the AppImage's icon." >&2
+        fi
+    done
+    refresh_caches
+}
+
+case "${1:-}" in
+    --install-desktop-entry) install_entry; exit 0 ;;
+    --remove-desktop-entry) remove_entry; exit 0 ;;
+esac
+
+exec "$appdir/usr/lib/bahai-reader/bahai-reader" "$@"

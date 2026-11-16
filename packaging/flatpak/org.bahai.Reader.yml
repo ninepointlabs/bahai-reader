@@ -1,0 +1,48 @@
+# Self-hosted Flatpak bundle for any distribution; not submitted to Flathub.
+# Packs the Flutter release bundle built beforehand (flutter build linux --release); the GNOME runtime supplies GTK 3.
+# Build with scripts/build-flatpak.sh.
+app-id: org.bahai.Reader
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: bahai-reader
+finish-args:
+  - --share=ipc
+  # Downloads other languages from bahaiprayers.net, only when asked.
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Reminders.
+  - --talk-name=org.freedesktop.Notifications
+  # Read-only access to the current Omarchy theme palette.
+  - --filesystem=xdg-config/omarchy/current:ro
+  - --filesystem=~/.local/state/omarchy/current:ro
+modules:
+  - name: bahai-reader
+    buildsystem: simple
+    build-commands:
+      - cp -R bundle /app/lib/bahai-reader
+      - mkdir -p /app/bin && ln -s ../lib/bahai-reader/bahai-reader /app/bin/bahai-reader
+      - install -Dm644 -t /app/share/applications org.bahai.Reader.desktop
+      - install -Dm644 -t /app/share/icons/hicolor/scalable/apps org.bahai.Reader.svg
+      - cp -R icons/hicolor /app/share/icons/
+      - install -Dm644 -t /app/share/metainfo org.bahai.Reader.metainfo.xml
+      - install -Dm644 -t /app/share/licenses/bahai-reader LICENSE DATA-NOTICE.md
+    sources:
+      - type: dir
+        path: ../../build/linux/x64/release/bundle
+        dest: bundle
+      - type: file
+        path: ../org.bahai.Reader.desktop
+      - type: file
+        path: ../org.bahai.Reader.svg
+      - type: dir
+        path: ../icons
+        dest: icons
+      - type: file
+        path: ../org.bahai.Reader.metainfo.xml
+      - type: file
+        path: ../../LICENSE
+      - type: file
+        path: ../../DATA-NOTICE.md

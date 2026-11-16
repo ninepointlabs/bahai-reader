@@ -12,7 +12,6 @@ import '../../core/library/citations.dart';
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
 
-  static const realApp = 'https://github.com/ninepointlabs/bahai-reader';
   static const site = 'https://bahaireader.org';
 
   @override
@@ -21,7 +20,7 @@ class AboutScreen extends StatefulWidget {
 
 /// Version details to paste into a support email (GTK `details()`).
 String versionDetails() =>
-    '$appName $appVersion\nFlutter port, Dart ${Platform.version.split(' ').first}\n'
+    '$appName $appVersion\nFlutter, Dart ${Platform.version.split(' ').first}\n'
     '${Platform.operatingSystem} ${Platform.operatingSystemVersion}, ${Platform.environment['XDG_CURRENT_DESKTOP'] ?? 'unknown desktop'}';
 
 /// What is kept where, and the only times the network is used (GTK `privacy()`).
@@ -99,13 +98,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   Text(appName, style: theme.textTheme.headlineSmall),
                   const SizedBox(height: 4),
                   const Text(tagline),
-                  Text('Version $appVersion · Flutter port', style: dim),
-                  const SizedBox(height: 4),
-                  Text(
-                    'The released app is still the GTK Bahá’í Reader (${AboutScreen.realApp}, ${AboutScreen.site}); this port is '
-                    'meant to replace it once its features match.',
-                    style: dim,
-                  ),
+                  Text('Version $appVersion', style: dim),
                   const SizedBox(height: 20),
                   row('Made by', text(organization)),
                   row('Created', text(created)),
