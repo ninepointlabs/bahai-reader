@@ -1,5 +1,5 @@
 name: bahai_reader
-description: "Experimental Flutter port of Bahá’í Reader. Offline; no network calls at runtime."
+description: "Flutter port of Bahá’í Reader. Offline; the network is used only to download a language when asked."
 publish_to: 'none'
 version: 0.0.1+1
 

@@ -6,7 +6,7 @@
 > - Source: https://github.com/ninepointlabs/bahai-reader
 > - Site: https://bahaireader.org
 
-Offline-first: the library is bundled, and the app makes **no network calls**, has no analytics and no telemetry.
+Offline-first: the library is bundled, and the app uses the network **only** when you ask it to download a language (or the list of languages) in Languages & offline libraries, as the GTK app does. No analytics, no telemetry.
 
 ## What it does (v0)
 
