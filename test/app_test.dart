@@ -50,6 +50,9 @@ void main() {
     await tester.pumpWidget(BahaiReaderApp(state: s));
     await tester.pumpAndSettle();
     expect(find.text('Bahá’í Reader'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget, reason: 'the phone layout opens on Today');
+    await tester.tap(find.text('Writings'));
+    await tester.pumpAndSettle();
     expect(find.text('The Hidden Words'), findsOneWidget);
     await tester.tap(find.text('The Hidden Words'));
     await tester.pumpAndSettle();
@@ -72,6 +75,8 @@ void main() {
     addTearDown(tester.view.reset);
     final s = (await tester.runAsync(state))!;
     await tester.pumpWidget(BahaiReaderApp(state: s));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Writings'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('The Hidden Words'));
     await tester.pumpAndSettle();

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'core/app/app_state.dart';
 import 'core/app/theme.dart';
+import 'core/calendar/zones.dart';
 import 'core/platform/notifier.dart';
 import 'core/platform/window_control.dart';
 import 'features/desktop/shell.dart';
@@ -20,6 +21,11 @@ Future<void> main(List<String> args) async {
   if (Platform.isLinux) {
     state.watchOmarchyTheme();
     state.startReminders(Notifier.forPlatform(), autostart: Autostart());
+  }
+  if (Platform.isAndroid) {
+    final zone = await AndroidNotifier.deviceZone();
+    if (zone != null) useZone(zone);
+    state.startReminders(Notifier.forPlatform());
   }
   final at = args.indexOf('--open');
   runApp(BahaiReaderApp(state: state, openId: at >= 0 && at + 1 < args.length ? args[at + 1] : null));

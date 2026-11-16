@@ -38,3 +38,14 @@ tz.Location localZone() {
   }
   return tz.UTC;
 }
+
+/// Uses [name] as this device's zone (Android reports it; Dart cannot read it there). False if it is not a known zone.
+bool useZone(String name) {
+  initTimeZones();
+  try {
+    tz.setLocalLocation(tz.getLocation(name));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}

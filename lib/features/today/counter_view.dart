@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
 import '../../core/calendar/badi.dart';
-import 'widgets.dart';
+import '../desktop/widgets.dart';
 
 /// The Alláh-u-Abhá counter (GTK `counter.py`): Space or Enter counts, Backspace undoes, Ctrl+0 starts over, Esc goes
 /// back. The count is kept only while the app runs; it is not a record. The target is remembered.

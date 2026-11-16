@@ -6,6 +6,41 @@ user-local install; nothing was reinstalled and no sudo was used).
 **This is an experiment, not a replacement.** The real app: https://github.com/ninepointlabs/bahai-reader ·
 https://bahaireader.org
 
+## Update 4: Today and reminders on phones (2026-11-15, late)
+
+Asked for: “add Today and reminders to the phone layout too”.
+
+- **Phone layout** (`lib/features/library/library_screen.dart`, `lib/features/today/phone_today.dart`): tabs Today ·
+  Writings · Prayers, opening on Today (the same `TodayView` cards as the desktop, buttons opening pages); Prayers
+  starts with an “Obligatory prayers” card (counter, Location & reminders, the three prayers and the guidance, read
+  with Next/Previous among them); ⋮ → Location & reminders (the same settings as a full page); the reader shows the
+  “Said today / this morning …” button under an obligatory prayer. Today, the counter, Location & reminders and the
+  Said button moved to `lib/features/today/`, shared by both layouts.
+- **Reminders on Android**: the same rules (`upcomingReminders()` in `reminders.dart`, built on `candidateReminders()`)
+  produce the next 7 days, handed to `android/app/src/main/kotlin/.../Reminders.kt`, which sets an alarm per reminder
+  (exact where Android allows it, otherwise as near as it allows), shows it when due (replacing its group, timing out
+  when stale), and sets the alarms again after a restart (`BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`). Handed over again
+  at start, when the app comes back to the front, hourly while open, and when a setting or Said mark changes.
+  “Said today” on a notification is kept for the app and cancels that prayer’s later reminders at once; “Open” opens the
+  app on the prayer or Today. The device’s time zone now comes from Android (Dart cannot read it there). Notification
+  permission is asked when a reminder is first turned on. New permissions: `POST_NOTIFICATIONS`,
+  `RECEIVE_BOOT_COMPLETED`; still no `INTERNET`.
+
+Verified: `flutter analyze` clean; `flutter test` **54 passed** (new `test/phone_today_test.dart` (3): phone opens on
+Today, prayer chosen on the Location page, Said from Today shows in the prayer, Obligatory prayers → counter, and the
+scheduling/pending-tap flow; `reminders_test.dart` gains a check that the week handed over contains every reminder the
+desktop would send at its time over six days). On the Android emulator (API 36, headless, debug build with seeded clock
+hours): the due reminder showed at once with Said today and Open; 15 alarms were set; with the app process killed, the
+“closes at 10:16 PM” alarm fired on time and replaced the first; tapping Said today in the shade withdrew it and, on
+opening the app, the mark was recorded (Today showed ✓ Said today); tapping Open on a Medium reminder opened the
+Medium prayer among the three. The release APK permissions were checked with aapt.
+
+Not verified / differs: reboot re-arming was not tested (no reboot of the emulator); behaviour under Doze and battery
+savers on real phones untested (alarms may come a few minutes late without the exact-alarm permission, which is not
+requested); reminders stop if the app is not opened for a week. The phone reader’s heading for some prayers shows a
+cut-off opening line (“TO BE RECITED DAILY… le”) — an existing quirk of the phone reader, not changed here. iOS has no
+reminders.
+
 ## Update 3: reminders (2026-11-15, night)
 
 Asked for: “add the reminders too”. Ported from the GTK app’s `badi.py` (reminders), `reminders.py` and `location.py`,
@@ -51,7 +86,7 @@ and a second launch exited and brought the same window back, redrawn.
 Not verified / differs: “Open” from a notification bringing a hidden window forward was only covered by the widget
 test (the live try failed because the app forgot a notification once its popup expired; fixed, not re-run live — test
 windows were opening over a game on the active workspace, so live window tests stopped). Login autostart was not
-tested by logging in. If the GTK app’s reminders are also on, both apps notify. The phone layout has no reminders.
+tested by logging in. If the GTK app’s reminders are also on, both apps notify. (Phones: see Update 4.)
 
 ## Update 2: Today and the obligatory prayers (2026-11-15, evening)
 

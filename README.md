@@ -29,6 +29,10 @@ Offline-first: the library is bundled, and the app makes **no network calls**, h
   passage of the day and the Today calendar; an Obligatory prayers section under Prayers with the Kitáb-i-Aqdas guidance;
   the Alláh-u-Abhá counter; Location & reminders (city search, clock times, Long prayer period). Ported from the
   GTK app's `badi.py` and `today.py` and checked against them.
+- **On phones** (Android): the app opens on a Today tab with the same cards; Prayers starts with Obligatory prayers (the
+  counter, the three prayers, their guidance); ⋮ → Location & reminders; "Said today" in the prayer. Reminders are set as
+  alarms a week ahead and arrive with the app closed (and after a restart of the phone); "Said today" on the notification
+  marks it without opening the app.
 - **Reminders** (Linux): desktop notifications when the obligatory prayer's time opens and before it closes (with
   "Said today" and "Open" on the notification), a nudge before the Long prayer's period resets, Feasts, Holy Days, the
   Fast's approach and each fasting day's sunrise and sunset. All off until turned on in Location & reminders. Optionally
@@ -69,15 +73,16 @@ lib/
     calendar/   badi.dart (Badí‘ calendar, sun, prayer windows: port of GTK badi.py), today.dart (Today's cards as data),
                 reminders.dart (which reminders are due: port of GTK badi.py's reminders),
                 cities.dart (city search), zones.dart (bundled time-zone database)
-    platform/   notifier.dart (desktop notifications over the session bus), window_control.dart (hide/present the
-                Linux window, the login entry)
+    platform/   notifier.dart (Linux: notifications over the session bus; Android: alarms set a week ahead, see
+                android/.../Reminders.kt), window_control.dart (hide/present the Linux window, the login entry)
     marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
   features/
     desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
-                Highlights & notes, Today, the counter, Location & reminders
-                (shell_model.dart holds where the window is)
+                Highlights & notes (shell_model.dart holds where the window is)
+    today/      shared by both layouts: Today's cards, the counter, Location & reminders, the Said button;
+                phone_today.dart opens them as pages on phones
     library/  reader/  search/  marks/    the touch layout (phones, tablets)
     settings/  about/                     shared by both
 scripts/convert_library.py     rebuilds assets/library/ and assets/calendar/ from the GTK app's data/

@@ -61,4 +61,28 @@ void main() {
     expect(pruneSent(['2026-11-11:a', '2026-11-12:b', '2026-11-15:c'], day(2026, 11, 15)), ['2026-11-12:b', '2026-11-15:c']);
     expect([longLead(null), longLead(0), longLead(5), longLead(13), longLead('3')], [2, 2, 5, 2, 2]);
   });
+
+  test('upcoming reminders for phones: the same reminders, ahead of time, each once', () {
+    final chicago = places['chicago'];
+    final s = settings['medium']!;
+    final moment = tz.TZDateTime(chicago!.location, 2026, 2, 28, 13, 10);
+    final (later, now) = upcomingReminders(cal, s, moment, chicago, clock, const [], const []);
+    expect(later.map((r) => r.id).toSet().length, later.length, reason: 'no duplicates');
+    expect(later.every((r) => r.at.isAfter(moment)), isTrue);
+    expect(later.last.at.difference(moment).inDays, lessThanOrEqualTo(8));
+    // Everything the desktop would send over those days, at its time, is among them.
+    for (var h = 0; h < 24 * 6; h += 1) {
+      final m = tz.TZDateTime.from(moment.add(Duration(hours: h, minutes: 1)), chicago.location);
+      for (final r in candidateReminders(cal, s, m, chicago, clock)) {
+        if (r.at.isAfter(moment) && !r.at.isAfter(m) && m.isBefore(r.until)) {
+          expect(later.any((x) => x.id == r.id), isTrue, reason: '${r.id} at $m');
+        }
+      }
+    }
+    expect(now.map((r) => r.id), ['2026-02-28:medium:noon:opens']);
+    final (_, again) = upcomingReminders(cal, s, moment, chicago, clock, [for (final r in now) r.id], const []);
+    expect(again, isEmpty, reason: 'not handed over twice');
+    final (afterSaid, _) = upcomingReminders(cal, s, moment, chicago, clock, const [], ['2026-02-28:medium:noon']);
+    expect(afterSaid.any((r) => r.said == '2026-02-28:medium:noon'), isFalse, reason: 'said: no closing nudge');
+  });
 }

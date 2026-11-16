@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
 import '../../core/calendar/today.dart';
-import 'widgets.dart';
+import '../desktop/widgets.dart';
 
 /// Today: the Badí‘ date, the sun, the obligatory prayer, the counter, the next Feast and Holy Day, the Fast and the
 /// passage of the day, in one calm column (GTK `today.py`). Redrawn every 30 seconds, so "Open now" stays true.

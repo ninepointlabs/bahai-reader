@@ -8,6 +8,7 @@ import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
 import '../../core/marks/highlight.dart';
 import '../marks/highlight_sheet.dart';
+import '../today/said_toggle.dart';
 import 'passage_text.dart';
 
 /// Reads a work passage by passage, with its contents beside the text (wide windows) or in a drawer (narrow ones).
@@ -269,6 +270,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     for (final (id, label) in passage.references)
                       ActionChip(label: Text(label), onPressed: () => openPassage(id)),
                   ]),
+                ],
+                // "Said today" for an obligatory prayer: the same mark as on Today.
+                if (state.saidWindow(passage) case final w?) ...[
+                  const SizedBox(height: 16),
+                  Align(alignment: Alignment.centerLeft, child: SaidToggle(window: w)),
                 ],
                 const SizedBox(height: 24),
                 Row(children: [

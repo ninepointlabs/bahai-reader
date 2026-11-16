@@ -19,7 +19,7 @@ import 'app_test.dart' show settle;
 import 'disk_bundle.dart';
 
 /// Records what would be shown, instead of the desktop's notifications.
-class FakeNotifier implements Notifier {
+class FakeNotifier extends Notifier {
   final sent = <Reminder>[];
   final withdrawn = <String>[];
   final clicks = StreamController<NotificationAction>.broadcast();

@@ -67,7 +67,10 @@ class AppState extends ChangeNotifier {
       // Libraries that hold marks made in other languages, so they can follow into this one. Loaded in the background;
       // [marksReady] completes when they are in.
       marksReady = Future.wait([
-        for (final l in {for (final h in settings.highlights) languageOf(h.id), for (final id in settings.saved) languageOf(id)})
+        for (final l in {
+          for (final h in settings.highlights) languageOf(h.id),
+          for (final id in settings.saved) languageOf(id),
+        })
           if (l != settings.language && languages.any((x) => x.id == l))
             repository.load(l).then((lib) {
               _loaded[l] = lib;
@@ -90,11 +93,15 @@ class AppState extends ChangeNotifier {
     _followCache.clear();
   }
 
-  LanguageInfo get language => languages.firstWhere((l) => l.id == settings.language,
-      orElse: () => const LanguageInfo(id: 1, name: 'English', english: 'English'));
+  LanguageInfo get language => languages.firstWhere(
+    (l) => l.id == settings.language,
+    orElse: () => const LanguageInfo(id: 1, name: 'English', english: 'English'),
+  );
 
-  LanguageInfo languageInfo(int id) =>
-      languages.firstWhere((l) => l.id == id, orElse: () => LanguageInfo(id: id, name: 'Language $id', english: 'Language $id'));
+  LanguageInfo languageInfo(int id) => languages.firstWhere(
+    (l) => l.id == id,
+    orElse: () => LanguageInfo(id: id, name: 'Language $id', english: 'Language $id'),
+  );
 
   Future<void> setLanguage(int id) async {
     if (id == settings.language) return;
@@ -136,6 +143,7 @@ class AppState extends ChangeNotifier {
     if (!active) settings.said.remove(key);
     settings.said = pruneSaid(settings.said, dayOf(now()), keepHistory: settings.keepRecords);
     await _save();
+    await _remindersChanged();
   }
 
   /// The long prayer's mark, worked out at the click: with "24 hours since last said" the 24 hours run from now.
@@ -162,21 +170,25 @@ class AppState extends ChangeNotifier {
   Future<void> setLocation(Place? place) async {
     settings.location = place;
     await _save();
+    await _remindersChanged();
   }
 
   Future<void> setClockHours(ClockHours? hours) async {
     settings.clockHours = hours;
     await _save();
+    await _remindersChanged();
   }
 
   Future<void> setPrayer(String prayer) async {
     settings.prayer = prayer;
     await _save();
+    await _remindersChanged();
   }
 
   Future<void> setLongPeriod(String period) async {
     settings.longPeriod = period;
     await _save();
+    await _remindersChanged();
   }
 
   Future<void> setKeepRecords(bool keep) async {
@@ -217,24 +229,84 @@ class AppState extends ChangeNotifier {
   Stream<String> get openRequests => _openRequests.stream;
 
   /// Checks every 30 seconds what is due (GTK `tick()`): a long timer would not survive suspend or a clock change.
+  /// Where the system schedules reminders (Android), they are handed over again now, when the app comes back to the
+  /// front, every hour while it is open, and whenever a setting or a Said mark changes them.
   void startReminders(Notifier n, {Autostart? autostart}) {
     notifier = n;
     this.autostart = autostart;
     _clicks?.cancel();
-    _clicks = n.actions.listen(notificationAction);
+    _clicks = n.actions.listen((a) => a == 'pending' ? takePendingActions() : notificationAction(a));
     _reminderTimer?.cancel();
-    _reminderTimer = Timer.periodic(const Duration(seconds: 30), (_) => sendDueReminders());
-    window.setKeepRunning(settings.keepRunning);
-    sendDueReminders();
+    _reminderTimer = Timer.periodic(Duration(seconds: n.schedules ? 3600 : 30), (_) => sendDueReminders());
+    if (n.schedules) {
+      _lifecycle?.dispose();
+      _lifecycle = AppLifecycleListener(
+        onResume: () async {
+          await takePendingActions();
+          await sendDueReminders();
+        },
+      );
+      takePendingActions().then((_) => sendDueReminders());
+    } else {
+      window.setKeepRunning(settings.keepRunning);
+      sendDueReminders();
+    }
   }
 
-  static final _saidKey = RegExp(r'^\d{4}-\d\d-\d\d:((short|medium):(morning|noon|evening)|long:(sunset|noon|midnight|at:\d+))$');
+  AppLifecycleListener? _lifecycle;
 
-  /// Sends what is due now, each at most once; what went stale (after a sleep) is marked and skipped.
+  /// Clicks on notifications made while the app was closed or in the background.
+  Future<void> takePendingActions() async {
+    for (final a in await notifier.takePending()) {
+      await notificationAction(a);
+    }
+  }
+
+  /// After a change that alters which reminders there are, on phones: hand them over again.
+  Future<void> _remindersChanged() async {
+    if (notifier.schedules) await sendDueReminders();
+  }
+
+  static final _saidKey = RegExp(
+    r'^\d{4}-\d\d-\d\d:((short|medium):(morning|noon|evening)|long:(sunset|noon|midnight|at:\d+))$',
+  );
+
+  /// Sends what is due now, each at most once; what went stale (after a sleep) is marked and skipped. On phones, also
+  /// hands over the week ahead.
   Future<void> sendDueReminders() async {
     final moment = now();
+    if (notifier.schedules) {
+      final (later, due) = upcomingReminders(
+        calendar,
+        settings.reminderSettings,
+        moment,
+        settings.place,
+        clock,
+        settings.remindersSent,
+        settings.said,
+      );
+      final before = notifier.unavailable;
+      for (final r in due) {
+        await notifier.send(r);
+      }
+      await notifier.schedule(later);
+      // What was handed over is not handed over again as "due now" once its time comes.
+      settings.remindersSent = pruneSent(
+        {...settings.remindersSent, ...due.map((r) => r.id), ...later.map((r) => r.id)}.toList(),
+        dayOf(moment),
+      );
+      await _save(notify: notifier.unavailable != before);
+      return;
+    }
     final (due, marked) = dueReminders(
-        calendar, settings.reminderSettings, moment, settings.place, clock, settings.remindersSent, settings.said);
+      calendar,
+      settings.reminderSettings,
+      moment,
+      settings.place,
+      clock,
+      settings.remindersSent,
+      settings.said,
+    );
     if (marked.isEmpty) return;
     settings.remindersSent = pruneSent([...settings.remindersSent, ...marked], dayOf(moment));
     final before = notifier.unavailable;
@@ -251,6 +323,9 @@ class AppState extends ChangeNotifier {
       if (!_saidKey.hasMatch(key)) return;
       await markSaid(key, true);
       await notifier.withdraw('prayer:${key.split(':')[1]}');
+    } else if (action.startsWith('open:') && notifier.schedules) {
+      // Android opened the app for it: already in front.
+      _openRequests.add(action.substring(5));
     } else if (action.startsWith('open:')) {
       await window.present();
       _openRequests.add(action.substring(5));
@@ -260,6 +335,7 @@ class AppState extends ChangeNotifier {
   Future<void> setReminder(String key, bool on) async {
     if (!reminderSwitches.contains(key)) return;
     settings.reminders[key] = on;
+    if (on) await notifier.requestPermission();
     await _save();
     await sendDueReminders();
   }
@@ -315,17 +391,18 @@ class AppState extends ChangeNotifier {
     _themeTimer?.cancel();
     _reminderTimer?.cancel();
     _clicks?.cancel();
+    _lifecycle?.dispose();
     _openRequests.close();
     super.dispose();
   }
 
   /// The palette chosen in settings, or null to follow the system's light or dark.
   Palette? get fixedPalette => switch (settings.theme) {
-        'light' => Palette.light,
-        'dark' => Palette.dark,
-        'sepia' => Palette.sepia,
-        _ => omarchy,
-      };
+    'light' => Palette.light,
+    'dark' => Palette.dark,
+    'sepia' => Palette.sepia,
+    _ => omarchy,
+  };
 
   ThemeMode get themeMode {
     final fixed = fixedPalette;
@@ -351,7 +428,9 @@ class AppState extends ChangeNotifier {
     final recent = work.kind == 'writings'
         ? [work.title, ...settings.recent.where((b) => b != work.title)].take(Settings.recentBooks).toList()
         : settings.recent;
-    if (settings.positions[work.title] == p.id && (recent.isEmpty || settings.recent.firstOrNull == recent.first)) return;
+    if (settings.positions[work.title] == p.id && (recent.isEmpty || settings.recent.firstOrNull == recent.first)) {
+      return;
+    }
     settings.positions[work.title] = p.id;
     settings.recent = recent;
     _save(notify: false);
@@ -375,7 +454,9 @@ class AppState extends ChangeNotifier {
     final lib = library;
     if (lib == null) return null;
     return _followCache.putIfAbsent(
-        key, () => follow(key, lib.byId, lib.byMatch, (l) => _loaded[l]?.matches ?? const <String, String>{}));
+      key,
+      () => follow(key, lib.byId, lib.byMatch, (l) => _loaded[l]?.matches ?? const <String, String>{}),
+    );
   }
 
   // ----- saved passages -----
@@ -405,8 +486,10 @@ class AppState extends ChangeNotifier {
 
   /// Highlights made on this passage in another language: shown as a passage-level marker with the note, never as a
   /// guessed word range.
-  List<Highlight> followedHighlights(Passage p) =>
-      [for (final h in settings.highlights) if (h.id != p.id && passageOf(h.id)?.id == p.id) h];
+  List<Highlight> followedHighlights(Passage p) => [
+    for (final h in settings.highlights)
+      if (h.id != p.id && passageOf(h.id)?.id == p.id) h,
+  ];
 
   Future<Highlight?> addHighlight(Passage p, int start, int end, {String? color, String? note}) async {
     final record = makeHighlight(p.id, p.text, start, end, color: color ?? settings.highlightColor, note: note);
@@ -418,13 +501,17 @@ class AppState extends ChangeNotifier {
   }
 
   /// The stored record a (possibly older copy of a) highlight refers to: same passage, range and words.
-  int _find(Highlight h) => settings.highlights
-      .indexWhere((r) => r.id == h.id && r.start == h.start && r.end == h.end && r.words == h.words);
+  int _find(Highlight h) =>
+      settings.highlights.indexWhere((r) => r.id == h.id && r.start == h.start && r.end == h.end && r.words == h.words);
 
   Future<void> updateHighlight(Highlight old, {String? color, String? note, bool clearNote = false}) async {
     final i = _find(old);
     if (i < 0) return;
-    settings.highlights[i] = settings.highlights[i].copyWith(color: color, note: cleanNote(note), clearNote: clearNote || (note != null && cleanNote(note) == null));
+    settings.highlights[i] = settings.highlights[i].copyWith(
+      color: color,
+      note: cleanNote(note),
+      clearNote: clearNote || (note != null && cleanNote(note) == null),
+    );
     await _save();
   }
 

@@ -6,7 +6,7 @@ import '../../core/calendar/today.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import 'shell_model.dart';
-import 'today_view.dart';
+import '../today/today_view.dart';
 import 'widgets.dart';
 
 /// Home: Continue reading (the books read most recently) and the library. With [libraryOnly], the Writings page: the

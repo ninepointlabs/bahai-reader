@@ -194,3 +194,30 @@ List<String> pruneSent(List<String> sent, DateTime today) {
   final oldest = isoDay(addDays(today, -sentDays));
   return [for (final k in sent) if (k.length >= 10 && k.substring(0, 10).compareTo(oldest) >= 0) k];
 }
+
+/// For phones, where the app is not running when a reminder falls due, so reminders are handed to the system ahead of
+/// time: (every reminder turned on whose time is still to come within [days], those due now that were not handed over
+/// before, latest per group). Said reminders are left out. Built from the same [candidateReminders] as the desktop's.
+(List<Reminder>, List<Reminder>) upcomingReminders(BadiCalendar cal, ReminderSettings s, tz.TZDateTime moment, Place? place,
+    String Function(tz.TZDateTime) clock, Iterable<String> sent, Iterable<String> said,
+    {int days = 7}) {
+  final sentSet = sent.toSet(), saidSet = said.toSet();
+  final seen = <String>{};
+  final later = <Reminder>[];
+  final now = <String, Reminder>{};
+  final today = dayOf(moment);
+  for (var d = 0; d < days; d++) {
+    final at = d == 0 ? moment : atHour(addDays(today, d), 12, place);
+    for (final r in candidateReminders(cal, s, at, place, clock, saidSet)) {
+      if (!seen.add(r.id) || !_before(moment, r.until) || (r.said != null && saidSet.contains(r.said))) continue;
+      if (_before(moment, r.at)) {
+        later.add(r);
+      } else if (!sentSet.contains(r.id)) {
+        final best = now[r.group];
+        if (best == null || _before(best.at, r.at)) now[r.group] = r;
+      }
+    }
+  }
+  later.sort((a, b) => a.at.compareTo(b.at));
+  return (later, now.values.toList());
+}
