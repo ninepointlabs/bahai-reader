@@ -54,6 +54,12 @@ void main() {
     await tester.tap(find.text('Writings'));
     await tester.pumpAndSettle();
     expect(find.byType(Card), findsNothing, reason: 'tablets too: authors that fold open, not cards');
+    await tester.tap(find.text('Prayers'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Card), findsNothing, reason: 'and the prayer topics as an index');
+    expect(find.text('Obligatory prayers'), findsOneWidget);
+    await tester.tap(find.text('Writings'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bahá’u’lláh'));
     await tester.pumpAndSettle();
     expect(find.text('The Hidden Words'), findsOneWidget);
