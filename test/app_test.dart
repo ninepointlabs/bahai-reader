@@ -7,6 +7,8 @@ import 'package:bahai_reader/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/temp.dart';
+
 import 'disk_bundle.dart';
 
 /// Lets futures that complete on the real event loop (isolates, runAsync work) reach the widgets, then settles.
@@ -21,7 +23,7 @@ Future<void> settle(WidgetTester tester) async {
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-app'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   Future<AppState> state() => AppState.create(
       repository: LibraryRepository(bundle: DiskBundle()), store: SettingsStore(File('${dir.path}/settings.json')));

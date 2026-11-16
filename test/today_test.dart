@@ -8,6 +8,8 @@ import 'package:bahai_reader/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/temp.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import 'app_test.dart' show settle;
@@ -17,7 +19,7 @@ import 'disk_bundle.dart';
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-today'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   /// 15 November 2026, 1 pm in Chicago: 12 Qudrat 183 B.E., the Short prayer's window open.
   Future<AppState> state({bool chicago = true}) async {

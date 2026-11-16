@@ -9,6 +9,8 @@ import 'package:bahai_reader/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/temp.dart';
+
 import 'disk_bundle.dart';
 
 /// A GTK settings.json with every key the GTK app (v0.2.3) writes, in its shapes.
@@ -80,7 +82,7 @@ void main() {
     gtk = File('${gtkDir.path}/settings.json')..writeAsStringSync(jsonEncode(gtkSettings()));
     File('${gtkDir.path}/settings.json.bad').writeAsStringSync('{older damaged copy');
   });
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   SettingsStore store() => SettingsStore(File('${dir.path}/flutter/settings.json'));
   Future<AppState> start({File? from}) => AppState.create(

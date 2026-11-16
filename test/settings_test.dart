@@ -4,10 +4,12 @@ import 'package:bahai_reader/core/marks/highlight.dart';
 import 'package:bahai_reader/core/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/temp.dart';
+
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-test'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   test('settings round-trip with GTK-shaped highlight records', () async {
     final store = SettingsStore(File('${dir.path}/settings.json'));
@@ -18,8 +20,15 @@ void main() {
     expect(notice, isNull);
     expect(loaded.theme, 'dark');
     expect(loaded.saved, ['hidden:2']);
-    expect(loaded.highlights.single.toJson(),
-        {'id': 'hidden:2', 'start': 4, 'end': 7, 'words': 'def', 'color': 'yellow', 'created': '2026-11-15', 'note': 'n'});
+    expect(loaded.highlights.single.toJson(), {
+      'id': 'hidden:2',
+      'start': 4,
+      'end': 7,
+      'words': 'def',
+      'color': 'yellow',
+      'created': '2026-11-15',
+      'note': 'n',
+    });
   });
 
   test('an unreadable settings file is set aside, never overwritten', () async {
@@ -36,5 +45,5 @@ void main() {
     final store = await SettingsStore.standard();
     expect(store.file.path, isNot(gtkSettingsFile().path));
     expect(store.file.path, contains('bahai-reader-flutter'));
-  });
+  }, skip: Platform.isLinux ? false : 'The GTK app and its settings file are Linux only');
 }

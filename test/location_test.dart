@@ -7,6 +7,8 @@ import 'package:bahai_reader/core/library/library_repository.dart';
 import 'package:bahai_reader/core/platform/locator.dart';
 import 'package:bahai_reader/core/settings/settings_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/temp.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import 'disk_bundle.dart';
@@ -38,7 +40,7 @@ class LateNotifier extends FakeNotifier {
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-location'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   Future<AppState> state() async {
     final s = await AppState.create(

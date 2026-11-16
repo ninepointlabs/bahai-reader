@@ -45,7 +45,7 @@ jobs:
       # The AppImage starts and keeps running (a crash at start would end it before the timeout).
       - name: Start the AppImage
         run: |
-          APPIMAGE_EXTRACT_AND_RUN=1 ./dist/bahai-reader-*.AppImage --version
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a ./dist/bahai-reader-*.AppImage --version
           set +e; APPIMAGE_EXTRACT_AND_RUN=1 timeout 20 xvfb-run -a dbus-run-session -- ./dist/bahai-reader-*.AppImage; code=$?; set -e
           test "$code" = 124 || { echo "The app exited with $code before 20 s" >&2; exit 1; }
       - run: tar -C build/linux/x64/release -czf bundle.tar.gz bundle
@@ -75,8 +75,8 @@ jobs:
       - name: Install the bundle and start it inside the sandbox
         run: |
           flatpak install --user -y --noninteractive dist/*.flatpak
-          flatpak run org.bahai.Reader --version
           Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2
+          flatpak run org.bahai.Reader --version
           set +e; timeout 20 dbus-run-session -- flatpak run org.bahai.Reader; code=$?; set -e
           test "$code" = 124 || { echo "The app exited with $code before 20 s" >&2; exit 1; }
       - uses: actions/upload-artifact@v4
@@ -103,7 +103,7 @@ jobs:
         env:
           DISTRO: ${{ matrix.distro }}
         run: |
-          check='bahai-reader --version; Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; set +e; timeout 20 dbus-run-session -- bahai-reader; code=$?; test "$code" = 124 || { echo "exited with $code" >&2; exit 1; }'
+          check='Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; sleep 2; bahai-reader --version; set +e; timeout 20 dbus-run-session -- bahai-reader; code=$?; test "$code" = 124 || { echo "exited with $code" >&2; exit 1; }'
           case "$DISTRO" in
             debian) docker run --rm -v "$PWD:/work:ro" debian:12 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libegl1 libgl1-mesa-dri; $check" ;;
             ubuntu) docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 bash -ec "apt-get update; apt-get install -y /work/dist/*.deb xvfb dbus libegl1 libgl1-mesa-dri; $check" ;;
@@ -144,7 +144,7 @@ jobs:
       - run: |
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/bahai-reader-$(scripts/version.sh).apk"
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs dist/*.apk | grep SHA-256
+          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs dist/*.apk | grep SHA-256
       - uses: actions/upload-artifact@v4
         with:
           name: android

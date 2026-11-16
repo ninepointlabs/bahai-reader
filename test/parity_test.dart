@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/temp.dart';
+
 import 'app_test.dart' show settle;
 import 'disk_bundle.dart';
 
@@ -46,7 +48,7 @@ Map<String, (String, DateTime)> snapshot(Directory d) => {
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-parity'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   SettingsStore store() => SettingsStore(File('${dir.path}/settings.json'));
   PackFolders folders() =>

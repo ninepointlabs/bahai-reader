@@ -14,6 +14,8 @@ import 'package:bahai_reader/features/today/counter_view.dart';
 import 'package:bahai_reader/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/temp.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import 'disk_bundle.dart';
@@ -52,7 +54,7 @@ class FakeScheduler extends Notifier {
 void main() {
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('bahai-reader-flutter-phone'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() => removeTemp(dir));
 
   /// 15 November 2026, 1 pm in Chicago: the Short prayer's window is open.
   Future<AppState> state() async {
