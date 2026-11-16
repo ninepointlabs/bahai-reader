@@ -37,7 +37,12 @@ void main() {
     final pack = jsonDecode(File('test/fixtures/pack-90.json').readAsStringSync());
     expect(checkPack(pack, 4), isNull);
     expect(checkPack({'hidden': []}, 90), isNull);
-    expect(checkPack({'prayers': {'IsInError': true}}, 90), isNull);
+    expect(
+      checkPack({
+        'prayers': {'IsInError': true},
+      }, 90),
+      isNull,
+    );
     expect(checkPack('not a pack', 90), isNull);
   });
 

@@ -47,64 +47,79 @@ class _CollectionsDialogState extends State<CollectionsDialog> {
     final collections = state.settings.collections;
     return Scaffold(
       appBar: AppBar(title: const Text('Collections')),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
-        const Text('Group saved passages into collections. Deleting a collection keeps its passages saved, under $unsorted.'),
-        const SizedBox(height: 16),
-        if (collections.isEmpty) const Text('No collections yet.'),
-        for (final c in collections)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(children: [
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Group saved passages into collections. Deleting a collection keeps its passages saved, under $unsorted.',
+          ),
+          const SizedBox(height: 16),
+          if (collections.isEmpty) const Text('No collections yet.'),
+          for (final c in collections)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: names.putIfAbsent(c.name, () => TextEditingController(text: c.name)),
+                      decoration: InputDecoration(isDense: true, labelText: 'Collection “${c.name}”'),
+                      onSubmitted: (_) => _rename(state, c.name),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${c.items.length} passage${c.items.length == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(onPressed: () => _rename(state, c.name), child: const Text('Rename')),
+                  const SizedBox(width: 6),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final name = c.name;
+                      await state.deleteCollection(name);
+                      names.remove(name)?.dispose();
+                      setState(() => message = 'Deleted “$name”; its passages are under $unsorted.');
+                    },
+                    child: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ),
+          if (message.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4, bottom: 8), child: Text(message)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
               Expanded(
                 child: TextField(
-                  controller: names.putIfAbsent(c.name, () => TextEditingController(text: c.name)),
-                  decoration: InputDecoration(isDense: true, labelText: 'Collection “${c.name}”'),
-                  onSubmitted: (_) => _rename(state, c.name),
+                  controller: create,
+                  autofocus: true,
+                  decoration: const InputDecoration(isDense: true, hintText: 'New collection name'),
+                  onSubmitted: (_) => _create(state),
                 ),
               ),
               const SizedBox(width: 8),
-              Text('${c.items.length} passage${c.items.length == 1 ? '' : 's'}', style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(width: 8),
-              OutlinedButton(onPressed: () => _rename(state, c.name), child: const Text('Rename')),
-              const SizedBox(width: 6),
-              OutlinedButton(
-                onPressed: () async {
-                  final name = c.name;
-                  await state.deleteCollection(name);
-                  names.remove(name)?.dispose();
-                  setState(() => message = 'Deleted “$name”; its passages are under $unsorted.');
-                },
-                child: const Text('Delete'),
-              ),
-            ]),
+              FilledButton(onPressed: () => _create(state), child: const Text('Create')),
+            ],
           ),
-        if (message.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4, bottom: 8), child: Text(message)),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-            child: TextField(
-              controller: create,
-              autofocus: true,
-              decoration: const InputDecoration(isDense: true, hintText: 'New collection name'),
-              onSubmitted: (_) => _create(state),
-            ),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(onPressed: () => _create(state), child: const Text('Create')),
-        ]),
-      ]),
+        ],
+      ),
     );
   }
 }
 
 Future<void> showCollections(BuildContext context) => showDialog<void>(
-      context: context,
-      builder: (context) => Dialog(
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.all(24),
-        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560, maxHeight: 600), child: const CollectionsDialog()),
-      ),
-    );
+  context: context,
+  builder: (context) => Dialog(
+    clipBehavior: Clip.antiAlias,
+    insetPadding: const EdgeInsets.all(24),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560, maxHeight: 600),
+      child: const CollectionsDialog(),
+    ),
+  ),
+);
 
 /// Under a saved passage: which collection it is in, and Manage… (GTK `show_filing()`).
 class FilingRow extends StatelessWidget {

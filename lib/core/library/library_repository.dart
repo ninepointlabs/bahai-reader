@@ -24,7 +24,10 @@ class PackFolders {
   static PackFolders standard({Directory? appSupport}) {
     if (Platform.isLinux) {
       final base = _dataHome();
-      return PackFolders(own: Directory('$base/bahai-reader-flutter/libraries'), gtk: Directory('$base/bahai-reader/libraries'));
+      return PackFolders(
+        own: Directory('$base/bahai-reader-flutter/libraries'),
+        gtk: Directory('$base/bahai-reader/libraries'),
+      );
     }
     return PackFolders(own: appSupport == null ? null : Directory('${appSupport.path}/libraries'));
   }
@@ -60,7 +63,11 @@ class LibraryRepository {
       if (data is! Map) throw const FormatException('Invalid catalog');
       return {
         for (final e in data.entries)
-          if (e.value is List) e.key as String: [for (final r in e.value as List) if (r is Map) r.cast<String, dynamic>()],
+          if (e.value is List)
+            e.key as String: [
+              for (final r in e.value as List)
+                if (r is Map) r.cast<String, dynamic>(),
+            ],
       };
     }
 
@@ -136,21 +143,21 @@ class LibraryRepository {
   Future<bool> bundles(int language) async => (await bundledLanguages()).any((l) => l.id == language);
 
   Future<Library> load(int language) => _cache.putIfAbsent(language, () async {
-        // This app's own download of a language comes first (it may be newer); then a bundled copy; then the GTK app's.
-        final own = folders.ownPack(language);
-        if (language != 1 && own != null && await own.exists()) {
-          final p = await pack(language);
-          if (p != null) return compute(_libraryFromPack, (p.$1, language));
-        }
-        if (await bundles(language)) {
-          final raw = await _bundle.loadString('assets/library/$language.json', cache: false);
-          // English is ~13 MB of JSON; decode it off the UI thread.
-          return compute(parseLibrary, raw);
-        }
-        final p = await pack(language);
-        if (p == null) throw PackError('The library for language $language is not downloaded or could not be read.');
-        return compute(_libraryFromPack, (p.$1, language));
-      });
+    // This app's own download of a language comes first (it may be newer); then a bundled copy; then the GTK app's.
+    final own = folders.ownPack(language);
+    if (language != 1 && own != null && await own.exists()) {
+      final p = await pack(language);
+      if (p != null) return compute(_libraryFromPack, (p.$1, language));
+    }
+    if (await bundles(language)) {
+      final raw = await _bundle.loadString('assets/library/$language.json', cache: false);
+      // English is ~13 MB of JSON; decode it off the UI thread.
+      return compute(parseLibrary, raw);
+    }
+    final p = await pack(language);
+    if (p == null) throw PackError('The library for language $language is not downloaded or could not be read.');
+    return compute(_libraryFromPack, (p.$1, language));
+  });
 
   /// After a download: read the language again.
   void forget(int language) => _cache.remove(language);
@@ -164,9 +171,9 @@ class LibraryRepository {
 
 /// A usable catalog: every feed has a list of {Id: int, Name: string} (GTK `catalog()`'s check).
 bool validCatalog(Map<String, dynamic> data) => feeds.keys.every((k) {
-      final rows = data[k];
-      return rows is List && rows.isNotEmpty && rows.every((r) => r is Map && r['Id'] is int && r['Name'] is String);
-    });
+  final rows = data[k];
+  return rows is List && rows.isNotEmpty && rows.every((r) => r is Map && r['Id'] is int && r['Name'] is String);
+});
 
 Map<String, dynamic>? _readPack((String, int) args) => checkPack(jsonDecode(File(args.$1).readAsStringSync()), args.$2);
 
@@ -179,7 +186,8 @@ Library parseLibrary(String raw) {
     [for (final item in data['items'] as List) Passage.fromJson(item as Map<String, dynamic>)],
     daily: [for (final id in data['daily'] as List? ?? const []) id as String],
     obligatory: [
-      for (final g in data['obligatory'] as List? ?? const []) (g[0] as String, [for (final id in g[1] as List) id as String]),
+      for (final g in data['obligatory'] as List? ?? const [])
+        (g[0] as String, [for (final id in g[1] as List) id as String]),
     ],
   );
 }

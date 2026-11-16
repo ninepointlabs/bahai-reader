@@ -100,12 +100,12 @@ class PackError implements Exception {
 
 /// Python's `str()` of a JSON value, for ids and numbers joined into keys and titles.
 String pyStr(Object? v) => switch (v) {
-      null => 'None',
-      true => 'True',
-      false => 'False',
-      double d when d == d.truncateToDouble() && d.abs() < 1e16 => '${d.toInt()}.0',
-      _ => '$v',
-    };
+  null => 'None',
+  true => 'True',
+  false => 'False',
+  double d when d == d.truncateToDouble() && d.abs() < 1e16 => '${d.toInt()}.0',
+  _ => '$v',
+};
 
 /// The rows of one feed, checked (GTK `validate_feed()`); throws [PackError] if it is not usable.
 List<Map<String, dynamic>> validateFeed(String key, Object? data, int language) {
@@ -136,7 +136,9 @@ List<Map<String, dynamic>> validateFeed(String key, Object? data, int language) 
       throw PackError('Unexpected language or content format');
     }
     if (key == 'hidden' && row['IsArabic'] is! bool) throw PackError('Invalid Hidden Words section');
-    if (key == 'prayers' && row.containsKey('Tags') && row['Tags'] is! List) throw PackError('Invalid prayer categories');
+    if (key == 'prayers' && row.containsKey('Tags') && row['Tags'] is! List) {
+      throw PackError('Invalid prayer categories');
+    }
   }
   return [for (final r in rows) (r as Map).cast<String, dynamic>()];
 }
@@ -177,13 +179,15 @@ final _named = {
 };
 
 String _unescape(String s) => s.replaceAllMapped(RegExp(r'&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z]+);'), (m) {
-      final name = m[1]!;
-      if (name.startsWith('#')) {
-        final code = name[1] == 'x' || name[1] == 'X' ? int.tryParse(name.substring(2), radix: 16) : int.tryParse(name.substring(1));
-        return code == null || code > 0x10FFFF ? m[0]! : String.fromCharCode(code);
-      }
-      return _named[name] ?? m[0]!;
-    });
+  final name = m[1]!;
+  if (name.startsWith('#')) {
+    final code = name[1] == 'x' || name[1] == 'X'
+        ? int.tryParse(name.substring(2), radix: 16)
+        : int.tryParse(name.substring(1));
+    return code == null || code > 0x10FFFF ? m[0]! : String.fromCharCode(code);
+  }
+  return _named[name] ?? m[0]!;
+});
 
 /// The text of a feed's HTML as plain paragraphs (GTK `plain()`): block tags start a paragraph, other tags are dropped.
 String plain(String? html) {
@@ -258,9 +262,10 @@ String? citation(String key, Map<String, dynamic> row) {
       final day = row['HolyDay'];
       where = holyDays[day] ?? _or(day, '');
     case 'ridvan':
-      return [?author, 'Riḍván ${pyStr(row.containsKey('Year') ? row['Year'] : '')}'.trim()]
-          .where((p) => p.isNotEmpty)
-          .join(', ');
+      return [
+        ?author,
+        'Riḍván ${pyStr(row.containsKey('Year') ? row['Year'] : '')}'.trim(),
+      ].where((p) => p.isNotEmpty).join(', ');
     default:
       where = '';
   }
@@ -308,10 +313,13 @@ List<Passage> packPassages(Map<String, dynamic> pack, int language) {
         title = book;
       }
       String? subgroup = key == 'tablets'
-          ? _or(row['SubTitle'], _or(row['Title'], 'Tablet ${pyStr(row.containsKey('TabletNumber') ? row['TabletNumber'] : '')}'))
+          ? _or(
+              row['SubTitle'],
+              _or(row['Title'], 'Tablet ${pyStr(row.containsKey('TabletNumber') ? row['TabletNumber'] : '')}'),
+            )
           : key == 'iqan'
-              ? 'Part ${pyStr(row.containsKey('Part') ? row['Part'] : '')}'
-              : null;
+          ? 'Part ${pyStr(row.containsKey('Part') ? row['Part'] : '')}'
+          : null;
       final references = <(String, String)>[];
       if (key == 'aqdas') {
         subgroup = aqdasSections[row['AqdasSection']];
@@ -321,7 +329,9 @@ List<Passage> packPassages(Map<String, dynamic> pack, int language) {
           if (values is! List) continue;
           for (final value in values) {
             final match = rows.where((r) => r['AqdasSection'] == section && r['Number'] == value).firstOrNull;
-            if (match != null) references.add(('${prefix}aqdas:${pyStr(match['Id'])}', '${aqdasSections[section]} ${pyStr(value)}'));
+            if (match != null) {
+              references.add(('${prefix}aqdas:${pyStr(match['Id'])}', '${aqdasSections[section]} ${pyStr(value)}'));
+            }
           }
         }
         final aqdasNumber = row['AqdasNumber'];
@@ -330,7 +340,8 @@ List<Passage> packPassages(Map<String, dynamic> pack, int language) {
           if (target != null) references.add(('${prefix}aqdas:${pyStr(target['Id'])}', 'Text ${pyStr(aqdasNumber)}'));
         }
       } else if (key == 'saq') {
-        subgroup = '${pyStr(row.containsKey('PartNumber') ? row['PartNumber'] : '')} · ${pyStr(row.containsKey('PartTitle') ? row['PartTitle'] : '')}';
+        subgroup =
+            '${pyStr(row.containsKey('PartNumber') ? row['PartNumber'] : '')} · ${pyStr(row.containsKey('PartTitle') ? row['PartTitle'] : '')}';
         title = '${pyStr(number)} · ${_or(row['Title'], _head(opening, 72))}';
       } else if (key == 'days') {
         final day = row['HolyDay'];
@@ -343,19 +354,21 @@ List<Passage> packPassages(Map<String, dynamic> pack, int language) {
       }
       final author = key == 'prayers' ? prayerAuthors[row['AuthorId']] : bookAuthors[key];
       final cite = [?citation(key, row), ?book].where((p) => p.isNotEmpty).join(', ');
-      result.add(Passage(
-        id: '$prefix$key:${pyStr(row['Id'])}',
-        author: author,
-        section: shelf,
-        tags: tags,
-        title: title,
-        text: text,
-        subgroup: subgroup,
-        wordCount: wordCount(text),
-        references: references,
-        match: align(key, row),
-        citation: cite,
-      ));
+      result.add(
+        Passage(
+          id: '$prefix$key:${pyStr(row['Id'])}',
+          author: author,
+          section: shelf,
+          tags: tags,
+          title: title,
+          text: text,
+          subgroup: subgroup,
+          wordCount: wordCount(text),
+          references: references,
+          match: align(key, row),
+          citation: cite,
+        ),
+      );
     }
   }
   return [for (final p in result) withDirections(p)];
@@ -430,7 +443,9 @@ const reflectionBooks = {'Gleanings from the Writings of Bahá’u’lláh', 'Pr
 List<String> dailyOrder(List<Passage> items) {
   final pool = [
     for (final i in items)
-      if ((i.section == 'prayers' || i.section == 'hidden' || i.tags.any(reflectionBooks.contains)) && i.wordCount <= 500) i.id,
+      if ((i.section == 'prayers' || i.section == 'hidden' || i.tags.any(reflectionBooks.contains)) &&
+          i.wordCount <= 500)
+        i.id,
   ]..sort();
   final order = List.generate(pool.length, (k) => k);
   PythonRandom(1844).shuffle(order);

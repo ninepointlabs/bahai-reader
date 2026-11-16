@@ -77,7 +77,9 @@ class _LanguagesDialogState extends State<LanguagesDialog> {
       if (mounted) setState(() => progress = 'Language list updated.');
     } on DownloadProblem catch (e) {
       if (mounted) {
-        setState(() => progress = 'Could not update the language list. The saved list is still available.\n${e.message}');
+        setState(
+          () => progress = 'Could not update the language list. The saved list is still available.\n${e.message}',
+        );
       }
     }
   }
@@ -102,66 +104,86 @@ class _LanguagesDialogState extends State<LanguagesDialog> {
       },
       child: Scaffold(
         appBar: AppBar(title: const Text('Languages & offline libraries')),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
-          const Text('English is included. Download another language once to read it offline. Your choice is remembered.'),
-          const SizedBox(height: 14),
-          DropdownMenu<int>(
-            key: ValueKey('languages-${rows.length}-${state.languages.length}'),
-            initialSelection: selected,
-            enabled: !busy,
-            enableFilter: true,
-            requestFocusOnTap: true,
-            expandedInsets: EdgeInsets.zero,
-            label: const Text('Language'),
-            menuHeight: 360,
-            onSelected: (id) => id == null ? null : setState(() => selected = id),
-            dropdownMenuEntries: [
-              for (final r in rows) DropdownMenuEntry(value: r['Id'] as int, label: _label(state, r)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          FutureBuilder(
-            // A pack downloaded before a collection was offered: say what an update would add (GTK does the same).
-            future: available && selected != 1 ? state.repository.pack(selected) : Future.value(null),
-            builder: (context, snap) {
-              final stored = snap.data?.$1;
-              final missing = stored == null ? const <String>[] : [
-                for (final key in feeds.keys)
-                  if (!stored.containsKey(key) && (c[key] ?? const []).any((r) => r['Id'] == selected)) sectionNames[key]!,
-              ];
-              final status = '${available ? 'Available offline' : 'Download needed'}'
-                  '${missing.isEmpty ? '' : ' — update to add: ${missing.join(', ')}'}';
-              return Text('$status\n\nContent offered in this language:\n${offered.join('\n')}');
-            },
-          ),
-          const SizedBox(height: 14),
-          if (progress.isNotEmpty) ...[Text(progress, style: theme.textTheme.bodyMedium), const SizedBox(height: 14)],
-          Wrap(spacing: 10, runSpacing: 10, children: [
-            FilledButton(
-              onPressed: busy || (!available && !canDownload) || selected == state.settings.language && available
-                  ? null
-                  : () => _use(state, force: false),
-              child: Text(available ? 'Use this language' : 'Download & use'),
+        body: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              'English is included. Download another language once to read it offline. Your choice is remembered.',
             ),
-            if (canDownload) ...[
-              OutlinedButton(
-                onPressed: busy || !available || selected == 1 ? null : () => _use(state, force: true),
-                child: const Text('Update downloaded content'),
+            const SizedBox(height: 14),
+            DropdownMenu<int>(
+              key: ValueKey('languages-${rows.length}-${state.languages.length}'),
+              initialSelection: selected,
+              enabled: !busy,
+              enableFilter: true,
+              requestFocusOnTap: true,
+              expandedInsets: EdgeInsets.zero,
+              label: const Text('Language'),
+              menuHeight: 360,
+              onSelected: (id) => id == null ? null : setState(() => selected = id),
+              dropdownMenuEntries: [
+                for (final r in rows) DropdownMenuEntry(value: r['Id'] as int, label: _label(state, r)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            FutureBuilder(
+              // A pack downloaded before a collection was offered: say what an update would add (GTK does the same).
+              future: available && selected != 1 ? state.repository.pack(selected) : Future.value(null),
+              builder: (context, snap) {
+                final stored = snap.data?.$1;
+                final missing = stored == null
+                    ? const <String>[]
+                    : [
+                        for (final key in feeds.keys)
+                          if (!stored.containsKey(key) && (c[key] ?? const []).any((r) => r['Id'] == selected))
+                            sectionNames[key]!,
+                      ];
+                final status =
+                    '${available ? 'Available offline' : 'Download needed'}'
+                    '${missing.isEmpty ? '' : ' — update to add: ${missing.join(', ')}'}';
+                return Text('$status\n\nContent offered in this language:\n${offered.join('\n')}');
+              },
+            ),
+            const SizedBox(height: 14),
+            if (progress.isNotEmpty) ...[Text(progress, style: theme.textTheme.bodyMedium), const SizedBox(height: 14)],
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton(
+                  onPressed: busy || (!available && !canDownload) || selected == state.settings.language && available
+                      ? null
+                      : () => _use(state, force: false),
+                  child: Text(available ? 'Use this language' : 'Download & use'),
+                ),
+                if (canDownload) ...[
+                  OutlinedButton(
+                    onPressed: busy || !available || selected == 1 ? null : () => _use(state, force: true),
+                    child: const Text('Update downloaded content'),
+                  ),
+                  OutlinedButton(
+                    onPressed: busy ? null : () => _check(state),
+                    child: const Text('Check available languages'),
+                  ),
+                ],
+              ],
+            ),
+            if (!canDownload) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Downloading languages is not available in this build; it has no network access.',
+                style: theme.textTheme.bodySmall,
               ),
-              OutlinedButton(onPressed: busy ? null : () => _check(state), child: const Text('Check available languages')),
             ],
-          ]),
-          if (!canDownload) ...[
-            const SizedBox(height: 14),
-            Text('Downloading languages is not available in this build; it has no network access.',
-                style: theme.textTheme.bodySmall),
+            if (selected == 1) ...[
+              const SizedBox(height: 14),
+              Text(
+                'English is bundled with the app, with bahai.org’s official texts, and is updated with the app.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
           ],
-          if (selected == 1) ...[
-            const SizedBox(height: 14),
-            Text('English is bundled with the app, with bahai.org’s official texts, and is updated with the app.',
-                style: theme.textTheme.bodySmall),
-          ],
-        ]),
+        ),
       ),
     );
   }
@@ -169,10 +191,13 @@ class _LanguagesDialogState extends State<LanguagesDialog> {
 
 /// Opens Languages & offline libraries as a dialog over the window.
 Future<void> showLanguages(BuildContext context) => showDialog<void>(
-      context: context,
-      builder: (context) => Dialog(
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.all(24),
-        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560, maxHeight: 640), child: const LanguagesDialog()),
-      ),
-    );
+  context: context,
+  builder: (context) => Dialog(
+    clipBehavior: Clip.antiAlias,
+    insetPadding: const EdgeInsets.all(24),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560, maxHeight: 640),
+      child: const LanguagesDialog(),
+    ),
+  ),
+);

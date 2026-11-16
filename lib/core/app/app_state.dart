@@ -95,6 +95,7 @@ class AppState extends ChangeNotifier {
         settings.language = 1;
       }
       await _use(settings.language);
+      compareLibrary; // Side by side: start reading the other language
       // Libraries that hold marks made in other languages, so they can follow into this one. Loaded in the background;
       // [marksReady] completes when they are in.
       marksReady = Future.wait([
@@ -232,6 +233,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> setCompare(int? id) async {
     settings.compare = id;
+    compareLibrary; // starts reading it now, before the reading view asks
     await _save();
   }
 

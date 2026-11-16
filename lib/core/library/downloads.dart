@@ -31,13 +31,15 @@ Future<Object?> fetchJson(String endpoint) async {
 
 /// A sentence for people about a failed download (GTK `download_problem()`).
 String downloadProblem(Object e) => switch (e) {
-      SocketException() || TimeoutException() || HandshakeException() || HttpException() =>
-        'Could not reach bahaiprayers.net. Check your connection and try again.',
-      FileSystemException(:final message, :final osError) =>
-        'The download could not be saved: ${osError?.message ?? message}.',
-      FormatException() || PackError() => 'bahaiprayers.net sent content the app could not use. Try again later.',
-      _ => 'The download did not complete. Try again later.',
-    };
+  SocketException() ||
+  TimeoutException() ||
+  HandshakeException() ||
+  HttpException() => 'Could not reach bahaiprayers.net. Check your connection and try again.',
+  FileSystemException(:final message, :final osError) =>
+    'The download could not be saved: ${osError?.message ?? message}.',
+  FormatException() || PackError() => 'bahaiprayers.net sent content the app could not use. Try again later.',
+  _ => 'The download did not complete. Try again later.',
+};
 
 /// Writes [text] to [file] whole or not at all: a temporary file beside it, then a rename.
 Future<void> writeAtomically(File file, String text) async {
@@ -53,8 +55,13 @@ Future<void> writeAtomically(File file, String text) async {
 
 /// Every collection offered in [language], downloaded, checked and saved as one pack in [folders]' own folder. A failure
 /// leaves what was there before.
-Future<void> downloadLanguage(int language, Map<String, List<Map<String, dynamic>>> catalog, PackFolders folders,
-    {Fetch fetch = fetchJson, void Function(String)? progress}) async {
+Future<void> downloadLanguage(
+  int language,
+  Map<String, List<Map<String, dynamic>>> catalog,
+  PackFolders folders, {
+  Fetch fetch = fetchJson,
+  void Function(String)? progress,
+}) async {
   final target = folders.ownPack(language);
   if (target == null) throw const FileSystemException('There is nowhere to keep downloads');
   final downloads = <String, Object?>{};
@@ -79,5 +86,7 @@ Future<Map<String, List<Map<String, dynamic>>>> checkLanguages(PackFolders folde
   }
   if (!validCatalog(fresh)) throw const FormatException('Invalid language catalog');
   await writeAtomically(File('${own.path}/languages.json'), jsonEncode(fresh));
-  return {for (final e in fresh.entries) e.key: [for (final r in e.value as List) (r as Map).cast<String, dynamic>()]};
+  return {
+    for (final e in fresh.entries) e.key: [for (final r in e.value as List) (r as Map).cast<String, dynamic>()],
+  };
 }
