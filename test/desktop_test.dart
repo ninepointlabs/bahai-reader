@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bahai_reader/core/app/app_state.dart';
+import 'package:bahai_reader/core/library/labels.dart';
 import 'package:bahai_reader/core/library/library_repository.dart';
 import 'package:bahai_reader/core/settings/settings_store.dart';
 import 'package:bahai_reader/main.dart';
@@ -143,7 +144,20 @@ void main() {
     expect(find.text('Writings'), findsOneWidget, reason: 'the sections');
     await tester.tap(find.text('Prayers'));
     await tester.pumpAndSettle();
-    expect(find.text('Search this section…'), findsOneWidget, reason: 'Prayers shows its contents first');
+    expect(find.text('Topics'), findsOneWidget, reason: 'Prayers shows its index of topics first, as on phones');
+    final topic = s.library!.prayerCategories.first;
+    await tester.tap(find.text(topic.title));
+    await tester.pumpAndSettle();
+    expect(find.text('All topics'), findsOneWidget, reason: 'a topic lists its prayers');
+    expect(find.text('${topic.passages.length} prayer${topic.passages.length == 1 ? '' : 's'}'), findsOneWidget);
+    await tester.tap(find.text(listTitle(topic.passages.first)).first);
+    await tester.pumpAndSettle();
+    expect(find.text('All topics'), findsNothing, reason: 'a prayer opens to read');
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Prayers'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Continue: '), findsOneWidget, reason: 'the prayer last read, above the topics');
     expect(tester.takeException(), isNull);
   });
 }

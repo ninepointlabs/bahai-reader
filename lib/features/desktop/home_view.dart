@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
-import '../../core/app/theme.dart';
 import '../../core/calendar/today.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
@@ -129,7 +128,7 @@ class _Title extends StatelessWidget {
       );
 }
 
-/// One author's books as index rows in a card: the title in the reading face, its parts and length on the right.
+/// One author's books as index rows in a card: the title, and its parts and length on the right.
 class _BookIndex extends StatelessWidget {
   const _BookIndex({required this.books, required this.author, required this.model});
   final List<Work> books;
@@ -137,40 +136,9 @@ class _BookIndex extends StatelessWidget {
   final ShellModel model;
 
   @override
-  Widget build(BuildContext context) {
-    final p = ReaderColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: p.foreground.withValues(alpha: 0.08)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+  Widget build(BuildContext context) => IndexCard(entries: [
         for (final w in books)
-          SideRow(
-            tooltip: '${w.title}, ${author == compilations ? 'a compilation' : author}',
-            onTap: () => model.openBook(w),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(children: [
-              Expanded(
-                child: Text(
-                  w.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: readingFonts.first,
-                    fontFamilyFallback: readingFonts.sublist(1),
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(w.summary, style: dimStyle(context)),
-            ]),
-          ),
-      ]),
-    );
-  }
+          IndexEntry(w.title, w.summary, () => model.openBook(w),
+              tooltip: '${w.title}, ${author == compilations ? 'a compilation' : author}'),
+      ]);
 }

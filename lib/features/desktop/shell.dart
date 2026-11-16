@@ -18,6 +18,7 @@ import '../today/location_dialog.dart';
 import '../today/today_view.dart';
 import 'highlights_view.dart';
 import 'home_view.dart';
+import 'prayers_view.dart';
 import 'reading_view.dart';
 import 'shell_model.dart';
 import 'sidebar.dart';
@@ -184,6 +185,10 @@ class _DesktopShellState extends State<DesktopShell> {
       Pane.today => ('Today', state.settings.place?.label ?? ''),
       Pane.counter => ('Alláh-u-Abhá', 'Kitáb-i-Aqdas ¶18'),
       Pane.library => ('Library', '${state.library!.books.length} books'),
+      Pane.prayers => switch (model.topic) {
+          final t? => (t.title, '${t.passages.length} prayer${t.passages.length == 1 ? '' : 's'}'),
+          null => ('Prayers', '${state.library!.prayerCategories.length} topics'),
+        },
       Pane.highlights => ('Highlights & notes', ''),
       Pane.reading => p == null
           ? (model.section == Section.saved ? 'Saved' : 'Prayers', '')
@@ -203,6 +208,7 @@ class _DesktopShellState extends State<DesktopShell> {
       Pane.today => TodayView(onAction: (r) => _act(context, r)),
       Pane.counter => CounterView(onBack: model.leaveCounter),
       Pane.library => HomeView(model: model, libraryOnly: true),
+      Pane.prayers => PrayersView(model: model),
       Pane.highlights => HighlightsView(model: model),
       Pane.reading => ReadingView(key: reading, model: model),
     };

@@ -8,7 +8,7 @@ import '../../core/library/passage.dart';
 enum Section { home, today, prayers, obligatory, writings, saved }
 
 /// What the content pane shows.
-enum Pane { home, today, library, reading, highlights, counter }
+enum Pane { home, today, library, prayers, reading, highlights, counter }
 
 /// The sidebar row each section belongs to: Today is part of Home, the obligatory prayers of Prayers (GTK `NAV_OF`).
 Section navOf(Section s) => switch (s) {
@@ -28,6 +28,9 @@ class ShellModel extends ChangeNotifier {
 
   /// The book whose contents the sidebar shows (Writings), or null.
   Work? book;
+
+  /// The prayer category whose prayers the Prayers index lists, or null for the list of categories.
+  Work? topic;
 
   /// The passages Previous/Next walk through: the book, the prayer category or the saved list.
   Work? group;
@@ -71,7 +74,7 @@ class ShellModel extends ChangeNotifier {
     book = null;
     filter = '';
     // A narrow window shows Home and the library at once; Prayers and Saved first show their contents list.
-    showContent = to == Section.home || to == Section.writings || to == Section.today;
+    showContent = to == Section.home || to == Section.writings || to == Section.today || to == Section.prayers;
     switch (to) {
       case Section.home:
         pane = Pane.home;
@@ -88,17 +91,9 @@ class ShellModel extends ChangeNotifier {
       case Section.writings:
         pane = Pane.library;
       case Section.prayers:
-        final cats = app.library?.prayerCategories ?? const [];
-        final last = _lastPrayer;
-        final place = last == null ? null : app.library?.workOf(last);
-        if (place != null) {
-          _show(place.$1, place.$2);
-        } else if (cats.isNotEmpty) {
-          _show(cats.first, 0);
-        } else {
-          pane = Pane.reading;
-          group = null;
-        }
+        // The index of categories first (as on phones), with the prayer last read offered at the top.
+        topic = null;
+        pane = Pane.prayers;
       case Section.saved:
         openSaved();
     }
@@ -106,6 +101,19 @@ class ShellModel extends ChangeNotifier {
   }
 
   Passage? _lastPrayer;
+
+  /// The prayer last read in this window, for "Continue" on the Prayers index.
+  Passage? get lastPrayer => _lastPrayer;
+
+  /// The Prayers index: a category's prayers ([work]), or the categories again (null).
+  void showTopic(Work? work) {
+    section = Section.prayers;
+    book = null;
+    topic = work;
+    pane = Pane.prayers;
+    showContent = true;
+    notifyListeners();
+  }
 
   /// A book from the library: its contents in the sidebar, at the passage last read in it.
   void openBook(Work work, {int? at}) {

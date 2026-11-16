@@ -226,3 +226,61 @@ void toast(BuildContext context, String text) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text, textAlign: TextAlign.center), duration: const Duration(seconds: 2)));
 }
+
+/// An index in a card: one row per entry (a book, a prayer category, a prayer), its title in the reading face and a
+/// detail on the right. Shared by the Library and the Prayers index.
+class IndexCard extends StatelessWidget {
+  const IndexCard({super.key, required this.entries});
+  final List<IndexEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = ReaderColors.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.foreground.withValues(alpha: 0.08)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (final e in entries)
+          SideRow(
+            tooltip: e.tooltip,
+            selected: e.selected,
+            onTap: e.onTap,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(children: [
+              Expanded(
+                flex: 3,
+                child: Text(
+                  e.title,
+                  maxLines: e.lines,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: readingFonts.first,
+                    fontFamilyFallback: readingFonts.sublist(1),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(e.detail, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: dimStyle(context)),
+              ),
+            ]),
+          ),
+      ]),
+    );
+  }
+}
+
+class IndexEntry {
+  const IndexEntry(this.title, this.detail, this.onTap, {this.tooltip, this.selected = false, this.lines = 1});
+  final String title, detail;
+  final VoidCallback onTap;
+  final String? tooltip;
+  final bool selected;
+  final int lines;
+}
