@@ -144,20 +144,30 @@ void main() {
     expect(find.text('Writings'), findsOneWidget, reason: 'the sections');
     await tester.tap(find.text('Prayers'));
     await tester.pumpAndSettle();
-    expect(find.text('Topics'), findsOneWidget, reason: 'Prayers shows its index of topics first, as on phones');
+    expect(find.text('Search this section…'), findsOneWidget, reason: 'narrow: Prayers shows its topics (the sidebar) first');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Prayers: the topics in the sidebar only; the page shows a title piece and shortcuts until one is chosen',
+      (tester) async {
+    wide(tester);
+    final s = (await tester.runAsync(state))!;
+    await tester.pumpWidget(BahaiReaderApp(state: s, desktop: true));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Prayers').first);
+    await tester.pumpAndSettle();
     final topic = s.library!.prayerCategories.first;
+    expect(find.text(topic.title), findsOneWidget, reason: 'listed once, in the sidebar');
+    expect(find.text('Choose a topic in the list to see its prayers.'), findsOneWidget);
+    expect(find.textContaining('Continue: '), findsNothing, reason: 'nothing read yet');
     await tester.tap(find.text(topic.title));
     await tester.pumpAndSettle();
-    expect(find.text('All topics'), findsOneWidget, reason: 'a topic lists its prayers');
-    expect(find.text('${topic.passages.length} prayer${topic.passages.length == 1 ? '' : 's'}'), findsOneWidget);
     await tester.tap(find.text(listTitle(topic.passages.first)).first);
     await tester.pumpAndSettle();
-    expect(find.text('All topics'), findsNothing, reason: 'a prayer opens to read');
-    await tester.tap(find.byTooltip('Back'));
+    expect(find.text('Choose a topic in the list to see its prayers.'), findsNothing, reason: 'the prayer is open');
+    await tester.tap(find.text('Prayers').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Prayers'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Continue: '), findsOneWidget, reason: 'the prayer last read, above the topics');
+    expect(find.textContaining('Continue: '), findsOneWidget, reason: 'the prayer last read, as a shortcut');
     expect(tester.takeException(), isNull);
   });
 }

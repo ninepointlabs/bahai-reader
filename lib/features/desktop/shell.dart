@@ -185,10 +185,7 @@ class _DesktopShellState extends State<DesktopShell> {
       Pane.today => ('Today', state.settings.place?.label ?? ''),
       Pane.counter => ('Alláh-u-Abhá', 'Kitáb-i-Aqdas ¶18'),
       Pane.library => ('Library', '${state.library!.books.length} books'),
-      Pane.prayers => switch (model.topic) {
-          final t? => (t.title, '${t.passages.length} prayer${t.passages.length == 1 ? '' : 's'}'),
-          null => ('Prayers', '${state.library!.prayerCategories.length} topics'),
-        },
+      Pane.prayers => ('Prayers', '${state.library!.prayerCategories.length} topics'),
       Pane.highlights => ('Highlights & notes', ''),
       Pane.reading => p == null
           ? (model.section == Section.saved ? 'Saved' : 'Prayers', '')
