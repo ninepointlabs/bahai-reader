@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
+import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import '../about/about_screen.dart';
 import '../marks/marks_screen.dart';
@@ -120,7 +121,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(controller: tabs, children: [
                     TodayView(onAction: (row) => actOnPhone(context, row, showToday: showToday)),
-                    _WorkList(works: library.books, emptyText: 'No writings in this language yet.'),
+                    _WorkList(works: library.books, emptyText: 'No writings in this language yet.', index: true, unit: 'passages'),
                     _WorkList(
                       works: library.prayerCategories,
                       emptyText: 'No prayers in this language.',
@@ -138,13 +139,16 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
 void _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
 class _WorkList extends StatelessWidget {
-  const _WorkList({required this.works, required this.emptyText, this.first, this.index = false});
+  const _WorkList({required this.works, required this.emptyText, this.first, this.index = false, this.unit = 'prayers'});
   final List<Work> works;
   final String emptyText;
 
-  /// Prayer categories: on a narrow screen a compact table of contents (one line per category, with its count) instead
-  /// of cards, as they are many and short; and a category opens its list of prayers rather than the first prayer.
+  /// On a narrow screen a compact table of contents (one line per work, with its count) instead of cards; and a work
+  /// opens its contents ([ContentsScreen]) rather than its first passage.
   final bool index;
+
+  /// What the count beside each work counts, for screen readers.
+  final String unit;
 
   /// A card before the works: (title, subtitle, on tap).
   final (String, String, VoidCallback)? first;
@@ -185,8 +189,11 @@ class _WorkList extends StatelessWidget {
               dense: true,
               visualDensity: VisualDensity.compact,
               title: Text(work.title, style: const TextStyle(fontSize: 15.5)),
-              subtitle: note.isEmpty ? null : Text(note, style: dim),
-              trailing: Text('${work.passages.length}', style: dim, semanticsLabel: '${work.passages.length} prayers'),
+              subtitle: switch ([if (!work.passages.first.isPrayer) authorOf(work), if (note.isNotEmpty) note]) {
+                [] => null,
+                final parts => Text(parts.join(' · '), style: dim),
+              },
+              trailing: Text('${work.passages.length}', style: dim, semanticsLabel: '${work.passages.length} $unit'),
               onTap: () => _push(context, ContentsScreen(work: work)),
             );
           },

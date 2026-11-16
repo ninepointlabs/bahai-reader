@@ -56,6 +56,9 @@ void main() {
     expect(find.text('The Hidden Words'), findsOneWidget);
     await tester.tap(find.text('The Hidden Words'));
     await tester.pumpAndSettle();
+    expect(find.text('From the Arabic'), findsOneWidget, reason: 'a book opens its contents first, by part');
+    await tester.tap(find.textContaining('O SON OF SPIRIT').first);
+    await tester.pumpAndSettle();
     expect(find.text('Contents'), findsOneWidget, reason: 'wide window: contents beside the text');
     expect(find.textContaining('O SON OF SPIRIT', findRichText: true), findsWidgets);
     await tester.tap(find.byTooltip('Save passage'));
@@ -78,7 +81,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Writings'));
     await tester.pumpAndSettle();
+    expect(find.byType(Card), findsNothing, reason: 'narrow: the books are a compact index');
     await tester.tap(find.text('The Hidden Words'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('O SON OF SPIRIT').first);
     await tester.pumpAndSettle();
     expect(find.text('Contents'), findsNothing);
     await tester.tap(find.byTooltip('Open navigation menu'));
