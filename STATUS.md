@@ -7,7 +7,7 @@ The released app is still the GTK Bahá’í Reader: https://github.com/ninepoin
 
 ## Promotion, Phase 1: feature parity (2026-11-16)
 
-Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: PR_URL (not merged).
+Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: https://github.com/ninepointlabs/bahai-reader-flutter/pull/1 (not merged).
 Phase 2 was not started.
 
 **What was done**
