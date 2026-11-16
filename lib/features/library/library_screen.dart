@@ -9,6 +9,7 @@ import '../marks/marks_screen.dart';
 import '../reader/reader_screen.dart';
 import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
+import '../today/exact_times.dart';
 import '../today/location_dialog.dart';
 import '../today/phone_today.dart';
 import '../today/today_view.dart';
@@ -52,6 +53,9 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _opens = AppScope.read(context).openRequests.listen(_openFromNotification);
+    AppScope.read(context).remindersStarted.then((_) {
+      if (mounted) offerExactTimes(context, atStart: true);
+    });
     final id = widget.openId;
     if (id != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {

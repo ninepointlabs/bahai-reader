@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'core/app/app_state.dart';
 import 'core/app/theme.dart';
 import 'core/calendar/zones.dart';
+import 'core/platform/locator.dart';
 import 'core/platform/notifier.dart';
 import 'core/platform/window_control.dart';
 import 'features/desktop/shell.dart';
@@ -25,6 +26,7 @@ Future<void> main(List<String> args) async {
   if (Platform.isAndroid) {
     final zone = await AndroidNotifier.deviceZone();
     if (zone != null) useZone(zone);
+    state.locator = const AndroidLocator();
     state.startReminders(Notifier.forPlatform());
   }
   final at = args.indexOf('--open');

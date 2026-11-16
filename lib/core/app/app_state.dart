@@ -18,6 +18,7 @@ import '../library/library.dart';
 import '../library/library_repository.dart';
 import '../library/passage.dart';
 import '../marks/highlight.dart';
+import '../platform/locator.dart';
 import '../platform/notifier.dart';
 import '../platform/window_control.dart';
 import '../search/fold.dart';
@@ -246,7 +247,7 @@ class AppState extends ChangeNotifier {
           await sendDueReminders();
         },
       );
-      takePendingActions().then((_) => sendDueReminders());
+      remindersStarted = takePendingActions().then((_) => sendDueReminders());
     } else {
       window.setKeepRunning(settings.keepRunning);
       sendDueReminders();
@@ -254,6 +255,35 @@ class AppState extends ChangeNotifier {
   }
 
   AppLifecycleListener? _lifecycle;
+
+  /// Done once reminders were first handed over at start (phones), so [remindersMayBeLate] is known.
+  Future<void> remindersStarted = Future.value();
+
+  /// Reminders are on but may arrive late, because the phone has not allowed them at the minute.
+  bool get remindersMayBeLate => notifier.exactTimes == false && settings.reminders.values.any((on) => on);
+
+  /// Where "Use my location" can ask the device (phones); null elsewhere.
+  Locator? locator;
+
+  /// Sets the location from the device: rounded to about a kilometre, named after the nearest bundled city within
+  /// 25 km, in the device's time zone. Returns why not, or null when set.
+  Future<String?> useDeviceLocation() async {
+    final l = locator;
+    if (l == null) return 'Finding your location isn’t available here.';
+    String? problem;
+    final at = await l.locate((p) => problem = p);
+    if (at == null) return problem ?? 'Couldn’t find where you are.';
+    final near = nearestCity(await cities(), at.lat, at.lon, withinKm: 25);
+    final place = Place.clean({
+      'label': near == null ? '' : 'Near ${near.label}',
+      'lat': at.lat,
+      'lon': at.lon,
+      'tz': tz.local.name,
+    });
+    if (place == null) return 'This device’s time zone isn’t known to the app. Search for your city instead.';
+    await setLocation(place);
+    return null;
+  }
 
   /// Clicks on notifications made while the app was closed or in the background.
   Future<void> takePendingActions() async {
@@ -285,7 +315,7 @@ class AppState extends ChangeNotifier {
         settings.remindersSent,
         settings.said,
       );
-      final before = notifier.unavailable;
+      final before = (notifier.unavailable, notifier.exactTimes);
       for (final r in due) {
         await notifier.send(r);
       }
@@ -295,7 +325,7 @@ class AppState extends ChangeNotifier {
         {...settings.remindersSent, ...due.map((r) => r.id), ...later.map((r) => r.id)}.toList(),
         dayOf(moment),
       );
-      await _save(notify: notifier.unavailable != before);
+      await _save(notify: (notifier.unavailable, notifier.exactTimes) != before);
       return;
     }
     final (due, marked) = dueReminders(
@@ -338,6 +368,12 @@ class AppState extends ChangeNotifier {
     if (on) await notifier.requestPermission();
     await _save();
     await sendDueReminders();
+  }
+
+  /// The phone offered "Alarms & reminders" once at start; it is not offered at start again.
+  Future<void> markAskedExactTimes() async {
+    settings.askedExactTimes = true;
+    await _save(notify: false);
   }
 
   Future<void> setLongLead(int hours) async {

@@ -6,6 +6,26 @@ user-local install; nothing was reinstalled and no sudo was used).
 **This is an experiment, not a replacement.** The real app: https://github.com/ninepointlabs/bahai-reader ·
 https://bahaireader.org
 
+## Update 5: reminders on time, and "Use my location" on phones (2026-11-16)
+
+Tried on a real phone (Pixel 11 Pro XL, Android, release build over USB). The first reminder ("Short Obligatory
+Prayer · Its time is open, until 5:20 PM") showed as soon as notifications were allowed, and a week of alarms was set.
+But Android had not allowed exact alarms, so every alarm had a one-hour window: the "closes at" nudge could come too
+late and then be dropped as stale.
+
+- **Reminders on time:** the app now declares `SCHEDULE_EXACT_ALARM`. Turning a reminder on, and once at start if
+  reminders are already on (`asked_exact_times` in settings), offers "Reminders on time" → Android's "Alarms &
+  reminders" page for the app. Location & reminders shows a notice and an "Allow reminders on time" button while it
+  is not allowed. When it is allowed, `BootReceiver` (now also on `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`) sets
+  the alarms again as exact ones, as does the app when it comes back to the front.
+- **Use my location:** a button at the top of Location (phones only) asks the phone once for an approximate fix
+  (`ACCESS_COARSE_LOCATION` only, requested when tapped; `Locate.kt`, `lib/core/platform/locator.dart`). The point is
+  rounded to 0.01° as before, named "Near <city>" after the largest bundled city within 5 km or else the nearest within
+  25 km (`nearestCity`), and given the phone's time zone. Still no `INTERNET` permission.
+- Tests: `test/location_test.dart` (3). 58 tests pass; `flutter analyze` clean.
+- **Verified on the phone:** the build installs, the two permissions are declared, the app starts and sets its alarms.
+  **Not yet seen on the phone:** the dialog, the settings page, and a GPS fix (the phone was locked).
+
 ## Update 4: Today and reminders on phones (2026-11-15, late)
 
 Asked for: “add Today and reminders to the phone layout too”.

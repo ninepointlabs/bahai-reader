@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../search/fold.dart';
 
@@ -52,4 +53,25 @@ List<City> searchCities(List<City> cities, Folder folder, String query, {int lim
     found[rank].add(row);
   }
   return found.expand((r) => r).take(limit).toList();
+}
+
+/// A bundled city to name a point by (a location found by the device): the largest within [largeKm], so a point in a
+/// neighbourhood is named after its city, else the nearest within [withinKm], else none.
+City? nearestCity(List<City> cities, double lat, double lon, {double withinKm = 25, double largeKm = 5}) {
+  double rad(double d) => d * math.pi / 180;
+  double km(City c) {
+    final dLat = rad(c.lat - lat), dLon = rad(c.lon - lon);
+    final a = math.pow(math.sin(dLat / 2), 2) + math.cos(rad(lat)) * math.cos(rad(c.lat)) * math.pow(math.sin(dLon / 2), 2);
+    return 6371 * 2 * math.asin(math.min(1, math.sqrt(a)));
+  }
+
+  City? best;
+  var bestKm = withinKm;
+  for (final c in cities) {
+    if ((c.lat - lat).abs() > 1) continue; // more than 111 km apart
+    final d = km(c);
+    if (d <= largeKm) return c; // largest first
+    if (d <= bestKm) (best, bestKm) = (c, d);
+  }
+  return best;
 }

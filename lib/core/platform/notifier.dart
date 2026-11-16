@@ -40,6 +40,13 @@ abstract class Notifier {
   /// Asks for permission to notify, where the system asks (Android 13 and later). Updates [unavailable].
   Future<void> requestPermission() async {}
 
+  /// False where reminders handed over ahead of time may arrive late, up to an hour, because the system has not allowed
+  /// them at the minute (Android 12 and later: "Alarms & reminders"). True or null (not applicable) otherwise.
+  bool? get exactTimes => null;
+
+  /// Opens the system's setting that allows [exactTimes]. Takes effect when the app comes back to the front.
+  Future<void> requestExactTimes() async {}
+
   static Notifier forPlatform() => Platform.isLinux
       ? LinuxNotifier()
       : Platform.isAndroid
@@ -175,6 +182,10 @@ class AndroidNotifier extends Notifier {
   static const _channel = MethodChannel('bahai_reader/reminders');
   final _actions = StreamController<NotificationAction>.broadcast();
   bool _enabled = true;
+  bool? _exact;
+
+  @override
+  bool? get exactTimes => _exact;
 
   @override
   String? get unavailable => _enabled ? null : 'Notifications are turned off for this app in Android’s settings.';
@@ -217,6 +228,12 @@ class AndroidNotifier extends Notifier {
   @override
   Future<void> schedule(List<Reminder> later) async {
     _enabled = await _call<bool>('schedule', [for (final r in later) _map(r)]) ?? _enabled;
+    _exact = await _call<bool>('exact') ?? _exact;
+  }
+
+  @override
+  Future<void> requestExactTimes() async {
+    _exact = await _call<bool>('requestExact') ?? _exact;
   }
 
   @override

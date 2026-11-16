@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.net.Uri
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,10 +15,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.TimeZone
 
-/** The reader, plus the `bahai_reader/reminders` channel (lib/core/platform/notifier.dart, AndroidNotifier). */
+/**
+ * The reader, plus the `bahai_reader/reminders` channel (lib/core/platform/notifier.dart, AndroidNotifier) and the
+ * `bahai_reader/location` channel (lib/core/platform/locator.dart).
+ */
 class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
     private var permissionResult: MethodChannel.Result? = null
+    private var locationResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -38,6 +44,19 @@ class MainActivity : FlutterActivity() {
                     Reminders.schedule(this, JSONArray(call.arguments as List<*>))
                     result.success(Reminders.enabled(this))
                 }
+                "exact" -> result.success(Reminders.exact(this))
+                "requestExact" -> {
+                    // Android 12 and later: "Alarms & reminders" is a switch in settings, not a dialog.
+                    if (Build.VERSION.SDK_INT >= 31 && !Reminders.exact(this)) {
+                        try {
+                            startActivity(
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
+                            )
+                        } catch (e: Exception) {
+                        }
+                    }
+                    result.success(Reminders.exact(this))
+                }
                 "takePending" -> result.success(Reminders.takePending(this))
                 "requestPermission" -> {
                     if (Build.VERSION.SDK_INT >= 33 &&
@@ -53,14 +72,41 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "bahai_reader/location").setMethodCallHandler { call, result ->
+            if (call.method != "locate") return@setMethodCallHandler result.notImplemented()
+            locationResult?.success(mapOf("error" to "Asked again."))
+            locationResult = result
+            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                locate()
+            } else {
+                requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 2)
+            }
+        }
         Reminders.onPending = { Handler(Looper.getMainLooper()).post { channel?.invokeMethod("pending", null) } }
         queueOpen(intent)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 2) {
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                locate()
+            } else {
+                locationResult?.success(mapOf("error" to "Location permission was not given. You can search for your city instead."))
+                locationResult = null
+            }
+            return
+        }
         permissionResult?.success(Reminders.enabled(this))
         permissionResult = null
+    }
+
+    private fun locate() {
+        Locate.once(this) { at, error ->
+            val r = locationResult ?: return@once
+            locationResult = null
+            r.success(if (at != null) mapOf("lat" to at[0], "lon" to at[1]) else mapOf("error" to error))
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

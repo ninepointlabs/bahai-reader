@@ -49,6 +49,12 @@ object Reminders {
         return if (Build.VERSION.SDK_INT >= 24) manager.areNotificationsEnabled() else true
     }
 
+    /** Whether alarms may fire at the minute set (Android 12 and later ask for "Alarms & reminders"). */
+    fun exact(context: Context): Boolean {
+        val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        return Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()
+    }
+
     private fun flags() = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
     private fun openIntent(context: Context, opens: String, code: Int): PendingIntent {
@@ -122,7 +128,7 @@ object Reminders {
     fun arm(context: Context, reminders: JSONArray = stored(context)) {
         val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val now = System.currentTimeMillis()
-        val exact = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()
+        val exact = exact(context)
         for (i in 0 until reminders.length()) {
             val r = reminders.getJSONObject(i)
             val at = r.getLong("at")
@@ -192,7 +198,8 @@ class ActionReceiver : BroadcastReceiver() {
     }
 }
 
-/** Alarms do not survive a restart of the phone or an update of the app: set them again. */
+/** Alarms do not survive a restart of the phone or an update of the app: set them again. Also when "Alarms & reminders"
+ * is allowed, so they become exact. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Reminders.arm(context)

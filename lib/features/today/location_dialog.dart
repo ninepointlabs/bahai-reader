@@ -7,6 +7,7 @@ import '../../core/calendar/badi.dart';
 import '../../core/calendar/cities.dart';
 import '../../core/calendar/reminders.dart';
 import '../desktop/widgets.dart';
+import 'exact_times.dart';
 
 /// Location & reminders (GTK `location.py`): where the sun times are worked out for, clock hours in place of the sun,
 /// which obligatory prayer is said and its reminders, the Long prayer's twenty-four hours, the private record of Said
@@ -47,7 +48,7 @@ class _LocationPageState extends State<LocationPage> {
   List<City> found = const [];
   String? message, clockMessage;
   String? zone;
-  bool byHand = false, useClock = false, confirmClear = false;
+  bool byHand = false, useClock = false, confirmClear = false, locating = false;
 
   @override
   void initState() {
@@ -86,6 +87,24 @@ class _LocationPageState extends State<LocationPage> {
       found = const [];
       message = null;
     });
+  }
+
+  Future<void> _locate() async {
+    setState(() {
+      locating = true;
+      message = null;
+    });
+    final problem = await AppScope.read(context).useDeviceLocation();
+    if (!mounted) return;
+    setState(() {
+      locating = false;
+      message = problem;
+    });
+  }
+
+  Future<void> _setReminder(String key, bool on) async {
+    await AppScope.read(context).setReminder(key, on);
+    if (on && mounted) await offerExactTimes(context);
   }
 
   void _applyCoordinates() {
@@ -147,7 +166,7 @@ class _LocationPageState extends State<LocationPage> {
       onChanged: onChanged == null ? null : (v) => onChanged(v ?? false),
     );
     Widget reminder(String key, String label, {bool enabled = true}) =>
-        check(label, s.reminders[key] ?? false, enabled ? (v) => state.setReminder(key, v) : null);
+        check(label, s.reminders[key] ?? false, enabled ? (v) => _setReminder(key, v) : null);
     final unavailable = state.notifier.unavailable;
     final list = ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -157,6 +176,25 @@ class _LocationPageState extends State<LocationPage> {
         gap(),
         SelectableText(_summary(state), style: dimStyle(context, size: 13.5)),
         gap(),
+        if (state.locator != null) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: locating ? null : _locate,
+              icon: locating
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location, size: 20),
+              label: Text(locating ? 'Finding your location…' : 'Use my location'),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              'Asks the phone once where you are, to about a kilometre. Or search for a city:',
+              style: dimStyle(context, size: 13.5),
+            ),
+          ),
+        ],
         TextField(
           controller: search,
           onChanged: _search,
@@ -367,6 +405,21 @@ class _LocationPageState extends State<LocationPage> {
             style: dimStyle(context, size: 13.5),
           ),
         if (unavailable != null) Text(unavailable, style: dimStyle(context, size: 13.5)),
+        if (state.remindersMayBeLate) ...[
+          gap(),
+          Text(
+            'Android may hold reminders back by up to an hour. Allow “Alarms & reminders” so they arrive at the minute.',
+            style: dimStyle(context, size: 13.5),
+          ),
+          gap(4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              onPressed: () => state.notifier.requestExactTimes(),
+              child: const Text('Allow reminders on time'),
+            ),
+          ),
+        ],
         if (state.autostart != null) ...[
           check('Keep reminders running when the window is closed', s.keepRunning, state.setKeepRunning),
           Text(

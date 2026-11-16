@@ -35,6 +35,7 @@ class Settings {
     this.longLeadHours,
     List<String>? remindersSent,
     this.keepRunning = false,
+    this.askedExactTimes = false,
   })  : reminders = reminders ?? {},
         remindersSent = remindersSent ?? [],
         said = said ?? [],
@@ -95,6 +96,9 @@ class Settings {
   /// Keep reminders running when the window is closed (Linux: an autostart entry and a hidden window).
   bool keepRunning;
 
+  /// The phone has once offered to allow reminders at the minute ("Alarms & reminders"), so it doesn't ask at every start.
+  bool askedExactTimes;
+
   ReminderSettings get reminderSettings =>
       ReminderSettings(switches: reminders, prayer: prayer, longPeriod: longPeriod, longLeadHours: longLeadHours);
 
@@ -125,6 +129,7 @@ class Settings {
         'long_lead_hours': ?longLeadHours,
         'reminders_sent': remindersSent,
         'keep_running': keepRunning,
+        if (askedExactTimes) 'asked_exact_times': true,
       };
 
   /// Drops or replaces values of the wrong type, keeping everything usable (like GTK `clean_settings()`).
@@ -165,6 +170,7 @@ class Settings {
       longLeadHours: longLead(j['long_lead_hours']) == j['long_lead_hours'] ? j['long_lead_hours'] as int : null,
       remindersSent: [for (final k in strings(j['reminders_sent'])) if (RegExp(r'^\d{4}-\d\d-\d\d').hasMatch(k)) k],
       keepRunning: j['keep_running'] == true,
+      askedExactTimes: j['asked_exact_times'] == true,
     );
   }
 }
