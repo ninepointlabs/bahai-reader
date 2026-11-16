@@ -94,6 +94,26 @@ class _DesktopShellState extends State<DesktopShell> {
     }
   }
 
+  /// Messages from the start (the GTK import, a language that could not be read, damaged settings), each once, as
+  /// dismissable messages at the bottom of the window, as in the GTK app.
+  void _showNotice(BuildContext context, AppState state) {
+    final notice = state.notice;
+    if (notice == null) return;
+    state.notice = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      for (final line in notice.split('\n')) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(line),
+          duration: const Duration(seconds: 12),
+          showCloseIcon: true,
+          closeIconColor: ReaderColors.of(context).background,
+        ));
+      }
+    });
+  }
+
   /// A reminder's "Open": its obligatory prayer, or Today.
   void _openFromNotification(String target) {
     final name = target.startsWith('prayer:') ? target.substring(7) : null;
@@ -139,6 +159,7 @@ class _DesktopShellState extends State<DesktopShell> {
           return Scaffold(body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(state.error!))));
         }
         if (state.loading || state.library == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        _showNotice(context, state);
         return LayoutBuilder(builder: (context, box) {
           final narrow = box.maxWidth < narrowWidth;
           final content = _content(context, state, narrow);

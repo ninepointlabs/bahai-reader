@@ -5,6 +5,8 @@ import 'package:bahai_reader/core/app/app_state.dart';
 import 'package:bahai_reader/core/library/library_repository.dart';
 import 'package:bahai_reader/core/settings/gtk_import.dart';
 import 'package:bahai_reader/core/settings/settings_store.dart';
+import 'package:bahai_reader/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'disk_bundle.dart';
@@ -268,6 +270,18 @@ void main() {
     expect(s.lastImport!.status, 'missing');
     expect(s.settings.gtkImport!['status'], 'missing');
     expect(s.notice, isNull);
+  });
+
+  testWidgets('the desktop window says what was imported', (tester) async {
+    tester.view
+      ..physicalSize = const Size(1400, 900)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final s = (await tester.runAsync(start))!;
+    await tester.pumpWidget(BahaiReaderApp(state: s, desktop: true));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('from the GTK Bahá’í Reader. Its own files were not changed.'), findsOneWidget);
+    expect(s.notice, isNull, reason: 'shown once');
   });
 
   test('mergeGtk leaves the GTK data it is given unchanged', () {
