@@ -1,10 +1,100 @@
-# STATUS — Bahá’í Reader Flutter experiment (v0)
+# STATUS — Bahá’í Reader Flutter port
 
-Date: 2026-11-15 · Machine: TUF (Linux, Omarchy/Hyprland) · Flutter 3.47.9 stable, Dart 3.13.7 (the existing
+Date: 2026-11-16 · Machine: TUF (Linux, Omarchy/Hyprland) · Flutter 3.47.9 stable, Dart 3.13.7 (the existing
 user-local install; nothing was reinstalled and no sudo was used).
 
-**This is an experiment, not a replacement.** The real app: https://github.com/ninepointlabs/bahai-reader ·
-https://bahaireader.org
+The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
+
+## Promotion, Phase 1: feature parity (2026-11-16)
+
+Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: PR_URL (not merged).
+Phase 2 was not started.
+
+**What was done**
+
+1. **Audit:** [`PARITY.md`](PARITY.md) lists 97 user-facing features of the GTK app at v0.2.3 (`1cb4bd0`): 80 match,
+   9 partial, 8 missing. The 8 missing are packaging and distribution (AppImage, Flatpak, .deb/.rpm/pacman, autonomix,
+   the `org.bahai.Reader` desktop id), restart-after-update, the Flatpak Background portal and the classic GTK window;
+   all Phase 2 or not applicable. Every partial row says what differs.
+2. **Missing and partial items implemented** (commits on the branch):
+   - **First-run GTK import** (`lib/core/settings/gtk_import.dart`): on the first start, and from Settings → Import
+     again, it reads `$XDG_CONFIG_HOME/bahai-reader/settings.json` and copies highlights with their notes, saved
+     passages, collections, Said/Fasted records, positions, opened groups, and settings (theme, text size, fonts,
+     spacing, margins, Side by side, language, location, clock hours, prayer, Long prayer period and nudge, counter
+     target, reminder switches, last passage/section/book). The rule: marks are merged, never replaced; settings fill
+     only what has no value here, and the ones that always have a value (theme, size, language, keep records, highlight
+     colour, Continue reading) only on the first run. **Not imported:** `keep_running` (it would add a second login entry
+     beside the GTK app's), `sidebar_width`, `writings_by` (reasons in PARITY.md §14). The GTK file, its `.bad*`
+     backups and both GTK folders are only read. A damaged GTK file imports nothing, is left as it is, and is tried
+     again at the next start; a missing one counts as done.
+   - **Language packs**: a line-by-line Dart port of the GTK pack loader (`lib/core/library/packs.dart`) reads packs
+     in the GTK format from this app's folder and, **read only**, from `~/.local/share/bahai-reader/libraries`.
+     **Languages & offline libraries** (Download & use, Update downloaded content, Check available languages; the
+     network only on those buttons; saved atomically in `~/.local/share/bahai-reader-flutter/libraries`). Search
+     folding now covers the whole BMP.
+   - **Side by side**, **collections** (Saved grouped, Collection under a saved passage, Manage collections; phone
+     Saved tab too), **reading font / interface font / line spacing / page margins** (Aa), **Random passage** (Ctrl+R),
+     **Quit** (Ctrl+Q; hides while reminders keep running), **Ctrl+F** into the section search, **restore the
+     section, book and passage at start**, **remembered contents groups**, **About** with GTK's rows, the counter's
+     **screen-reader announcements**, a notice when settings **cannot be saved**, start **notices shown** on desktop,
+     **`--help` / `--version`**, the full **shortcuts** list.
+3. **Data migration tests** (`test/gtk_import_test.dart`, 7): first run imports every field above with the GTK record
+   shapes; GTK folder unchanged (every file's bytes and mtime, no file added or removed, incl. an existing
+   `settings.json.bad`); importing again adds nothing and keeps changes made here (note, colour, theme, size, prayer,
+   collection filing); an existing settings file keeps its settings and only empty ones are filled; damaged and
+   non-object GTK files; a missing file; the desktop shows what was imported.
+
+**Tests (real results)**
+
+- `flutter analyze`: **No issues found!**
+- `flutter test`: **`00:16 +81 ~1: All tests passed!`** — 81 passed, 1 skipped, 16 test files. The skipped test is
+  the whole-English-library check, which needs a 10 MB fixture outside the repo:
+  `python3 scripts/pack_fixtures.py /tmp/en.json && GTK_ENGLISH_PACK=/tmp/en.json flutter test test/packs_test.dart`
+  → **`+5: All tests passed!`** (2,616 English feed passages identical to the GTK app's output).
+- New test files: `test/gtk_import_test.dart` (7), `test/packs_test.dart` (5), `test/parity_test.dart` (11).
+
+**Linux build**
+
+- `flutter build linux --release` → `✓ Built build/linux/x64/release/bundle/bahai_reader`.
+- `bahai_reader --version` → `Bahá’í Reader 0.0.1` (exit 0); `--help` prints the usage (exit 0); `--bogus` → exit 2.
+  These were run with the earlier build already running in the background, and answered without reaching it.
+- Started hidden (`--background`, `BAHAI_READER_SEPARATE=1`, scratch `XDG_CONFIG_HOME`/`XDG_DATA_HOME` holding a
+  **copy** of the real GTK settings and Amharic pack): first run imported the real shapes (theme, size 21, section,
+  last passage, prayer, five reminder switches, location, 2 positions, Continue reading, 37 groups;
+  `keep_running` left off) and exited as `--background` does with keep-running off. Second run with keep-running on
+  stayed up hidden for 8 s with no window mapped, then was stopped. The copy's SHA-256 was unchanged, and the real
+  `~/.config/bahai-reader/settings.json` and `~/.local/share/bahai-reader/libraries/90.json` kept their size and mtime.
+- **Not looked at on screen**: you were on workspace 12, so no window was opened. The new dialogs (Languages,
+  Collections, Aa) and Side by side are covered by widget tests only.
+
+**Not done / left (also in PARITY.md)**
+
+- **Downloads were not tried against bahaiprayers.net** (tested with a fake network). Worth one real “Download & use”
+  before Phase 2.
+- Accessibility: no AT-SPI/Orca audit of the Flutter window; Tab order differs (the contents list is not one Tab
+  stop with arrow keys). Quotations in bahai.org texts are muted, not indented. Wheel scrolling is not eased.
+- Packaging, `org.bahai.Reader` app id/desktop entry/icon, window title (still “… (Flutter experiment)”),
+  restart-after-update, Flatpak portal: Phase 2.
+- Amharic is still bundled (GTK bundles only English); can be dropped in Phase 2.
+- **On this machine:** your running Flutter copy (pid 1716546) is the earlier build and was not restarted. When
+  the new build first starts with your real settings, it will import from your GTK settings once: it already has its own
+  settings file, so only marks and empty settings are filled. Your GTK settings have all five reminder switches on;
+  any switch not set in the Flutter settings will be turned on, so with both apps running, reminders may come twice.
+
+**Nothing else was touched:** the GTK checkout (`git status`: only its own untracked `CHECKLIST-features.md`), its
+worktrees, its `main`, tags and releases, bahaireader.org, `~/.config/bahai-reader/` and `~/.local/share/bahai-reader/`
+(read only). No merge, tag, release, rename, archive or visibility change. Nobody was contacted.
+
+**Phase 2 (outline only; not started; needs Tim's OK):** tag the GTK app `gtk-final` and keep it on `gtk-legacy`;
+replace `main` of `ninepointlabs/bahai-reader` with this app in one PR; switch the app id to `org.bahai.Reader` (so
+existing autostart entries and desktop files keep working) and drop “(Flutter experiment)”; build the AppImage,
+Flatpak bundle and .deb/.rpm/pacman packages under the **same asset file names**; release 1.0; update bahaireader.org,
+the README (with the autonomix-cli install line), a blog post and social posts (#bahai #linux), adding Android once
+ready; archive `bahai-reader-flutter` with a pointer to the main repo.
+
+---
+
+# Earlier: the Flutter experiment (v0)
 
 ## Update 5: reminders on time, and "Use my location" on phones (2026-11-16)
 
