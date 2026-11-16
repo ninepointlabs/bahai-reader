@@ -828,9 +828,20 @@ class AppState extends ChangeNotifier {
     return result;
   }
 
+  bool _saveFailed = false;
+
+  /// Saves the settings. If they cannot be stored, reading still works; it says so once (GTK `save()`).
   Future<void> _save({bool notify = true}) async {
     if (notify) notifyListeners();
-    await store.save(settings);
+    try {
+      await store.save(settings);
+    } on FileSystemException catch (e) {
+      if (_saveFailed) return;
+      _saveFailed = true;
+      _addNotice('Settings and saved passages cannot be stored (${e.osError?.message ?? e.message}). '
+          'Changes last until you close the app.');
+      notifyListeners();
+    }
   }
 }
 

@@ -524,6 +524,9 @@ class Counter {
     return true;
   }
 
+  /// Screen readers are told only at every nineteenth and at the target, so counting isn't drowned out (GTK).
+  bool get milestone => count > 0 && (done || count % 19 == 0);
+
   @override
   String toString() => '$count of $target';
 }

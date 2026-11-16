@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app/app_state.dart';
@@ -51,7 +52,15 @@ class _CounterViewState extends State<CounterView> {
   void _count() {
     if (customFocus.hasFocus) return focus.requestFocus();
     HapticFeedback.lightImpact();
+    _add();
+  }
+
+  /// Counts one, and at every nineteenth and at the target tells a screen reader "19 of 95".
+  void _add() {
     setState(counter.add);
+    if (counter.milestone) {
+      SemanticsService.sendAnnouncement(View.of(context), '$counter', Directionality.of(context));
+    }
   }
 
   void _setTarget(Object? value) {
@@ -71,9 +80,9 @@ class _CounterViewState extends State<CounterView> {
       bindings: {
         // Not while typing a custom target, and holding a key counts once.
         const SingleActivator(LogicalKeyboardKey.space, includeRepeats: false): () =>
-            customFocus.hasFocus ? null : setState(counter.add),
+            customFocus.hasFocus ? null : _add(),
         const SingleActivator(LogicalKeyboardKey.enter, includeRepeats: false): () =>
-            customFocus.hasFocus ? null : setState(counter.add),
+            customFocus.hasFocus ? null : _add(),
         const SingleActivator(LogicalKeyboardKey.backspace, includeRepeats: false): () =>
             customFocus.hasFocus ? null : setState(counter.undo),
         const SingleActivator(LogicalKeyboardKey.digit0, control: true): () => setState(counter.reset),

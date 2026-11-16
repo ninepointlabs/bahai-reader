@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:bahai_reader/core/app/about.dart';
 import 'package:bahai_reader/core/app/app_state.dart';
+import 'package:bahai_reader/core/calendar/badi.dart';
 import 'package:bahai_reader/core/library/library_repository.dart';
 import 'package:bahai_reader/core/library/packs.dart';
 import 'package:bahai_reader/core/settings/settings_store.dart';
@@ -218,6 +219,17 @@ void main() {
     expect(st.toJson()['spacing'], 14, reason: 'under the GTK key');
     final text = tester.widgetList<SelectableText>(find.byType(SelectableText)).first;
     expect(text.textSpan?.style?.fontFamily ?? text.style?.fontFamily, 'DejaVu Serif');
+  });
+
+  test('the counter tells screen readers only at every nineteenth and at the target', () {
+    final c = Counter(19);
+    final told = <int>[];
+    for (var i = 0; i < 40; i++) {
+      c.add();
+      if (c.milestone) told.add(c.count);
+    }
+    expect(told.first, 19);
+    expect('$c', '19 of 19', reason: 'the counter stops at its target');
   });
 
   test('the version is the one in pubspec.yaml', () {
