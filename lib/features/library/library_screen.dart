@@ -181,13 +181,6 @@ class _WorkList extends StatelessWidget {
           );
         }
 
-        Widget heading(String text) => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-              child: Semantics(
-                header: true,
-                child: Text(text, style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-              ),
-            );
         final prayers = works.first.passages.first.isPrayer;
         final rows = <Widget>[
           if (first case final f?) ...[
@@ -203,10 +196,19 @@ class _WorkList extends StatelessWidget {
           if (prayers)
             for (final (i, w) in works.indexed) ...[if (i > 0) divider, row(w)]
           else
-            for (final (author, books) in booksByAuthor(works)) ...[
-              heading(author),
-              for (final (i, w) in books.indexed) ...[if (i > 0) divider, row(w)],
-            ],
+            // Each author folds open to their books, as on the desktop.
+            for (final (author, books) in booksByAuthor(works))
+              ExpansionTile(
+                key: PageStorageKey('author/$author'),
+                title: Text(author, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('${books.length} book${books.length == 1 ? '' : 's'}', style: dim),
+                shape: const Border(),
+                collapsedShape: const Border(),
+                childrenPadding: const EdgeInsets.only(left: 12),
+                children: [
+                  for (final (i, w) in books.indexed) ...[if (i > 0) divider, row(w)],
+                ],
+              ),
         ];
         return ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: rows);
       }
