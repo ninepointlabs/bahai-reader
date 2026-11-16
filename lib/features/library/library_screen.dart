@@ -112,7 +112,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'location', child: Text('Location & reminders')),
               PopupMenuItem(value: 'settings', child: Text('Settings')),
-              PopupMenuItem(value: 'about', child: Text('About & attribution')),
+              PopupMenuItem(value: 'about', child: Text('About Bahá’í Reader')),
             ],
           ),
         ],

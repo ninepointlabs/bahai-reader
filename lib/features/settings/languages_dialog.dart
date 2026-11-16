@@ -47,9 +47,10 @@ class _LanguagesDialogState extends State<LanguagesDialog> {
     return rows;
   }
 
-  String _label(AppState state, Map r) {
-    final name = '${r['Name']}', english = '${r['English'] ?? name}';
-    return '${name == english ? name : '$name — $english'}${state.offline(r['Id'] as int) ? ' · Offline' : ''}';
+  /// The language's own name and its English name (the catalog's trailing full stop dropped, as elsewhere).
+  String _name(Map r) {
+    final name = '${r['Name']}'.replaceAll(RegExp(r'\.$'), ''), english = '${r['English'] ?? name}';
+    return name == english ? name : '$name — $english';
   }
 
   Future<void> _use(AppState state, {required bool force}) async {
@@ -107,8 +108,10 @@ class _LanguagesDialogState extends State<LanguagesDialog> {
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text(
-              'English is included. Download another language once to read it offline. Your choice is remembered.',
+            Text(
+              canDownload
+                  ? 'English is included. Download another language once to read it offline. Your choice is remembered.'
+                  : 'English is included, with the languages on this device. Your choice is remembered.',
             ),
             const SizedBox(height: 14),
             DropdownMenu<int>(
@@ -122,7 +125,13 @@ class _LanguagesDialogState extends State<LanguagesDialog> {
               menuHeight: 360,
               onSelected: (id) => id == null ? null : setState(() => selected = id),
               dropdownMenuEntries: [
-                for (final r in rows) DropdownMenuEntry(value: r['Id'] as int, label: _label(state, r)),
+                // The field shows the name; the list also says which are on this device.
+                for (final r in rows)
+                  DropdownMenuEntry(
+                    value: r['Id'] as int,
+                    label: _name(r),
+                    labelWidget: Text(state.offline(r['Id'] as int) ? '${_name(r)} · Offline' : _name(r)),
+                  ),
               ],
             ),
             const SizedBox(height: 14),
