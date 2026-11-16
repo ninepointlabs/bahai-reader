@@ -53,6 +53,9 @@ void main() {
     expect(find.text('Today'), findsOneWidget, reason: 'the phone layout opens on Today');
     await tester.tap(find.text('Writings'));
     await tester.pumpAndSettle();
+    expect(find.byType(Card), findsNothing, reason: 'tablets too: authors that fold open, not cards');
+    await tester.tap(find.text('Bahá’u’lláh'));
+    await tester.pumpAndSettle();
     expect(find.text('The Hidden Words'), findsOneWidget);
     await tester.tap(find.text('The Hidden Words'));
     await tester.pumpAndSettle();

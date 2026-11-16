@@ -165,7 +165,9 @@ class _WorkList extends StatelessWidget {
 
     return LayoutBuilder(builder: (context, box) {
       final columns = (box.maxWidth / 380).floor().clamp(1, 4);
-      if (index && columns == 1) {
+      // Writings fold by author at any width; the prayer topics are an index on phones and cards on wider screens.
+      final writings = !works.first.passages.first.isPrayer;
+      if (index && (columns == 1 || writings)) {
         final theme = Theme.of(context);
         final dim = theme.textTheme.bodySmall;
         const divider = Divider(height: 1, indent: 16, endIndent: 16);
@@ -181,7 +183,7 @@ class _WorkList extends StatelessWidget {
           );
         }
 
-        final prayers = works.first.passages.first.isPrayer;
+        final prayers = !writings;
         final rows = <Widget>[
           if (first case final f?) ...[
             ListTile(
@@ -210,7 +212,14 @@ class _WorkList extends StatelessWidget {
                 ],
               ),
         ];
-        return ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: rows);
+        // Not stretched across a tablet: a readable column.
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: rows),
+          ),
+        );
       }
       return GridView.builder(
         padding: const EdgeInsets.all(16),
