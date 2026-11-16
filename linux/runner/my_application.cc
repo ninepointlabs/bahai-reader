@@ -230,7 +230,8 @@ MyApplication* my_application_new() {
   // One running copy, so reminders are not sent twice and a launch finds the window kept for reminders.
   // BAHAI_READER_SEPARATE=1 runs a separate copy (for screenshots and tests with their own settings).
   const gchar* separate = g_getenv("BAHAI_READER_SEPARATE");
-  GApplicationFlags flags = separate != nullptr && separate[0] != '\0' ? G_APPLICATION_NON_UNIQUE : G_APPLICATION_DEFAULT_FLAGS;
+  // No flags (G_APPLICATION_DEFAULT_FLAGS from glib 2.74, which Ubuntu 22.04's 2.72 lacks).
+  GApplicationFlags flags = separate != nullptr && separate[0] != '\0' ? G_APPLICATION_NON_UNIQUE : (GApplicationFlags)0;
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags", flags, nullptr));
 }
