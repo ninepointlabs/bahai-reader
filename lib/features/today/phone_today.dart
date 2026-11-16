@@ -65,7 +65,7 @@ class CounterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Alláh-u-Abhá counter')),
-        body: CounterView(onBack: () => Navigator.of(context).maybePop()),
+        body: CounterView(onBack: () => Navigator.of(context).maybePop(), tapAnywhere: true),
       );
 }
 

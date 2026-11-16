@@ -7,11 +7,14 @@ import '../../core/calendar/badi.dart';
 import '../desktop/widgets.dart';
 
 /// The Alláh-u-Abhá counter (GTK `counter.py`): Space or Enter counts, Backspace undoes, Ctrl+0 starts over, Esc goes
-/// back. A tap anywhere outside the other controls also counts, with a light tap of the phone's vibration, so the
+/// back. On phones and tablets ([tapAnywhere]) a tap anywhere outside the other controls also counts, with a light tap of the phone's vibration, so the
 /// count can be kept without looking for the button. The count is kept only while the app runs; it is not a record. The target is remembered.
 class CounterView extends StatefulWidget {
-  const CounterView({super.key, required this.onBack});
+  const CounterView({super.key, required this.onBack, this.tapAnywhere = false});
   final VoidCallback onBack;
+
+  /// A tap anywhere on the page counts (the touch layout); on desktops only the button, Space and Enter do.
+  final bool tapAnywhere;
 
   @override
   State<CounterView> createState() => _CounterViewState();
@@ -79,8 +82,8 @@ class _CounterViewState extends State<CounterView> {
       child: Focus(
         focusNode: focus,
         child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _count,
+          behavior: widget.tapAnywhere ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
+          onTap: widget.tapAnywhere ? _count : null,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 32, 16, 32),
             child: Center(
@@ -121,8 +124,10 @@ class _CounterViewState extends State<CounterView> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text('Or tap anywhere on the page', style: dimStyle(context, size: 13.5)),
+                    if (widget.tapAnywhere) ...[
+                      const SizedBox(height: 6),
+                      Text('Or tap anywhere on the page', style: dimStyle(context, size: 13.5)),
+                    ],
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 10,

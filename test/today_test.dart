@@ -108,6 +108,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1 of 9'), findsOneWidget);
     expect(s.settings.counterTarget, 9);
+    await tester.tap(find.text('Alláh-u-Abhá').last); // the heading on the page, not the sidebar
+    await tester.pumpAndSettle();
+    expect(find.text('1 of 9'), findsOneWidget, reason: 'on desktops a click on the page does not count');
+    expect(find.text('Or tap anywhere on the page'), findsNothing);
     expect(find.textContaining('Kitáb-i-Aqdas'), findsWidgets, reason: 'the verse and its citation');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
