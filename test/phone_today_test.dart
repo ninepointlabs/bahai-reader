@@ -109,6 +109,12 @@ void main() {
     expect(find.byType(CounterView), findsOneWidget);
     await tapText(tester, 'Count');
     expect(find.text('1 of 95'), findsOneWidget);
+    await tapText(tester, 'Alláh-u-Abhá'); // a tap on the page, away from the button, counts too
+    await tester.tap(find.text('Or tap anywhere on the page'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 of 95'), findsOneWidget);
+    await tapText(tester, 'Undo');
+    expect(find.text('2 of 95'), findsOneWidget, reason: 'the other buttons do only their own thing');
     expect(tester.takeException(), isNull);
   });
 
