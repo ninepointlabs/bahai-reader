@@ -7,6 +7,8 @@ import 'package:bahai_reader/core/calendar/reminders.dart';
 import 'package:bahai_reader/core/library/library_repository.dart';
 import 'package:bahai_reader/core/platform/notifier.dart';
 import 'package:bahai_reader/core/settings/settings_store.dart';
+import 'package:bahai_reader/features/library/contents_screen.dart';
+import 'package:bahai_reader/features/library/library_screen.dart';
 import 'package:bahai_reader/features/reader/reader_screen.dart';
 import 'package:bahai_reader/features/today/counter_view.dart';
 import 'package:bahai_reader/main.dart';
@@ -103,6 +105,21 @@ void main() {
   testWidgets('Prayers starts with the Obligatory prayers: the counter, the prayers and their guidance', (tester) async {
     await start(tester);
     await tapText(tester, 'Prayers');
+    expect(find.byType(Card), findsNothing, reason: 'on a phone the prayers are a compact index, not cards');
+    expect(find.byType(ListTile), findsWidgets);
+    final category = AppScope.read(tester.element(find.byType(LibraryScreen))).library!.prayerCategories.first;
+    await tapText(tester, category.title);
+    expect(find.byType(ContentsScreen), findsOneWidget, reason: 'a topic opens its list of prayers, not the first prayer');
+    expect(find.byType(ReaderScreen), findsNothing);
+    await tester.tap(find.byType(ListTile).at(1));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReaderScreen), findsOneWidget);
+    Navigator.of(tester.element(find.byType(ReaderScreen))).pop();
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.byType(ContentsScreen))).pop();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Obligatory prayers'), -300,
+        scrollable: find.ancestor(of: find.byType(ListTile).first, matching: find.byType(Scrollable)).first);
     await tapText(tester, 'Obligatory prayers');
     expect(find.text('Alláh-u-Abhá counter'), findsOneWidget);
     await tapText(tester, 'Alláh-u-Abhá counter');

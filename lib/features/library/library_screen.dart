@@ -13,6 +13,7 @@ import '../today/exact_times.dart';
 import '../today/location_dialog.dart';
 import '../today/phone_today.dart';
 import '../today/today_view.dart';
+import 'contents_screen.dart';
 import 'language_menu.dart';
 
 /// The phone layout's home: Today (the date, the obligatory prayer, Feasts, the Fast, the passage of the day), the
@@ -123,6 +124,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                     _WorkList(
                       works: library.prayerCategories,
                       emptyText: 'No prayers in this language.',
+                      index: true,
                       first: library.obligatoryGroups.isEmpty
                           ? null
                           : ('Obligatory prayers', 'The three prayers, their guidance, and the Alláh-u-Abhá counter',
@@ -136,9 +138,13 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
 void _push(BuildContext context, Widget page) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
 class _WorkList extends StatelessWidget {
-  const _WorkList({required this.works, required this.emptyText, this.first});
+  const _WorkList({required this.works, required this.emptyText, this.first, this.index = false});
   final List<Work> works;
   final String emptyText;
+
+  /// Prayer categories: on a narrow screen a compact table of contents (one line per category, with its count) instead
+  /// of cards, as they are many and short; and a category opens its list of prayers rather than the first prayer.
+  final bool index;
 
   /// A card before the works: (title, subtitle, on tap).
   final (String, String, VoidCallback)? first;
@@ -147,8 +153,45 @@ class _WorkList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (works.isEmpty) return Center(child: Text(emptyText));
     final state = AppScope.of(context);
+    (String, int) continueAt(Work work) {
+      final last = state.settings.positions[work.title];
+      final at = last == null ? -1 : work.passages.indexWhere((p) => p.id == last);
+      return (at > 0 ? 'Continue at ${at + 1}' : '', at < 0 ? 0 : at);
+    }
+
     return LayoutBuilder(builder: (context, box) {
       final columns = (box.maxWidth / 380).floor().clamp(1, 4);
+      if (index && columns == 1) {
+        final dim = Theme.of(context).textTheme.bodySmall;
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          itemCount: works.length + (first == null ? 0 : 1),
+          separatorBuilder: (_, _) => const Divider(height: 1, indent: 16, endIndent: 16),
+          itemBuilder: (context, i) {
+            if (first case final f?) {
+              if (i == 0) {
+                return ListTile(
+                  leading: const Icon(Icons.auto_stories_outlined),
+                  title: Text(f.$1, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(f.$2, style: dim),
+                  onTap: f.$3,
+                );
+              }
+              i--;
+            }
+            final work = works[i];
+            final (note, at) = continueAt(work);
+            return ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              title: Text(work.title, style: const TextStyle(fontSize: 15.5)),
+              subtitle: note.isEmpty ? null : Text(note, style: dim),
+              trailing: Text('${work.passages.length}', style: dim, semanticsLabel: '${work.passages.length} prayers'),
+              onTap: () => _push(context, ContentsScreen(work: work)),
+            );
+          },
+        );
+      }
       return GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -163,7 +206,7 @@ class _WorkList extends StatelessWidget {
           final last = state.settings.positions[work.title];
           final at = last == null ? -1 : work.passages.indexWhere((p) => p.id == last);
           return _card(context, work.title, at > 0 ? '${work.summary} · continue at ${at + 1}' : work.summary,
-              () => _push(context, ReaderScreen(work: work, index: at < 0 ? 0 : at)));
+              () => _push(context, index ? ContentsScreen(work: work) : ReaderScreen(work: work, index: at < 0 ? 0 : at)));
         },
       );
     });
