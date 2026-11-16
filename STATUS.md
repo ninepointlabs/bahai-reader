@@ -37,9 +37,14 @@ Medium prayer among the three. The release APK permissions were checked with aap
 
 Not verified / differs: reboot re-arming was not tested (no reboot of the emulator); behaviour under Doze and battery
 savers on real phones untested (alarms may come a few minutes late without the exact-alarm permission, which is not
-requested); reminders stop if the app is not opened for a week. The phone reader’s heading for some prayers shows a
-cut-off opening line (“TO BE RECITED DAILY… le”) — an existing quirk of the phone reader, not changed here. iOS has no
-reminders.
+requested); reminders stop if the app is not opened for a week. iOS has no reminders.
+
+Follow-up fix: the phone reader headed many passages (655 in English, among them the Medium prayer) with their
+title cut off mid-word (“TO BE RECITED DAILY… le”): titles are the opening words worked out without margin numbers and
+the text’s own heading line, but the check compared them with the raw text. `phoneHeading()` (labels.dart) now
+compares with the unnumbered text, so those show no heading (or just their number); real titles (Some Answered
+Questions chapters, Epistle to the Son of the Wolf) stay. Tested in `test/labels_test.dart` (no English prayer is
+headed by an 80+ character title) and seen on the emulator.
 
 ## Update 3: reminders (2026-11-15, night)
 

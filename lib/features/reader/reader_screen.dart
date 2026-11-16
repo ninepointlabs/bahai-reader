@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/app/app_state.dart';
 import '../../core/app/theme.dart';
 import '../../core/library/citations.dart';
+import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
 import '../../core/marks/highlight.dart';
@@ -215,7 +216,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 if (passage.subgroup != null)
                   Text(passage.subgroup!, style: theme.textTheme.labelLarge?.copyWith(color: muted)),
-                if (_heading(passage) case final heading?)
+                if (phoneHeading(passage) case final heading?)
                   Text(
                     heading,
                     style: theme.textTheme.titleLarge,
@@ -299,15 +300,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
 /// The heading above a passage. Titles made from the passage's opening words (cut short for the contents list) are not
 /// repeated over the full text: only their number is kept, if any.
-String? _heading(Passage p) {
-  if (p.heading != null) return p.heading;
-  String flat(String s) => s.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(' ');
-  final text = flat(p.text);
-  final cut = p.title.indexOf(' · ');
-  final (number, rest) = cut < 0 ? ('', p.title) : (p.title.substring(0, cut), p.title.substring(cut + 3));
-  if (rest.isNotEmpty && text.startsWith(flat(rest))) return number.isEmpty ? null : number;
-  return p.title;
-}
 
 /// A highlight that cannot be drawn on this text: made in another language, or its words are no longer there.
 /// Shown above the passage as a passage-level marker, with the note in full.

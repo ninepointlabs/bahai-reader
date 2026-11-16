@@ -97,3 +97,18 @@ List<(String?, List<int>)> contentsOf(Work w) {
   }
   return groups;
 }
+
+/// The phone reader's heading: the passage's own heading, or its title when that is a name ("7 · Muhammad",
+/// "Epistle to the Son of the Wolf"). Most titles are only the passage's opening words, cut short, worked out from the
+/// text without its margin numbers and its own heading line (“Medium Obligatory Prayer”); the text already shows those
+/// words, so then only the number is a heading, or nothing.
+String? phoneHeading(Passage p) {
+  if (p.heading != null) return p.heading;
+  String flat(String s) => s.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(' ');
+  final cut = p.title.indexOf(' · ');
+  final (number, rest) = cut < 0 ? ('', p.title) : (p.title.substring(0, cut), p.title.substring(cut + 3));
+  final opening = flat(rest);
+  final at = opening.isEmpty ? -1 : flat(p.unnumbered).indexOf(opening);
+  if (at == 0 || (at > 0 && at <= 400 && opening.length >= 40)) return number.isEmpty ? null : number;
+  return p.title;
+}
