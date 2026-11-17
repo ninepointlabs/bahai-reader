@@ -9,9 +9,9 @@ differs (said in Notes); **missing** means it is not there. **New** in Notes mea
 Where the GTK feature belongs to its classic GTK window, Flatpak or packaging and cannot reasonably be ported one for
 one, Notes says so. Pointers are to the GTK code (`bahai_reader/…`, `badi.py`) unless they say otherwise.
 
-Summary: 97 rows. **match 80 · partial 9 · missing 8**. All 8 missing rows are packaging, distribution or the
-Flatpak/classic-window integrations, which the brief puts in Phase 2 or which do not apply. Every partial row says
-what differs.
+Summary: 97 rows. **match 85 · partial 9 · missing 3** (after the 1.0 release work; at the end of Phase 1 it was
+match 80 · partial 9 · missing 8). The 3 missing rows are the Flatpak Background portal, restart after update and the
+classic window (which does not apply). Every partial row says what differs.
 
 ## 1. Library and texts
 
@@ -103,8 +103,8 @@ equal).
 | Today calendar in the sidebar | Upcoming 12 months, This year's months, searchable | match | |
 | Home strip | Today's date, the prayer's state, the passage of the day | match | |
 | Reminders | Prayer opens and 30 min before close; Long prayer nudge 1–12 h; Feasts, Holy Days, the Fast notices and daily; 30 s wall-clock tick; stale skipped; one per group; Said today and Open actions | match | Linux via the freedesktop notification service; Android via alarms (beyond GTK). |
-| Keep reminders running | Opt-in XDG autostart entry running `--background`; closing hides the window; a launch opens it | partial | Same behaviour, but the entry is `com.ninepointlabs.bahai_reader-reminders.desktop` (GTK: `org.bahai.Reader-reminders.desktop`) and the app id differs; Phase 2 must take over the GTK id so existing entries keep working. |
-| Flatpak Background portal | Inside Flatpak, asks the XDG Background portal instead of writing an entry | missing | There is no Flatpak build yet (Phase 2). |
+| Keep reminders running | Opt-in XDG autostart entry running `--background`; closing hides the window; a launch opens it | partial | Same behaviour and the same app id now, but the entry is still named `com.ninepointlabs.bahai_reader-reminders.desktop`, and `keep_running` is not imported, so people who had it on turn it on again (said in the release notes). |
+| Flatpak Background portal | Inside Flatpak, asks the XDG Background portal instead of writing an entry | missing | The Flatpak build exists now, but the app writes an autostart file there, which the sandbox keeps inside itself; reminders run only while the app is open (said in the README). |
 | Location never sent | Typed in, rounded to 0.01°, stays local; Clear location | match | Phones may also ask the device once (“Use my location”), still rounded and local. |
 
 ## 7. Alláh-u-Abhá counter
@@ -136,7 +136,7 @@ equal).
 | Classic GTK window | Older libadwaita (Debian 12) gets the classic window; `BAHAI_READER_SHELL` | missing | Not applicable: the Flutter app has one window layout on every system. The classic window existed only for old libadwaita. |
 | Undecorated on Omarchy | No title bar; Hyprland draws the border | match | |
 | Single instance | A second launch shows the open window | match | |
-| Restart after update | A running copy restarts as the newly installed version on the next launch (PR #50, `updated_on_disk`) | missing | Depends on how Phase 2 packages the app (the version on disk vs. the running one). |
+| Restart after update | A running copy restarts as the newly installed version on the next launch (PR #50, `updated_on_disk`) | missing | Not done. A copy kept running for reminders keeps running the old version until it is quit. |
 | Sidebar width | Classic window remembers a dragged width (`sidebar_width`) | partial | The sidebar is 26% of the width (240–340 px), as in the libadwaita window; not draggable. |
 
 ## 10. Keyboard
@@ -173,11 +173,11 @@ equal).
 |---|---|---|---|
 | `--help`, `--version`, unknown options | Print and exit (2 for an unknown option) | match | **New.** Answered by the new process even when a copy is running. `--open PASSAGE` is extra. |
 | `--background` | Reminders with no window; a later launch opens it | match | |
-| AppImage | `bahai-reader-<v>-x86_64.AppImage` with `--install-desktop-entry`, `--remove-desktop-entry`, `--check-host` | missing | Phase 2. |
-| Flatpak bundle | `bahai-reader-<v>-x86_64.flatpak`, `org.bahai.Reader` | missing | Phase 2. |
-| .deb / .rpm / pacman packages | nFPM-built, `/usr/share/bahai-reader` | missing | Phase 2 (keep the asset file names). |
-| autonomix-cli tracking | `autonomix-cli add https://github.com/ninepointlabs/bahai-reader` | missing | Phase 2: needs releases in the GTK repo with the same asset names. |
-| Desktop entry and icon | `org.bahai.Reader.desktop`, metainfo, icons; `install.sh` for a checkout | missing | The Flutter runner has its own id (`com.ninepointlabs.bahai_reader`) and title “Bahá’í Reader (Flutter experiment)”. Phase 2 must switch to `org.bahai.Reader`. |
+| AppImage | `bahai-reader-<v>-x86_64.AppImage` with `--install-desktop-entry`, `--remove-desktop-entry`, `--check-host` | match | `bahai-reader-<v>-x86_64.AppImage` (same name and zsync update info), with `--install-desktop-entry` and `--remove-desktop-entry`; runs on the host GTK 3. `--check-host` is dropped: there is no Python/GTK 4 to check. Release 1.0 work. |
+| Flatpak bundle | `bahai-reader-<v>-x86_64.flatpak`, `org.bahai.Reader` | match | `bahai-reader-<v>-x86_64.flatpak`, `org.bahai.Reader`, GNOME 51 runtime. Release 1.0 work. |
+| .deb / .rpm / pacman packages | nFPM-built, `/usr/share/bahai-reader` | match | nFPM-built, bundle in `/usr/lib/bahai-reader`, launcher `/usr/bin/bahai-reader`. Names now carry x86_64 (`_amd64.deb`, `.x86_64.rpm`, `-x86_64.pkg.tar.zst`) because the app is compiled. Installed and started in CI on Debian 12, Ubuntu 24.04, Fedora 43 and Arch. |
+| autonomix-cli tracking | `autonomix-cli add https://github.com/ninepointlabs/bahai-reader` | match | Same repository and package name; autonomix-cli picks assets by extension. In the README and release notes. |
+| Desktop entry and icon | `org.bahai.Reader.desktop`, metainfo, icons; `install.sh` for a checkout | match | `org.bahai.Reader` app id, desktop file, metainfo and icons, as GTK; the Bahá’í Reader icon on Android and Windows too. No `install.sh` (a checkout needs a Flutter build first). |
 
 ## 14. Data migration from the GTK app
 
