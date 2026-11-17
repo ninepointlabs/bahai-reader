@@ -1,19 +1,82 @@
-# Bahá’í Reader — Flutter experiment
+# Bahá’í Reader
 
-> **This is an experiment, not a replacement.** It is a trial Flutter port of Bahá’í Reader, made to see how a
-> cross-platform version turns out. The real app is the native GTK Bahá’í Reader:
->
-> - Source: https://github.com/ninepointlabs/bahai-reader
-> - Site: https://bahaireader.org
+Offline Bahá’í prayers and writings for **Linux, Android and Windows**. English is bundled; other languages download
+only when you ask, and nothing else ever uses the network. No accounts, no analytics, no telemetry.
 
-Offline-first: the library is bundled, and the app uses the network **only** when you ask it to download a language (or the list of languages) in Languages & offline libraries, as the GTK app does. No analytics, no telemetry.
+[Website](https://bahaireader.org/) · [Releases](https://github.com/ninepointlabs/bahai-reader/releases) ·
+[Issues](https://github.com/ninepointlabs/bahai-reader/issues)
 
-## What it does (v0)
+Version 1.0 is a Flutter rebuild of the GTK app (0.2.3 and earlier, kept on the `gtk-legacy` branch and tagged
+`gtk-final`). On Linux, the first start brings over highlights, notes, saved passages, collections, reading places
+and settings from the GTK app, and reads the languages it downloaded; the GTK app's files are only read, never changed.
+
+## Install
+
+### Linux
+
+Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). `add` only starts tracking the
+repository; `install` installs the package for your distribution and asks for your password:
+
+```sh
+autonomix-cli add https://github.com/ninepointlabs/bahai-reader
+autonomix-cli install bahai-reader
+```
+
+Later, `autonomix-cli update` installs new releases.
+
+Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases) and install from your
+download folder:
+
+```sh
+# Debian 12+ / Ubuntu 24.04+
+sudo apt install ./bahai-reader_1.0.0-1_amd64.deb
+# Fedora 43+ / compatible modern RPM systems
+sudo dnf install ./bahai-reader-1.0.0-1.x86_64.rpm
+# Arch / Omarchy
+sudo pacman -U ./bahai-reader-1.0.0-1-x86_64.pkg.tar.zst
+```
+
+**AppImage** (x86_64, uses the system's GTK 3):
+
+```sh
+chmod +x bahai-reader-1.0.0-x86_64.AppImage
+./bahai-reader-1.0.0-x86_64.AppImage
+./bahai-reader-1.0.0-x86_64.AppImage --install-desktop-entry   # add it to the application menu
+```
+
+[Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or
+[AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) can also add it and update it in place.
+
+**Flatpak bundle** (any distribution with Flatpak; a direct download, not a Flathub listing):
+
+```sh
+flatpak install --user ./bahai-reader-1.0.0-x86_64.flatpak
+flatpak run org.bahai.Reader
+```
+
+The first install also downloads the GNOME 51 runtime from Flathub. Inside the Flatpak, reminders run only while the
+app is open.
+
+### Android
+
+Download `bahai-reader-1.0.0.apk` from the release on your phone and open it. Android asks you to allow installs from
+your browser or file manager the first time. Later versions install over it and keep your data.
+
+### Windows
+
+Run `bahai-reader-1.0.0-windows-x64-setup.exe` (installs for your user, no administrator rights), or unzip
+`bahai-reader-1.0.0-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so SmartScreen may
+warn the first time: choose **More info → Run anyway**. Reminders are not sent on Windows yet.
+
+Checksums for every download are in `SHA256SUMS`.
+
+## What it does
 
 - **Library**: writings grouped by book, prayers grouped by category.
 - **Reading**: passage by passage, with a contents list (beside the text on wide windows, in a drawer on narrow ones),
   Kitáb-i-Aqdas cross-references, and copy-with-citation.
-- **Languages**: switch among the libraries bundled offline (English, plus Amharic in this build).
+- **Languages**: English bundled; other languages downloaded from BahaiPrayers.net when you ask, in Languages & offline
+  libraries, and read offline after that.
 - **Search**: the whole current-language library, ignoring case, accents, apostrophes and hyphens
   (“Bahaullah” finds “Bahá’u’lláh”).
 - **Highlights, notes and saved passages**, stored the same way as the GTK app (passage id + character offsets + the
@@ -39,21 +102,33 @@ Offline-first: the library is bundled, and the app uses the network **only** whe
   they keep running with the window closed: closing hides the window and a login entry starts the app hidden
   (`--background`). Worked out on this computer and sent to the desktop's own notification service; nothing leaves it.
 
-See [STATUS.md](STATUS.md) for what works, what doesn’t, and how it was tested.
+See [PARITY.md](PARITY.md) for how each GTK feature maps to this app, and [STATUS.md](STATUS.md) for how it was tested.
 
-## Run
+## Build
 
 Requires Flutter 3.47 (Dart 3.13).
 
 ```sh
 flutter pub get
 flutter run -d linux                    # or: flutter build linux --release
-./build/linux/x64/release/bundle/bahai_reader [--open hidden:2]
+./build/linux/x64/release/bundle/bahai-reader [--open hidden:2]
 flutter build apk --release             # Android
 flutter test
 ```
 
-Windows, macOS and iOS project scaffolding is included; those targets must be built on their own platforms.
+`flutter build windows --release` must run on Windows; macOS and iOS scaffolding is included but not built or tested.
+
+**Packages and releases.** `.github/workflows/release.yml` tests the code, builds the Linux bundle on Ubuntu 22.04
+(so it runs on Debian 12), the .deb/.rpm/pacman packages (`scripts/build-packages.sh`, nFPM), the AppImage
+(`scripts/build-appimage.sh`), the Flatpak bundle (`scripts/build-flatpak.sh`), the signed APK and the Windows zip and
+installer (`packaging/windows/bahai-reader.iss`), and starts each one to check it runs; the packages are installed and
+started on Debian 12, Ubuntu 24.04, Fedora 43 and Arch. A `vX.Y.Z` tag publishes a release once every check passes.
+Before tagging, update `version:` in `pubspec.yaml` and `appVersion` in `lib/core/app/about.dart`, add a `<release>`
+to `packaging/org.bahai.Reader.metainfo.xml`, and update `RELEASE-NOTES.md` and the website's download links.
+
+The APK is signed with the release key from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` secrets
+(locally, `android/key.properties`, never committed). Keep a backup of the key: an APK signed with another key cannot
+update an installed copy.
 
 On Linux only one copy runs at a time (a second launch brings the window forward), so reminders are never sent twice.
 `BAHAI_READER_SEPARATE=1` runs a separate copy, e.g. with its own `XDG_CONFIG_HOME` for testing.
@@ -85,6 +160,8 @@ lib/
                 phone_today.dart opens them as pages on phones
     library/  reader/  search/  marks/    the touch layout (phones, tablets)
     settings/  about/                     shared by both
+packaging/                     desktop file, icons, AppStream metainfo, nFPM, AppRun, Flatpak manifest, Windows installer
+scripts/build-*.sh             Linux packages, AppImage and Flatpak from the release bundle
 scripts/convert_library.py     rebuilds assets/library/ and assets/calendar/ from the GTK app's data/
 scripts/calendar_fixtures.py   expected answers from the GTK app's badi.py, for test/calendar_test.dart
 scripts/reminder_fixtures.py   expected reminders from the GTK app's badi.py, for test/reminders_test.dart
@@ -99,7 +176,9 @@ To add a feature: put its logic in `lib/core/<area>/` (pure Dart, unit-tested), 
 
 `assets/library/` is generated by `scripts/convert_library.py`, which runs the GTK app’s own loader
 (`load_library()` in `bahai_reader/library.py`) read-only, so passage ids, `match` keys, bahai.org replacements and
-citations are identical. `--without-bahai-org` rebuilds English from BahaiPrayers.net text only.
+citations are identical. The GTK source is on the `gtk-legacy` branch: check it out into a separate folder
+(`git worktree add ../bahai-reader-gtk gtk-legacy`) and pass it with `--gtk ../bahai-reader-gtk`.
+`--without-bahai-org` rebuilds English from BahaiPrayers.net text only.
 
 ## Licence and attribution
 
