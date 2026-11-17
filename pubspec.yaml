@@ -17,6 +17,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  msix: ^3.18.0
 
 flutter:
   uses-material-design: true
@@ -25,3 +26,25 @@ flutter:
     - assets/calendar/
     - DATA-NOTICE.md
     - LICENSE
+
+# Microsoft Store package (MSIX), built in CI with `dart run msix:create`. The Store signs a Store package itself, so
+# no certificate is used here (`store: true` skips signing). The three identity values below are placeholders: copy
+# the real ones from Partner Center > the app > Product identity once the name "Bahá’í Reader" is reserved. Until then
+# the package builds, but the Store would reject it. msix_version is the app version with a .0 revision (the Store
+# requires revision 0); CI checks that it matches `version` above.
+msix_config:
+  display_name: Bahá’í Reader
+  # TODO(Partner Center): Package/Identity/Name
+  identity_name: TODO-PartnerCenter-IdentityName
+  # TODO(Partner Center): Package/Identity/Publisher (the CN=... value)
+  publisher: CN=TODO-PartnerCenter-Publisher
+  # TODO(Partner Center): Package/Properties/PublisherDisplayName
+  publisher_display_name: TODO-PartnerCenter-PublisherDisplayName
+  msix_version: 1.0.1.0
+  store: true
+  logo_path: packaging/icons/hicolor/512x512/apps/org.bahai.Reader.png
+  languages: en-us
+  # The Windows build downloads a language from bahaiprayers.net when asked (lib/core/library/downloads.dart).
+  # runFullTrust is added by the msix package. No location, microphone or other capability.
+  capabilities: internetClient
+  build_windows: false
