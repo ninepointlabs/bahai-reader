@@ -1,9 +1,10 @@
 #!/bin/sh
-# Build the host-GTK AppImage plus its .zsync and .sha256. Needs curl, zsyncmake
+# Build the AppImage (Flutter bundle; GTK 3 from the host) plus its .zsync and .sha256. Needs curl, zsyncmake
 # (package "zsync") and, when available, desktop-file-validate and appstreamcli.
 set -eu
 cd "$(dirname "$0")/.."
-VERSION=$(cat VERSION)
+VERSION=$(scripts/version.sh)
+test -x build/linux/x64/release/bundle/bahai-reader || { echo "Run flutter build linux --release first" >&2; exit 1; }
 ROOT=${APPDIR:-"$PWD/.build/AppDir"}
 OUT=${1:-"$PWD/dist/bahai-reader-${VERSION}-x86_64.AppImage"}
 UPDATE_INFO=${UPDATE_INFO:-"gh-releases-zsync|ninepointlabs|bahai-reader|latest|bahai-reader-*x86_64.AppImage.zsync"}
@@ -19,11 +20,8 @@ grep -q "<release version=\"$VERSION\"" packaging/org.bahai.Reader.metainfo.xml 
 command -v zsyncmake >/dev/null || { echo "zsyncmake is required (install the zsync package)" >&2; exit 1; }
 
 rm -rf "$ROOT"
-mkdir -p "$ROOT/usr/share/bahai-reader/data" "$ROOT/usr/share/applications" "$ROOT/usr/share/metainfo" "$ROOT/usr/share/licenses/bahai-reader"
-cp reader.py badi.py VERSION "$ROOT/usr/share/bahai-reader/"
-mkdir -p "$ROOT/usr/share/bahai-reader/bahai_reader"
-cp bahai_reader/*.py "$ROOT/usr/share/bahai-reader/bahai_reader/"
-cp data/*.json "$ROOT/usr/share/bahai-reader/data/"
+mkdir -p "$ROOT/usr/lib" "$ROOT/usr/share/applications" "$ROOT/usr/share/metainfo" "$ROOT/usr/share/licenses/bahai-reader"
+cp -R build/linux/x64/release/bundle "$ROOT/usr/lib/bahai-reader"
 cp LICENSE DATA-NOTICE.md "$ROOT/usr/share/licenses/bahai-reader/"
 cp packaging/AppRun "$ROOT/AppRun"
 chmod 0755 "$ROOT/AppRun"

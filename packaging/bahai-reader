@@ -1,6 +1,7 @@
 #!/bin/sh
+# Installed as /usr/bin/bahai-reader; the Flutter bundle lives in /usr/lib/bahai-reader.
 set -eu
 if command -v uwsm-app >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-    exec uwsm-app -- /usr/bin/python3 /usr/share/bahai-reader/reader.py "$@"
+    exec uwsm-app -- /usr/lib/bahai-reader/bahai-reader "$@"
 fi
-exec /usr/bin/python3 /usr/share/bahai-reader/reader.py "$@"
+exec /usr/lib/bahai-reader/bahai-reader "$@"

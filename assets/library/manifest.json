@@ -1,0 +1,19 @@
+{
+ "languages": [
+  {
+   "id": 1,
+   "name": "English",
+   "english": "English",
+   "rtl": false,
+   "passages": 3526
+  },
+  {
+   "id": 90,
+   "name": "አማርኛ",
+   "english": "Ethiopian/Amharic",
+   "rtl": false,
+   "passages": 191
+  }
+ ],
+ "bahaiOrg": true
+}

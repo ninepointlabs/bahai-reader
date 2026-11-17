@@ -9,13 +9,14 @@
     <name>Nine Point Labs</name>
   </developer>
   <description>
-    <p>A quiet, native reader for Bahá’í prayers, the Hidden Words and the Writings. Ten English collections are included for offline reading, and other languages can be downloaded.</p>
+    <p>A quiet reader for Bahá’í prayers, the Hidden Words and the Writings. Ten English collections are included for offline reading, and other languages can be downloaded.</p>
     <ul>
       <li>Collapsible contents, saved passages and offline search</li>
       <li>Adjustable fonts, text size, spacing and reading palettes</li>
       <li>Follows the active Omarchy theme live, with light, dark and sepia palettes elsewhere</li>
       <li>A Today view with the Badí‘ date, sunrise, noon and sunset for a place you type in, the next Feast and Holy Day, obligatory prayer times and the Fast</li>
       <li>An Alláh-u-Abhá counter, and optional reminders, with records that stay on your computer</li>
+      <li>Highlights, notes, saved passages in collections, and two languages side by side</li>
     </ul>
     <p>Texts are supplied by BahaiPrayers.net, and English shows the official text of the Bahá’í Reference Library at bahai.org wherever it has the passage, including messages of the Universal House of Justice and works of Shoghi Effendi (Copyright © Bahá’í International Community). This is an independent community app, not an official publication of a Bahá’í institution.</p>
   </description>
@@ -41,6 +42,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.0.0" date="2026-11-16">
+      <description><p>Bahá’í Reader is rebuilt with Flutter, so the same app now also runs on Android and Windows. On Linux it brings over your highlights, notes, saved passages, collections, reading places and settings from earlier versions the first time it starts, and reads languages you already downloaded. Earlier versions’ files are only read, never changed.</p></description>
+    </release>
     <release version="0.2.3" date="2026-11-15">
       <description><p>Highlights, notes and saved passages now follow you to the same passage in another language. A very long note with no spaces no longer breaks the window, and the note editor counts characters up to its 5,000-character limit.</p></description>
     </release>

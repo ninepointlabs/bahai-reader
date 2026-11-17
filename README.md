@@ -1,210 +1,188 @@
 # Bahá’í Reader
 
-A standalone GTK 4 Linux app for quiet reading. Follows Omarchy colors live, including custom themes. No shell plugin or Omarchy dependency.
+Offline Bahá’í prayers and writings for **Linux, Android and Windows**. English is bundled; other languages download
+only when you ask, and nothing else ever uses the network. No accounts, no analytics, no telemetry.
 
-## Two windows
+[Website](https://bahaireader.org/) · [Releases](https://github.com/ninepointlabs/bahai-reader/releases) ·
+[Issues](https://github.com/ninepointlabs/bahai-reader/issues)
 
-On systems with libadwaita 1.4 or newer (Debian 13, Ubuntu 24.04, Fedora 43, Arch, and the Flatpak), the app opens in its **libadwaita window**: a sidebar with **Home, Prayers, Writings and Saved** beside the reader.
+Version 1.0 is a Flutter rebuild of the GTK app (0.2.3 and earlier, kept on the `gtk-legacy` branch and tagged
+`gtk-final`). On Linux, the first start brings over highlights, notes, saved passages, collections, reading places
+and settings from the GTK app, and reads the languages it downloaded; the GTK app's files are only read, never changed.
 
-<p>
-<img src="docs/screenshots/01-home-library.webp" width="49%" alt="Home: today’s Badí‘ date, the obligatory prayer, the passage of the day, Continue reading, and the library grouped by author">
-<img src="docs/screenshots/03-reader-highlight-note.webp" width="49%" alt="The Hidden Words, Arabic no. 12, with the book’s contents in the sidebar and a highlighted phrase with its note">
-</p>
-<p>
-<img src="docs/screenshots/06-search-ctrl-k.webp" width="49%" alt="Ctrl+K search over every text, with results grouped by book">
-<img src="docs/screenshots/10a-light-home.webp" width="49%" alt="Home in the light palette">
-</p>
+## Install
 
-A [narrated 1:25 tour](https://bahaireader.org/#tour) of the libadwaita window is on bahaireader.org.
+### Linux
 
-- **Home** shows the day at a glance: the Badí‘ date, the obligatory prayer’s state, and the passage of the day. **Open Today** (or Ctrl+T) shows the full Today page. Below that, **Continue reading** has the last three books you read, each at the passage you left, with how far through the book you are. Then the **library**: every book as a card, grouped by author.
-- **Writings** is the library. Opening a book turns the sidebar into that book’s contents (parts, chapters, passages), with **Back** to the library. The Hidden Words is one of the books.
-- **Prayers** lists the prayer categories, with **Obligatory prayers** (the three prayers, their guidance in the Kitáb-i-Aqdas, and the Alláh-u-Abhá counter) first.
-- **Saved** holds your collections.
-- **Location & reminders**, **Languages & offline libraries** and **Collections** open as libadwaita preferences dialogs, and **Keyboard shortcuts** (⋮ or Ctrl+?) as libadwaita’s shortcuts dialog, grouped and with the keys drawn.
-- Every control has a name for screen readers; an AT-SPI audit and a headless Orca run are in `scripts/accessibility/`.
-- The colours follow the Omarchy theme (or the chosen palette) through libadwaita’s own colour names, so every control matches. Notices appear as dismissable messages at the bottom of the window. Below 700 px the sidebar and the reader take turns. **F11** is focus mode: only the text.
-
-Where libadwaita is older than 1.4 (Debian 12 has 1.2), the app opens in the **classic window** described in the rest of this README, with the same texts, search, saved passages, Today and reminders. To choose the window yourself, start the app with `BAHAI_READER_SHELL=classic` or `BAHAI_READER_SHELL=adwaita` in its environment.
-
-## Install packages
-
-Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). It takes two steps: `add` only starts tracking the repository, and `install` then installs the package for your distribution. The install step asks for your password.
+Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). `add` only starts tracking the
+repository; `install` installs the package for your distribution and asks for your password:
 
 ```sh
 autonomix-cli add https://github.com/ninepointlabs/bahai-reader
 autonomix-cli install bahai-reader
 ```
 
-Later, `autonomix-cli update` installs new releases, again with a password prompt. If the app is open or keeping reminders running during an update, it switches to the new version the next time you open it (from 0.2.1; an older version still running needs to be quit, or you can log out and in, once).
+Later, `autonomix-cli update` installs new releases.
 
-Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases). From your download folder (`sudo` asks for your password):
+Or download from [GitHub Releases](https://github.com/ninepointlabs/bahai-reader/releases) and install from your
+download folder:
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
-sudo apt install ./bahai-reader_0.2.3-1_all.deb
+sudo apt install ./bahai-reader_1.0.0-1_amd64.deb
 # Fedora 43+ / compatible modern RPM systems
-sudo dnf install ./bahai-reader-0.2.3-1.noarch.rpm
+sudo dnf install ./bahai-reader-1.0.0-1.x86_64.rpm
 # Arch / Omarchy
-sudo pacman -U ./bahai-reader-0.2.3-1-any.pkg.tar.zst
+sudo pacman -U ./bahai-reader-1.0.0-1-x86_64.pkg.tar.zst
 ```
 
-### Other Linux distributions
-
-Two portable x86_64 downloads are attached to each release as well.
-
-**AppImage.** A small launcher that runs on your system’s Python 3.11+, PyGObject and GTK 4.8+ (Debian 12+, Ubuntu 24.04+, Fedora 43+, Arch). If they are missing or too old, it says so and points to the Flatpak instead.
+**AppImage** (x86_64, uses the system's GTK 3):
 
 ```sh
-chmod +x bahai-reader-0.2.3-x86_64.AppImage
-./bahai-reader-0.2.3-x86_64.AppImage
+chmod +x bahai-reader-1.0.0-x86_64.AppImage
+./bahai-reader-1.0.0-x86_64.AppImage
+./bahai-reader-1.0.0-x86_64.AppImage --install-desktop-entry   # add it to the application menu
 ```
 
-To add it to your application menu and dock, use [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher). Both can also update it in place. Or let the AppImage add its own menu entry and icons under `~/.local/share`, and remove them again later:
+[Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or
+[AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) can also add it and update it in place.
+
+**Flatpak bundle** (any distribution with Flatpak; a direct download, not a Flathub listing):
 
 ```sh
-./bahai-reader-0.2.3-x86_64.AppImage --install-desktop-entry
-./bahai-reader-0.2.3-x86_64.AppImage --remove-desktop-entry
-```
-
-`--check-host` prints the Python and GTK versions it found. If the AppImage does not start because FUSE is unavailable, run it with `--appimage-extract-and-run`, or install FUSE (`fuse3` on most distributions, `fuse` on older ones).
-
-**Flatpak bundle.** Brings its own Python and GTK through the GNOME runtime, so it works on any distribution with Flatpak, including ones whose GTK is too old for the AppImage. It is a self-hosted download, not a Flathub listing. Install the file for your user:
-
-```sh
-flatpak install --user ./bahai-reader-0.2.3-x86_64.flatpak
+flatpak install --user ./bahai-reader-1.0.0-x86_64.flatpak
 flatpak run org.bahai.Reader
 ```
 
-The first install also downloads the GNOME 51 runtime (`org.gnome.Platform//51`, a few hundred MB, shared with other GNOME apps) from Flathub. If Flatpak cannot find it, add the Flathub remote and try again:
+The first install also downloads the GNOME 51 runtime from Flathub. Inside the Flatpak, reminders run only while the
+app is open.
+
+### Android
+
+Download `bahai-reader-1.0.0.apk` from the release on your phone and open it. Android asks you to allow installs from
+your browser or file manager the first time. Later versions install over it and keep your data.
+
+### Windows
+
+Run `bahai-reader-1.0.0-windows-x64-setup.exe` (installs for your user, no administrator rights), or unzip
+`bahai-reader-1.0.0-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so SmartScreen may
+warn the first time: choose **More info → Run anyway**. Reminders are not sent on Windows yet.
+
+Checksums for every download are in `SHA256SUMS`.
+
+## What it does
+
+- **Library**: writings grouped by book, prayers grouped by category.
+- **Reading**: passage by passage, with a contents list (beside the text on wide windows, in a drawer on narrow ones),
+  Kitáb-i-Aqdas cross-references, and copy-with-citation.
+- **Languages**: English bundled; other languages downloaded from BahaiPrayers.net when you ask, in Languages & offline
+  libraries, and read offline after that.
+- **Search**: the whole current-language library, ignoring case, accents, apostrophes and hyphens
+  (“Bahaullah” finds “Bahá’u’lláh”).
+- **Highlights, notes and saved passages**, stored the same way as the GTK app (passage id + character offsets + the
+  quoted words), and following passages across languages by their `match`.
+- **Light, Dark and Sepia** palettes from the GTK app; by default it follows the live Omarchy theme where there is one,
+  else the system's light or dark.
+- **Desktop layout like the GTK app** (Linux, Windows, macOS): a sidebar with Home, Prayers, Writings and Saved and the
+  open section's contents; a header bar with Search, Aa, Copy, Save and ⋮; the reading pane with the book and part, the
+  heading, Previous / progress / Next; a Ctrl+K search dialog with This book / Everything; Highlights & notes under Saved;
+  the GTK app's keyboard shortcuts. Phones and tablets keep the touch layout.
+- **Today and the obligatory prayers** (desktop layout): the Badí‘ date (changing at sunset), sun times for a saved
+  city, the chosen obligatory prayer's times with a private "Said today", the next Feast and Holy Day, the Fast, the
+  passage of the day and the Today calendar; an Obligatory prayers section under Prayers with the Kitáb-i-Aqdas guidance;
+  the Alláh-u-Abhá counter; Location & reminders (city search, clock times, Long prayer period). Ported from the
+  GTK app's `badi.py` and `today.py` and checked against them.
+- **On phones** (Android): the app opens on a Today tab with the same cards; Prayers starts with Obligatory prayers (the
+  counter, the three prayers, their guidance); ⋮ → Location & reminders; "Said today" in the prayer. Reminders are set as
+  alarms a week ahead and arrive with the app closed (and after a restart of the phone); "Said today" on the notification
+  marks it without opening the app.
+- **Reminders** (Linux): desktop notifications when the obligatory prayer's time opens and before it closes (with
+  "Said today" and "Open" on the notification), a nudge before the Long prayer's period resets, Feasts, Holy Days, the
+  Fast's approach and each fasting day's sunrise and sunset. All off until turned on in Location & reminders. Optionally
+  they keep running with the window closed: closing hides the window and a login entry starts the app hidden
+  (`--background`). Worked out on this computer and sent to the desktop's own notification service; nothing leaves it.
+
+See [PARITY.md](PARITY.md) for how each GTK feature maps to this app, and [STATUS.md](STATUS.md) for how it was tested.
+
+## Build
+
+Requires Flutter 3.47 (Dart 3.13).
 
 ```sh
-flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flutter pub get
+flutter run -d linux                    # or: flutter build linux --release
+./build/linux/x64/release/bundle/bahai-reader [--open hidden:2]
+flutter build apk --release             # Android
+flutter test
 ```
 
-To update, install the newer `.flatpak` file the same way. The Flatpak keeps its settings and downloaded languages under `~/.var/app/org.bahai.Reader`. It follows the Omarchy theme palette, but on Omarchy the Arch package integrates more closely.
+`flutter build windows --release` must run on Windows; macOS and iOS scaffolding is included but not built or tested.
 
-Open **Bahá’í Reader** in the application menu or run `bahai-reader`. Packages are architecture-independent, requiring Python 3.11+ and GTK 4.8+. Package managers resolve dependencies. These are downloadable packages, not an APT/DNF repository or AUR submission. Install newer packages to update; user libraries and settings remain in place.
+**Packages and releases.** `.github/workflows/release.yml` tests the code, builds the Linux bundle on Ubuntu 22.04
+(so it runs on Debian 12), the .deb/.rpm/pacman packages (`scripts/build-packages.sh`, nFPM), the AppImage
+(`scripts/build-appimage.sh`), the Flatpak bundle (`scripts/build-flatpak.sh`), the signed APK and the Windows zip and
+installer (`packaging/windows/bahai-reader.iss`), and starts each one to check it runs; the packages are installed and
+started on Debian 12, Ubuntu 24.04, Fedora 43 and Arch. A `vX.Y.Z` tag publishes a release once every check passes.
+Before tagging, update `version:` in `pubspec.yaml` and `appVersion` in `lib/core/app/about.dart`, add a `<release>`
+to `packaging/org.bahai.Reader.metainfo.xml`, and update `RELEASE-NOTES.md` and the website's download links.
 
-[Website](https://bahaireader.org/) · [Issues](https://github.com/ninepointlabs/bahai-reader/issues)
+The APK is signed with the release key from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` secrets
+(locally, `android/key.properties`, never committed). Keep a backup of the key: an APK signed with another key cannot
+update an installed copy.
 
-## Run
+On Linux only one copy runs at a time (a second launch brings the window forward), so reminders are never sent twice.
+`BAHAI_READER_SEPARATE=1` runs a separate copy, e.g. with its own `XDG_CONFIG_HOME` for testing.
 
-```sh
-/usr/bin/python3 reader.py
+## Layout
+
+The app is split so pieces can be changed or added independently. `lib/core/` has no UI code except `app/`;
+each feature under `lib/features/` is a self-contained screen that talks to `AppState`.
+
+```
+lib/
+  main.dart                    entry point (--open <passage id>)
+  core/
+    app/        app_state.dart  shared state + AppScope; theme.dart (GTK palettes, Omarchy theme follow)
+    library/    passage.dart, library.dart (works, grouping), library_repository.dart (assets), citations.dart,
+                labels.dart (headings, subtitles, progress: port of GTK labels.py)
+    calendar/   badi.dart (Badí‘ calendar, sun, prayer windows: port of GTK badi.py), today.dart (Today's cards as data),
+                reminders.dart (which reminders are due: port of GTK badi.py's reminders),
+                cities.dart (city search), zones.dart (bundled time-zone database)
+    platform/   notifier.dart (Linux: notifications over the session bus; Android: alarms set a week ahead, see
+                android/.../Reminders.kt), window_control.dart (hide/present the Linux window, the login entry)
+    marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
+    search/     fold.dart, search_index.dart (port of GTK search.py)
+    settings/   settings_store.dart (own file; read-only GTK import)
+  features/
+    desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
+                Highlights & notes (shell_model.dart holds where the window is)
+    today/      shared by both layouts: Today's cards, the counter, Location & reminders, the Said button;
+                phone_today.dart opens them as pages on phones
+    library/  reader/  search/  marks/    the touch layout (phones, tablets)
+    settings/  about/                     shared by both
+packaging/                     desktop file, icons, AppStream metainfo, nFPM, AppRun, Flatpak manifest, Windows installer
+scripts/build-*.sh             Linux packages, AppImage and Flatpak from the release bundle
+scripts/convert_library.py     rebuilds assets/library/ and assets/calendar/ from the GTK app's data/
+scripts/calendar_fixtures.py   expected answers from the GTK app's badi.py, for test/calendar_test.dart
+scripts/reminder_fixtures.py   expected reminders from the GTK app's badi.py, for test/reminders_test.dart
+assets/library/                converted library (checked in), manifest, search fold table
+test/                          marks, conversion, search, settings, app/widget tests
 ```
 
-`bahai-reader --help` and `--version` print and exit; `--background` runs reminders with no window (see Features). If the settings file is damaged, the app starts with defaults, keeps the damaged file as `settings.json.bad` (or `settings.json.bad.1` and so on, never replacing an earlier one), and says so. Damaged collection entries are dropped, but every passage filed in one stays saved.
+To add a feature: put its logic in `lib/core/<area>/` (pure Dart, unit-tested), its screen in
+`lib/features/<feature>/`, and any shared state or persisted setting in `AppState` / `Settings`.
 
-Requires Python 3.11+, GTK 4, and PyGObject; libadwaita 1.4+ for the libadwaita window (without it, the classic window opens). Arch/Omarchy packages: `python-gobject gtk4 libadwaita`. Debian 12+/Ubuntu 24.04+: `python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`. Fedora: `python3-gobject gtk4 libadwaita`.
+## Content
 
-## Features
+`assets/library/` is generated by `scripts/convert_library.py`, which runs the GTK app’s own loader
+(`load_library()` in `bahai_reader/library.py`) read-only, so passage ids, `match` keys, bahai.org replacements and
+citations are identical. The GTK source is on the `gtk-legacy` branch: check it out into a separate folder
+(`git worktree add ../bahai-reader-gtk gtk-legacy`) and pass it with `--gtk ../bahai-reader-gtk`.
+`--without-bahai-org` rebuilds English from BahaiPrayers.net text only.
 
-- Separate Prayers, Hidden Words (Arabic/Persian divisions), and Writings sections.
-- **Obligatory prayers** section: the short, medium and long obligatory prayers in one place, with their directions (when to say them, the actions, and the notes after them) in italics so the words of the prayer stand out, followed by the Kitáb-i-Aqdas paragraphs on obligatory prayer (¶6, ¶8, ¶10, ¶12, ¶13 and ¶14) and the notes and Questions and Answers that the bundled Aqdas links to them. All from the bundled texts; prayers are found by their BahaiPrayers.net category, which other languages may not use.
-- All ten English collections bundled for offline reading, sourced directly from the API.
-- Topic filtering, full-text section search, saved passages, last passage restoration.
-- **Copy** (Ctrl+Shift+C) puts the passage on the clipboard with its citation: author, book and paragraph or Hidden Word number, or the prayer’s author and the bahai.org book its text was taken from (its author and category, for a prayer that keeps BahaiPrayers.net’s text). With words selected in the passage, only the selection is copied, still with the citation.
-- Search ignores case, accents, apostrophes and hyphens: `Bahaullah`, `Baha'u'llah` and `abdul-baha` find Bahá’u’lláh and ‘Abdu’l‑Bahá. Searching narrows the contents list without changing the passage you are reading.
-- **Collections** for saved passages, like a personal prayerbook. Saved passages start under *Unsorted*; the **Collection** list under a saved passage moves it, and **Manage collections…** (shown in Saved passages) creates, renames and deletes them. Deleting a collection keeps its passages saved, under Unsorted. Saved passages are listed by collection.
-- **Today** (the first entry in the sidebar’s section list, or Ctrl+T; new installs open here, and an existing reading position is kept) gathers the day in one quiet column: the Badí‘ date with the Gregorian date and the month’s name and meaning, the sun’s times for your location, the next Feast and Holy Day with whether work is suspended and links to their readings in Days of Remembrance and to the prayers for Naw-Rúz, Ayyám-i-Há and the Fast, and the passage of the day. With a location set the date changes at local sunset; without one it follows the calendar day. In the sidebar, Today lists the next 12 months of Holy Days and Feasts and this year’s months with their Gregorian dates, and search narrows them.
-- **Obligatory prayer times**: choose Short, Medium, Long or Don’t track in ⋮ → Location & reminders. Today then shows whether the prayer’s time is open and when it opens or closes, with links to the prayer and its guidance. The times come from the bundled texts: the short prayer from noon till sunset; the medium prayer from sunrise till noon, noon till sunset, and sunset till two hours after (Question and Answer 83), the morning prayer also as early as dawn (Note 5); the long prayer once in twenty-four hours, at any time (Question and Answer 82). Which twenty-four hours is your choice, because the texts do not say and the Universal House of Justice has made no ruling (letter of 17 December 1990): sunset to sunset by default, noon to noon, midnight to midnight, or 24 hours since last said. Without a location, 6:00, 12:00 and 18:00 stand in for the sun, and the card says so. Where the sun does not rise or set that day, no times are shown and the card points to ¶10 and to your National Spiritual Assembly, unless you have set clock times.
-- **Clock times** (⋮ → Location & reminders): enter the sunrise, noon and sunset hours your National Spiritual Assembly uses. They then replace the sun for prayer times, the Fast, reminders and when the Badí‘ date changes, and also apply where there is a real sunrise and sunset. The app has no hours of its own.
-- **Said today**: a toggle on the Today card and beside the prayer while you read it, one state in both places. The medium prayer has one for each of its three times. The long prayer’s resets when its chosen period does. The record stays on this computer, can be turned off, and **Clear my records** removes it. There are no streaks, scores or “you missed” messages.
-- **Reminders** (⋮ → Location & reminders; all off until you turn them on): when the chosen prayer’s time opens, and about 30 minutes before it closes if not yet said. The long prayer has one separate, opt-in nudge instead, sent only if it isn’t marked, 2 hours before its period resets unless you change that. Notifications have **Said today**, which marks it without opening the window, and **Open**. They check the wall clock every 30 seconds rather than waiting on a timer, so restarts, suspend and changes of the clock or time zone don’t lose them; after a long sleep, stale reminders are skipped and at most one per prayer is sent. Feast, Holy Day and Fast reminders each have their own switch: a Feast on the afternoon of the day it begins at sunset; a Holy Day the day before and on the day; the Fast 5, 3 and 1 days before, and if you like before sunrise and at sunset each day of the Fast. Without a location they use clock times. While the app is open no further setup is needed.
-- **Keep reminders running when the window is closed** (opt-in): adds `~/.config/autostart/org.bahai.Reader-reminders.desktop`, which runs `bahai-reader --background` at login. **A quiet background process then runs with no window and no tray icon**, and closing the window keeps it alive; launching the app opens the window in that process. To stop it, turn the option off in the same window and close the app. The entry is removed. In the Flatpak the app asks the XDG Background portal instead; where the desktop doesn’t offer that portal (Hyprland’s may not), the window says so and reminders run only while the app is open.
-- **The Fast**: during the month of ‘Alá’, Today shows “Day 7 of 19”, the day’s sunrise and sunset, prayers for the Fast and an optional private **Fasted today** check, kept and cleared like Said today. Outside it the card appears only within 30 days: “The Fast begins at sunrise on 2 March”.
-- **Alláh-u-Abhá counter** (from Today, the top of the Obligatory prayers section, or Ctrl+Shift+A): a large count, a target of 95, 19, 9 or a number you choose, and Kitáb-i-Aqdas ¶18 beneath it. Space, Enter or a click counts one; Backspace undoes one; Ctrl+0 or Reset starts over; Esc goes back to where you were. Reaching the target shows “95 of 95”, with no sound or animation. The count is not saved. Screen readers hear it at every nineteenth and at the target.
-- **Badí‘ dates** come from the Universal House of Justice: the table of dates for 172 to 221 B.E. and the message of 10 July 2014. After 221 B.E. (March 2065), and before 172 B.E., the app does not guess: it says “Dates for this year have not been published yet”.
-- **The passage of the day** is the same passage all day, a different one each day, until every passage has had its day. **Random passage** (in the **⋮** menu, or Ctrl+R) opens a random passage. Both pick from the prayers, the Hidden Words, Gleanings and Prayers and Meditations, up to 500 words, in the current language, and work offline.
-- Installed font selection, text size, line spacing, page margins.
-- Omarchy theme tracking every second; light, dark, and sepia overrides.
-- Manual background library refresh, with offline fallback on failure.
-- **Location & reminders** (⋮ menu): type a city (found offline, in a bundled GeoNames list, without regard to accents) or enter latitude, longitude and time zone. The window shows the place, its time zone and today’s sunrise, solar noon and sunset, worked out on this computer with the public-domain NOAA calculation; where the sun does not set or rise that day it says so. The location is never detected and never sent anywhere; only the place’s name, its coordinates rounded to 2 decimals and its time zone are saved, and **Clear location** forgets them.
-- **Narrow windows**: below 700 px the contents list and the right pane take turns. Picking a passage opens it, and the contents button (top left) or Escape goes back. The window can shrink to 320 px; Copy moves into the **⋮** menu, Save becomes just the star, and side by side stacks. Neither pane can be dragged below its minimum width. Headings say what the passage is (“Arabic no. 1”, “Paragraph 4”), and Previous and Next show the position (“1 of 71”).
-- **Sections** are one compact list at the top of the sidebar, each with an icon: Today, Prayers, Obligatory prayers, The Hidden Words, Writings and Saved passages. The contents list below it shows the chosen section; names that do not fit show in full in a tooltip.
-- **Headings say where you are**: a prayer is headed by its category (“Healing”), an obligatory prayer by its name, and a passage by its number in its book (“Arabic no. 1”); the line beneath adds the author, the book or part and the length, without repeating the heading. The obligatory prayers are listed as Short, Medium and Long rather than by their first line of directions.
-- **Search the texts** (Ctrl+K, the search buttons, or ⋮): one search over every prayer and writing, or only the book open (“This book”; for a prayer, all the prayers), offline and without regard to case, accents or apostrophes. Results are grouped by book with the matching words in bold; Enter or a click opens the passage in its place with the match selected. The contents search (Ctrl+F) still narrows the list in the sidebar.
-- **Highlights and notes**: select words in a passage and a small bar offers four colours (the theme's yellow, green, blue and magenta), **Note…** and Copy; Ctrl+H highlights the selection from the keyboard. Click a highlight to change its colour, write or edit its note, or remove it; words with a note are underlined. **Saved → Highlights & notes** lists them all, newest first, each opening its passage at the highlight. They are stored in settings.json with the passage and the highlighted words, never in the texts, and find their place again if an update moves the text. A note holds up to 5,000 characters; the editor counts them. Highlights, notes and saved passages follow you into another language on the passage with the same numbering (as Side by side pairs them): saved passages show as saved there, and a highlight is shown above the translated text with its note, since its words cannot be marked on a translation. Prayers, Days of Remembrance, Riḍván messages and the English-only bahai.org texts stay with their own language. Nothing stored is rewritten.
-- **Reading footer**: the text fades out above a thin divider, so no line is hidden under Previous/Next, and the citation follows the text directly.
-- The header’s **Aa** holds how the text reads (appearance, interface font, reading font, size, spacing, margins, Side by side). The **⋮** menu holds the rest: Search the texts, Random passage, Location & reminders, Languages & offline libraries, Keyboard shortcuts and About.
-- **Side by side**: Aa → Side by side shows the passage beside the same passage in English or any downloaded language. Passages are paired by their numbering (Hidden Word, Gleanings and Prayers and Meditations number, Tablet and paragraph, Íqán part and paragraph, Aqdas paragraph, note or question, SAQ chapter), as BahaiPrayers.net's Matrix comparison feeds pair them, so it works offline and makes no network request. Prayers, Days of Remembrance and Riḍván messages have no shared numbering across languages and are not paired. A translation that numbers its paragraphs differently is paired the same way the provider pairs it.
+## Licence and attribution
 
-Current Omarchy theme location: `$XDG_STATE_HOME/omarchy/current/theme/colors.toml` (defaults to `~/.local/state`). Legacy `~/.config/omarchy/current/theme/colors.toml` is also supported. App settings live in `$XDG_CONFIG_HOME/bahai-reader`; downloaded language libraries in `$XDG_DATA_HOME/bahai-reader/libraries` (default `~/.local/share/bahai-reader/libraries`). No desktop configuration is modified.
-
-## Desktop launcher
-
-Run `./install.sh` to register the app in the current user's application menu. It points to this checkout; keep the repository in place. Remove `~/.local/share/applications/org.bahai.Reader.desktop` to uninstall the launcher.
-
-## Content and scope
-
-Texts are provided by [BahaiPrayers.net](https://bahaiprayers.net/), whose [developer documentation](https://bahaiprayers.net/Developer) explicitly permits use of its feeds in apps. Texts retain their source attribution; no ownership of the writings is claimed. Bundled snapshots downloaded September 13, 2026. HTML is converted to plain paragraphs for the native reader; text is not rewritten.
-
-English ships with Gleanings, Prayers and Meditations, Tablets of Bahá’u’lláh, the Kitáb-i-Íqán, and the Epistle to the Son of the Wolf in Writings. English shows the official text from the [Bahá’í Reference Library](https://www.bahai.org/library/) at bahai.org wherever bahai.org has it: 3,509 of its 3,526 passages. That covers the Hidden Words, Gleanings, Prayers and Meditations, Tablets of Bahá’u’lláh, the Kitáb-i-Íqán, the Kitáb-i-Aqdas, the Epistle, Some Answered Questions, Days of Remembrance and 455 of the 472 prayers (in place of BahaiPrayers.net’s copies, under the same ids, so saved passages keep working), all 515 messages of the Universal House of Justice listed there and the seven works of Shoghi Effendi published there. Where bahai.org has a text the app also had from BahaiPrayers.net (the 73 Riḍván messages), the official text is shown, under the same id, so saved passages keep working. The messages and Shoghi Effendi’s works are listed under Writings. All bahai.org text is copied as published (headings, dates, paragraph numbers, footnotes, italics and underlined transliteration kept) and cited with the author and “Copyright © Bahá’í International Community, bahai.org”, as bahai.org’s [terms of use](https://www.bahai.org/legal) ask. They are not covered by the MIT license; see DATA-NOTICE.md. `scripts/import-bahai-library.py` downloads and rebuilds them by hand (`fetch`, `build`, `check`); the app itself never connects to bahai.org. In Writings, the list above the search box switches between **Group by book** (the standard contents) and **Group by author** (author, then book, then the book’s parts); the choice is remembered.
-
-## Omarchy integration
-
-Square, undecorated window lets Hyprland supply themed borders. The interface uses the desktop’s own (proportional) interface font; **Aa → Interface font → Monospace** brings back the fontconfig monospace family (Omarchy's configured font) used before. The reading font is independent of either. When available, `omarchy theme color --all` resolves semantic and legacy palette keys. Active theme changes are detected without installing a hook or editing packaged Omarchy files. See [Keyboard shortcuts](#keyboard-shortcuts).
-
-## Keyboard shortcuts
-
-| Keys | Action |
-| --- | --- |
-| Ctrl+F | Show the contents panel and search this section |
-| Ctrl+K | Search all the texts, or only the open book (also ⋮ → Search the texts, and the search buttons) |
-| Alt+Right or Ctrl+Page Down | Next passage |
-| Alt+Left or Ctrl+Page Up | Previous passage |
-| Ctrl+D | Save or unsave the current passage |
-| Ctrl+H | Highlight the selected words (in the last colour used) and open its colour and note |
-| Ctrl+Shift+C | Copy the passage (or the selected words) with its citation |
-| Ctrl+? | Keyboard shortcuts (in the libadwaita window, its shortcuts dialog) |
-| F1 | About Bahá’í Reader |
-| F11 | Focus mode (libadwaita window): only the text; F11 or Escape brings the sidebar and header back |
-| Ctrl+Q | Quit (also from the small windows). While reminders keep running, it closes the window instead |
-| Ctrl+T | Today (previously the passage of the day, which is now a card on Today) |
-| Ctrl+R | Random passage |
-| Ctrl+Shift+A | Alláh-u-Abhá counter |
-| Space or Enter | In the counter: count one |
-| Backspace | In the counter: undo one |
-| Ctrl+0 | In the counter: start over |
-| Escape | Show the contents panel again if it is hidden; in a narrow window, switch back; closes the small windows; leaves the counter |
-| Tab / Shift+Tab | Move between search, the contents list and the reading pane or Today’s cards, top to bottom. The contents list is a single stop; use the arrow keys and Enter inside it |
-| Page Up / Page Down | Scroll the passage |
-
-The collapsible table of contents follows API prayer categories, Arabic/Persian Hidden Words divisions, and book → tablet/part → passage nesting for writings. Expansion choices persist; search temporarily expands matching branches. Previous/Next stays within the selected category or book division.
-
-## About
-
-Open **⋮ → About Bahá’í Reader** or press F1. It shows the version, Nine Point Labs, the creation date, the MIT license (readable in full, with the text attribution from DATA-NOTICE.md), the support address [help@ninepointlabs.com](mailto:help@ninepointlabs.com) with Email and Copy buttons (Email prefills the app, GTK, PyGObject and Python versions), the privacy statement, and the toolkit versions.
-
-## Offline languages
-
-Open **⋮ → Languages & offline libraries…**. English is the first-run default and includes all ten supported collections locally. No network request is made at startup or when switching to an already downloaded language.
-
-The bundled API catalog lists 112 prayer languages. Select a language to see its available collections, then choose **Download & use**. The app downloads all supported collections offered in that language and remembers your selection. Unavailable translations are not replaced with English. Use **Check available languages** to update the catalog or **Update downloaded content** to refresh a language explicitly.
-
-Downloads are stored as permanent user data, not disposable cache. A complete language pack is validated and published atomically; a failed download leaves existing content untouched. Older English cache files remain readable for compatibility. Downloading requires a connection; reading, search, categories, saved passages, and fonts work offline. Right-to-left content uses the API’s direction metadata. Font coverage depends on installed system fonts; the interface and book labels remain English. Word counts are token estimates for languages without space-delimited words.
-
-Run offline storage tests with `/usr/bin/python3 -m unittest discover -s tests`.
-
-## Complete structured collection support
-
-All ten collections documented by BahaiPrayers.net are supported. English bundles 3,526 records: 2,543 from BahaiPrayers.net, and from bahai.org 515 Universal House of Justice messages (73 of them in place of BahaiPrayers.net’s Riḍván messages) and 468 passages from seven works of Shoghi Effendi, including 190 Aqdas paragraphs, 107 Questions and Answers, 194 notes, 84 Some Answered Questions chapters, 45 Days of Remembrance selections, and 73 Riḍván messages. Aqdas references open offline through **Related passages**. Other new contents are grouped by part, holy day, and decade/year respectively.
-
-Existing English packs automatically gain newly bundled books. For previously downloaded non-English libraries, open **Languages & offline libraries → Update downloaded content** to add newly supported translations. The dialog identifies collections still needing an update. The language catalog is merged with bundled additions when upgrading.
-
-The provider also has a separate online AI-branded document search. It returns ranked documents and highlighted snippets, with language and optional author filters; its UI documents phrase, Boolean, and proximity search. This online search is not integrated. The app’s existing search remains local and works offline.
-
-## Build and release
-
-```sh
-scripts/get-nfpm.sh /tmp/bahai-nfpm
-NFPM=/tmp/bahai-nfpm/nfpm scripts/build-packages.sh
-xvfb-run -a /usr/bin/python3 tests/smoke_ui.py
-```
-
-The pinned nFPM builder creates all three packages and SHA256SUMS in `dist/`. GitHub Actions tests the source and package installation/GTK startup in Debian 12, Fedora 43, and Arch containers. Tagged releases publish only after checks pass. Update VERSION, RELEASE-NOTES.md, and the website's versioned download links before tagging `vX.Y.Z`.
-
-**Code layout.** `reader.py` starts the app; the app itself is the `bahai_reader` package beside it (see its `__init__.py` for the map): data and settings modules (`config`, `settings`, `library`, `search`, `citations`, `labels`, `theme`) that need no display, and the window and its views (`app` and `shell`, the libadwaita window, `contents`, `reading`, `saved`, `today`, `counter`, `reminders`, `about`, `location`, `languages`), each view a mixin of the one `Reader` application class. `import reader` still exposes every name, and setting a path on it (`reader.STATE=…`) applies to the whole app, as the tests expect. `badi.py` is the Badí‘ calendar. Packages install `reader.py`, `badi.py` and `bahai_reader/*.py` under `/usr/share/bahai-reader`.
-
-The static website is in `docs/` and deploys through GitHub Pages. Application code and original artwork are MIT licensed; bundled texts have separate attribution in DATA-NOTICE.md.
+The code is under the MIT License ([LICENSE](LICENSE)). **The texts and translations are not**: see
+[DATA-NOTICE.md](DATA-NOTICE.md). Texts come from BahaiPrayers.net (https://bahaiprayers.net/Developer) and, in English,
+from the Bahá’í Reference Library: Copyright © Bahá’í International Community, bahai.org, used under
+https://www.bahai.org/legal. No ownership of the writings is claimed. This app is free and is not sold.
