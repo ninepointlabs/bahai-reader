@@ -186,6 +186,13 @@ ThemeData buildTheme(Palette p, {bool monospace = false}) {
   );
   final soft = fg.withValues(alpha: 0.07);
   final radius = BorderRadius.circular(6);
+  // Styles given in full (buttons, tooltips) replace the theme's text style, so they name the interface font too;
+  // otherwise they fall back to the system default font and ignore Aa → Interface font.
+  final face = TextStyle(
+    fontFamily: monospace ? 'monospace' : interfaceFonts.first,
+    fontFamilyFallback: monospace ? interfaceFonts : interfaceFonts.sublist(1),
+  );
+  final label = face.copyWith(fontWeight: FontWeight.w700, fontSize: 14.5);
   final base = ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
@@ -229,7 +236,7 @@ ThemeData buildTheme(Palette p, {bool monospace = false}) {
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(color: p.raised, borderRadius: radius, border: Border.all(color: fg.withValues(alpha: 0.12))),
-      textStyle: TextStyle(color: fg, fontSize: 13),
+      textStyle: face.copyWith(color: fg, fontSize: 13),
       waitDuration: const Duration(milliseconds: 500),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -237,7 +244,7 @@ ThemeData buildTheme(Palette p, {bool monospace = false}) {
         backgroundColor: p.accent,
         foregroundColor: p.onAccent,
         shape: RoundedRectangleBorder(borderRadius: radius),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+        textStyle: label,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     ),
@@ -247,7 +254,7 @@ ThemeData buildTheme(Palette p, {bool monospace = false}) {
         foregroundColor: fg,
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: radius),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+        textStyle: label,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     ),
@@ -255,7 +262,7 @@ ThemeData buildTheme(Palette p, {bool monospace = false}) {
       style: TextButton.styleFrom(
         foregroundColor: fg,
         shape: RoundedRectangleBorder(borderRadius: radius),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+        textStyle: label,
       ),
     ),
     iconButtonTheme: IconButtonThemeData(

@@ -67,7 +67,30 @@ String listTitle(Passage p) {
     final named = obligatoryPrayers.where(p.tags.contains).firstOrNull;
     if (named != null) return named;
   }
-  return p.title;
+  return cutTitle(p);
+}
+
+/// The title as listed. Most titles are the passage's opening words cut at a fixed length (the GTK loader's
+/// `opening[:72]`, `[:90]` for prayers), which can end mid-word ("…that Thou hast ordained N"); such a title ends at
+/// its last whole word with "…". A title that is a name, or the whole text, is kept as it is.
+String cutTitle(Passage p) {
+  String flat(String s) => s.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(' ');
+  final cut = p.title.indexOf(' · ');
+  final (number, rest) = cut < 0 ? ('', p.title) : (p.title.substring(0, cut + 3), p.title.substring(cut + 3));
+  final opening = flat(rest);
+  final text = flat(p.unnumbered);
+  final at = opening.isEmpty ? -1 : text.indexOf(opening);
+  if (at < 0 || at + opening.length >= text.length) return p.title;
+  // Cut mid-word when the text goes on with a letter; otherwise only the "…" is added.
+  final midWord =
+      RegExp(r"[\p{L}\p{N}’'-]$", unicode: true).hasMatch(opening) &&
+      RegExp(r"^[\p{L}\p{N}’'-]", unicode: true).hasMatch(text.substring(at + opening.length));
+  var shown = opening;
+  if (midWord) {
+    final space = opening.lastIndexOf(' ');
+    if (space > 0) shown = opening.substring(0, space);
+  }
+  return '$number${shown.replaceAll(RegExp(r'[\s,;:.]+$'), '')}…';
 }
 
 /// How far through the book a passage is, by words: (words before it, words in the book).

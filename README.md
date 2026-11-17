@@ -162,6 +162,7 @@ lib/
     settings/  about/                     shared by both
 packaging/                     desktop file, icons, AppStream metainfo, nFPM, AppRun, Flatpak manifest, Windows installer
 scripts/build-*.sh             Linux packages, AppImage and Flatpak from the release bundle
+scripts/screenshots/           the website's desktop screenshots, rendered off screen (see the file's header)
 scripts/convert_library.py     rebuilds assets/library/ and assets/calendar/ from the GTK app's data/
 scripts/calendar_fixtures.py   expected answers from the GTK app's badi.py, for test/calendar_test.dart
 scripts/reminder_fixtures.py   expected reminders from the GTK app's badi.py, for test/reminders_test.dart

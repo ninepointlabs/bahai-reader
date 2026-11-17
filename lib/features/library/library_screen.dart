@@ -135,7 +135,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
               controller: tabs,
               children: [
                 TodayView(onAction: (row) => actOnPhone(context, row, showToday: showToday)),
-                _WorkList(works: library.books, emptyText: 'No writings in this language yet.', unit: 'passages'),
+                _WorkList(works: library.books, emptyText: 'No writings in this language yet.', unit: 'passage'),
                 _WorkList(
                   works: library.prayerCategories,
                   emptyText: 'No prayers in this language.',
@@ -158,7 +158,7 @@ void _push(BuildContext context, Widget page) => Navigator.of(context).push(Mate
 /// A compact table of contents at any width, in a readable column: writings under their authors, which fold open to
 /// their books; prayer topics one line each with their count. A work opens its contents ([ContentsScreen]).
 class _WorkList extends StatelessWidget {
-  const _WorkList({required this.works, required this.emptyText, this.first, this.unit = 'prayers'});
+  const _WorkList({required this.works, required this.emptyText, this.first, this.unit = 'prayer'});
   final List<Work> works;
   final String emptyText;
 
@@ -189,7 +189,11 @@ class _WorkList extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         title: Text(work.title, style: const TextStyle(fontSize: 15.5)),
         subtitle: note.isEmpty ? null : Text(note, style: dim),
-        trailing: Text('${work.passages.length}', style: dim, semanticsLabel: '${work.passages.length} $unit'),
+        trailing: Text(
+          '${work.passages.length}',
+          style: dim,
+          semanticsLabel: '${work.passages.length} $unit${work.passages.length == 1 ? '' : 's'}',
+        ),
         onTap: () => _push(context, ContentsScreen(work: work)),
       );
     }
