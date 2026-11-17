@@ -29,19 +29,19 @@ download folder:
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
-sudo apt install ./bahai-reader_1.0.0-1_amd64.deb
+sudo apt install ./bahai-reader_1.0.1-1_amd64.deb
 # Fedora 43+ / compatible modern RPM systems
-sudo dnf install ./bahai-reader-1.0.0-1.x86_64.rpm
+sudo dnf install ./bahai-reader-1.0.1-1.x86_64.rpm
 # Arch / Omarchy
-sudo pacman -U ./bahai-reader-1.0.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bahai-reader-1.0.1-1-x86_64.pkg.tar.zst
 ```
 
 **AppImage** (x86_64, uses the system's GTK 3):
 
 ```sh
-chmod +x bahai-reader-1.0.0-x86_64.AppImage
-./bahai-reader-1.0.0-x86_64.AppImage
-./bahai-reader-1.0.0-x86_64.AppImage --install-desktop-entry   # add it to the application menu
+chmod +x bahai-reader-1.0.1-x86_64.AppImage
+./bahai-reader-1.0.1-x86_64.AppImage
+./bahai-reader-1.0.1-x86_64.AppImage --install-desktop-entry   # add it to the application menu
 ```
 
 [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or
@@ -50,7 +50,7 @@ chmod +x bahai-reader-1.0.0-x86_64.AppImage
 **Flatpak bundle** (any distribution with Flatpak; a direct download, not a Flathub listing):
 
 ```sh
-flatpak install --user ./bahai-reader-1.0.0-x86_64.flatpak
+flatpak install --user ./bahai-reader-1.0.1-x86_64.flatpak
 flatpak run org.bahai.Reader
 ```
 
@@ -59,13 +59,13 @@ app is open.
 
 ### Android
 
-Download `bahai-reader-1.0.0.apk` from the release on your phone and open it. Android asks you to allow installs from
+Download `bahai-reader-1.0.1.apk` from the release on your phone and open it. Android asks you to allow installs from
 your browser or file manager the first time. Later versions install over it and keep your data.
 
 ### Windows
 
-Run `bahai-reader-1.0.0-windows-x64-setup.exe` (installs for your user, no administrator rights), or unzip
-`bahai-reader-1.0.0-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so SmartScreen may
+Run `bahai-reader-1.0.1-windows-x64-setup.exe` (installs for your user, no administrator rights), or unzip
+`bahai-reader-1.0.1-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so SmartScreen may
 warn the first time: choose **More info → Run anyway**. Reminders are not sent on Windows yet.
 
 Checksums for every download are in `SHA256SUMS`.
