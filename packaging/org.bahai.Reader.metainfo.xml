@@ -42,6 +42,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.0.1" date="2026-11-17">
+      <description><p>Lists of passages no longer cut a title off in the middle of a word; a shortened title now ends at a whole word with an ellipsis. Buttons and tooltips now follow the interface font chosen in Aa. Screen readers say “1 passage” instead of “1 passages”.</p></description>
+    </release>
     <release version="1.0.0" date="2026-11-16">
       <description><p>Bahá’í Reader is rebuilt with Flutter, so the same app now also runs on Android and Windows. On Linux it brings over your highlights, notes, saved passages, collections, reading places and settings from earlier versions the first time it starts, and reads languages you already downloaded. Earlier versions’ files are only read, never changed.</p></description>
     </release>
