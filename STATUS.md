@@ -5,6 +5,30 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Store builds: Google Play and Microsoft Store prep (2026-11-17)
+
+Branch `store/play-and-microsoft-builds`. Nothing uploaded to any store; no accounts made.
+
+- **AAB**: release CI now also runs `flutter build appbundle --release` with the same release key as the APK, checks
+  the bundle is signed with the APK's certificate, runs `scripts/check-aab.sh`, uploads it in the `android` artifact
+  and attaches `bahai-reader-<v>.aab` to tag releases (and to `SHA256SUMS`).
+- **Play checks, run locally** on an AAB from this branch (Flutter 3.47.9, debug-key fallback, bundletool 1.18.1):
+  minSdk 24, **targetSdk 36**; all 9 native libraries (`libapp`, `libflutter`, `libdartjni` for arm64-v8a,
+  armeabi-v7a, x86_64) have ELF LOAD alignment ≥ 16 KB; a universal APK made from the bundle passes
+  **`zipalign -c -P 16 4`**. The same script runs in CI. Not yet seen on a CI run or a release-key build.
+- **INTERNET: not added.** Android cannot download languages by design: `canDownload` in
+  `lib/features/settings/languages_dialog.dart` is false on Android, which hides the download buttons and says the
+  build has no network access (commit 9043fc1; PARITY.md "Phones: hidden"). Adding the permission would change
+  nothing a user can do, and would make the privacy and Data safety answers less simple. If phone downloads are
+  wanted later, that is a feature change: the permission, `canDownload`, the privacy page and Data safety change together.
+- **MSIX**: `msix` 3.18.0 dev dependency; `msix_config` with `store: true`, `msix_version: 1.0.1.0`,
+  `internetClient`, and TODO placeholders for `identity_name`, `publisher`, `publisher_display_name`. The Windows job
+  builds it after the zip and Inno installer (both unchanged) and uploads `windows-msix-store-draft`; the release job
+  leaves it out. Locally `msix:create` passes config validation and stops only at the missing Windows build (Linux).
+- **Privacy page**: `docs/privacy.html` (→ https://bahaireader.org/privacy after merge), linked from both footers,
+  in `sitemap.xml`. Written from the code, per platform.
+- **Store drafts**: `store/` (Play listing, Data safety, Microsoft listing and identity steps, IARC answers).
+
 ## Promotion, Phase 1: feature parity (2026-11-16)
 
 Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: https://github.com/ninepointlabs/bahai-reader-flutter/pull/1 (not merged).
