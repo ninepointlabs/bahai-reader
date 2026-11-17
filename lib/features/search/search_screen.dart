@@ -94,7 +94,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           return Padding(
                             padding: const EdgeInsets.all(12),
                             child: Text(
-                                results.length >= limit ? 'First $limit passages' : '${results.length} passages',
+                                results.length >= limit ? 'First $limit passages' : '${results.length} passage${results.length == 1 ? '' : 's'}',
                                 style: theme.textTheme.bodySmall),
                           );
                         }
