@@ -1,7 +1,11 @@
 # Content attribution
 
-The prayer and writings collections in data/ are supplied by BahaiPrayers.net, except the bahai.org
-texts and the other files listed below. In English, the app shows bahai.org's text in their place
+The texts are in assets/library/ (English as 1.json, other bundled languages as <id>.json), converted by
+scripts/convert_library.py from the data/ folder and language packs of the GTK app (0.2.3 and earlier, on the
+gtk-legacy branch). Where this notice names data/ files, their content is in assets/library/1.json.
+
+The prayer and writings collections are supplied by BahaiPrayers.net, except the bahai.org
+texts listed below. In English, the app shows bahai.org's text in their place
 wherever bahai.org publishes the same passage (see below); BahaiPrayers.net's text is shown for the
 rest, and for every other language:
 https://bahaiprayers.net/Developer
@@ -14,7 +18,8 @@ The app preserves the source text while converting HTML presentation to paragrap
 For content corrections, contact the provider through https://bahaiprayers.net/.
 
 This is an independent community project, not an official publication of a Bahá’í
-institution or of Omarchy. Downloaded translations come from the same provider.
+institution or of Omarchy. Translations, including the Amharic library bundled with the app, come from the same
+provider; other languages are downloaded from it only when you ask, in Languages & offline libraries.
 
 # Bahá’í Reference Library (bahai.org)
 
@@ -32,7 +37,9 @@ and the individual author, and that any use for a commercial purpose have permis
 Bahá’í International Community may withdraw permission at any time. These texts are not covered by this
 project's MIT software license, no ownership is claimed, and no permission beyond those published terms
 has been sought or obtained. This app is free and is not sold. Should permission be withdrawn, the three
-files can be deleted and the app works without them (showing BahaiPrayers.net's text again).
+files can be deleted and the app works without them (showing BahaiPrayers.net's text again). Run
+scripts/convert_library.py --without-bahai-org to rebuild assets/library/1.json from
+BahaiPrayers.net's text only; the app works the same with it.
 
 The texts are copied as published: words, punctuation, diacritics, headings, dates and footnotes are
 not changed, shortened or summarised. Only the presentation is converted for the native reader:
@@ -59,45 +66,50 @@ closing line naming a prayer's printed source ("Gleanings, CXXXVIII", with a pag
 official text has no such line and no page numbers.
 
 Each passage records its source URL, the SHA-256 of the downloaded file and the download date.
-scripts/import-bahai-library.py downloads and rebuilds them by hand; the app never connects to bahai.org.
+scripts/import-bahai-library.py on the gtk-legacy branch downloads and rebuilds them by hand. The app never connects to
+bahai.org; it connects to bahaiprayers.net only when you ask it to download a language or the list of languages.
 
 # Badí‘ calendar dates
 
-data/badi-dates.json transcribes table A of "Badí‘ dates 172 to 221 B.E.", prepared by an
-ad hoc committee at the Bahá’í World Centre using data provided by Her Majesty’s Nautical
-Almanac Office, and sent with the letter of the Universal House of Justice of
-11 December 2014. It was transcribed from the copy at
+assets/calendar/badi-dates.json is the GTK app's data/badi-dates.json, copied unchanged. It transcribes table A of
+"Badí‘ dates 172 to 221 B.E.", prepared by an ad hoc committee at the Bahá’í World Centre using data provided by Her
+Majesty’s Nautical Almanac Office, and sent with the letter of the Universal House of Justice of 11 December 2014. It
+was transcribed from the copy at
 https://bahai-library.com/pdf/uhj/uhj_bahai_dates_172-221.pdf
 and every row was compared, with no differences, with a second copy of the table,
 50-year-Holy-Day-Calendar.pdf (file created 11 December 2014):
 https://drive.google.com/open?id=1wdXQI4mc23_aMdfDOAFe22q1tQWtZU-2
-The rules for the other dates are in the message of the Universal House of
-Justice of 10 July 2014:
+The rules for the other dates are in the message of the Universal House of Justice of 10 July 2014:
 https://www.bahai.org/library/authoritative-texts/the-universal-house-of-justice/messages/20140710_001/20140710_001.xhtml
-Copyright © Bahá’í International Community. The dates are credited to the Bahá’í World
-Centre and the Universal House of Justice; they are not covered by this project's MIT
-software license.
+Copyright © Bahá’í International Community. The dates are credited to the Bahá’í World Centre and the Universal House
+of Justice; they are not covered by this project's MIT software license.
 
-The Today card quotes a letter written on behalf of the Universal House of Justice, dated
-17 December 1990, on the Long Obligatory Prayer, as reproduced in a memorandum of 2 January 1998:
+The Today card quotes a letter written on behalf of the Universal House of Justice, dated 17 December 1990, on the Long
+Obligatory Prayer, as reproduced in a memorandum of 2 January 1998:
 https://bahai-library.com/uhj_contacting_obligatory_exemptions
 Copyright © Bahá’í International Community.
 
-The clock times setting rests on ¶10 and Note 17 of the Kitáb-i-Aqdas, and on a letter written on
-behalf of the Universal House of Justice to a National Spiritual Assembly, dated 27 July 1976,
-which leaves the matter to the Assembly. The app paraphrases it and sets no hours of its own.
+The clock times setting rests on ¶10 and Note 17 of the Kitáb-i-Aqdas, and on a letter written on behalf of the
+Universal House of Justice to a National Spiritual Assembly, dated 27 July 1976, which leaves the matter to the
+Assembly. The app paraphrases it and sets no hours of its own.
 
 # City list
 
-data/cities.json is a trimmed copy of the GeoNames cities15000 list: name, ASCII name,
-country, region, latitude, longitude and time zone, with coordinates rounded to 2 decimals
-and everything else removed. City data © GeoNames (https://www.geonames.org/), licensed under
-the Creative Commons Attribution 4.0 License:
+assets/calendar/cities.json is the GTK app's data/cities.json, copied unchanged: a trimmed copy of the GeoNames
+cities15000 list (name, ASCII name, country, region, latitude, longitude and time zone, with coordinates rounded to
+2 decimals and everything else removed). City data © GeoNames (https://www.geonames.org/), licensed under the Creative
+Commons Attribution 4.0 License:
 https://creativecommons.org/licenses/by/4.0/
-GeoNames provides the data "as is" and does not endorse this app. The list is searched on
-this computer only.
+GeoNames provides the data "as is" and does not endorse this app. The list is searched on this device only.
 
-# Sun times
+# Sun times and time zones
 
 Sunrise, solar noon and sunset use the public-domain NOAA solar calculation
-(https://gml.noaa.gov/grad/solcalc/calcdetails.html), computed on this computer.
+(https://gml.noaa.gov/grad/solcalc/calcdetails.html), computed on this device.
+Time zones come from the IANA time zone database (public domain), bundled through the Dart `timezone` package
+(BSD-3-Clause, Copyright (c) 2014, timezone project authors). Nothing is downloaded.
+
+# License
+
+This app is free and is not sold. The software code is under the MIT License (LICENSE); the texts and translations
+are not, and are not relicensed by it.

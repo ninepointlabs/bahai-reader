@@ -1,221 +1,427 @@
-# Bahá’í Reader UX redesign: status
-
-Brief: UX Phases 1 and 2, Python + GTK 4 + libadwaita (approved by Tim 2026-11-11, 8:42 AM CT).
-Source review: “Bahá’í Reader UX and Stack Review” (read 2026-11-11).
-**2026-11-11: merged and released.** On Tim's instruction (“merge everything and do a release”, relayed by Hermes), PRs #42–#48 were merged into `main` in order (merge commits; no branches deleted), after the full CI run on #48's tip passed (build, Flatpak, Debian 12/Fedora 43/Arch installs). Release v0.2.0: VERSION, README, website, metainfo and release notes in the release PR (linked below), then the tag `v0.2.0`, which the release workflow publishes once its checks pass. Nothing was pushed to `main` directly.
-
-**0.2.1 (2026-11-11):** Tim installed 0.2.0 and saw the old interface: a 0.1.9 process started at login for reminders (`--background`, “keep reminders running”) was still running, and opening the app only raised its window. Fixed in 0.2.1: the process remembers the version it started as; when the installed VERSION differs, opening the app restarts that process in place (`os.execv`, same PID, so the single instance and reminders carry on), and with only reminders running a tick restarts it in the background. Tests: `tests/test_update.py` (6) and `tests/update_ui.py` (end to end: a background instance, a new VERSION installed under it, a second launch; passes on Arch, Ubuntu 24.04 in both windows, and Debian 12; in CI). Not covered: the Flatpak and the AppImage (a running copy keeps seeing its own old files, so nothing changes for them; an update there takes effect when the app is quit, as before). Release notes tell anyone running 0.2.0 or older in the background to quit it once.
-
-**0.2.2 (2026-11-15):** Retaking the site's highlight screenshot (PR #51) showed the note popover with no visible edge in the Omarchy bahai theme: `adwaita_colors` gave popovers the page's background, and the classic stylesheet did the same. Fixed in PR #53: `theme.raised()` (a step lighter than the page on dark palettes, white on light ones) for `popover_bg_color` and for the classic window's popover contents, arrow, lists and rows, plus a faint border there. Tests: two in `tests/test_shell.py`; CI green.
-
-**0.2.3 (2026-11-15):** QA fixes from PR #52 (M1 long no-space note wraps and is previewed in the list; M2 highlights, notes and saved passages follow a passage across languages via `match`, stored records unchanged; L2 note counter and hard limit). Reviewed and tested on main with 0.2.2 merged in (unit suite; marks_qa, highlights, shell, smoke, finder in libadwaita and marks_qa, highlights, navigation in classic, on Ubuntu 24.04).
-
-Before merging, CI (once Ubuntu's mirrors answered) found a real bug on Ubuntu 24.04 (libadwaita 1.5): a dialog closed while it was still animating open stayed on screen for good. Fixed in #48 (a close that comes too early waits until the dialog is open; anything left is force-closed) with a regression test; all tests then passed on Ubuntu 24.04, Arch, Debian 12 and in CI.
-
-**Mockups approved 2026-11-11** (“Go with those and continue”, relayed by Hermes). Phase 2 shell work is under way in stacked PRs; nothing is merged.
-
-Decisions taken with that approval (the defaults I recommended; say if any is wrong):
-- The mockups are built as drawn (all eleven decisions in `design/mockups/phase2/README.md`).
-- **Debian 12: option A, graceful fallback.** libadwaita 1.4+ gets the new window; older libadwaita (Debian 12 has 1.2.2) gets the classic (Phase 1) window. No package target dropped.
-- **No Blueprint:** widgets are built in code, as the rest of the app is, with no new build tool. (The brief allowed “Blueprint or `.ui` templates”; neither is used. Easy to revisit.)
-- **Hidden Words prologue:** left as it is, inside Arabic no. 1.
-
-## Done
-
-| Step | Branch | PR | State |
-| --- | --- | --- | --- |
-| Phase 1: quick wins on the current GTK 4 code | `feat/ux-phase1-quick-wins` (base `main`) | https://github.com/ninepointlabs/bahai-reader/pull/42 | merged |
-| Phase 2, step 1: split `reader.py` into modules, no visible change | `refactor/split-reader-modules` (base: the Phase 1 branch, **stacked on #42**) | https://github.com/ninepointlabs/bahai-reader/pull/43 | merged |
-| Phase 2, step 2: mockups for approval (docs only) | `design/phase2-mockups` (base: the split branch, **stacked on #43**) | https://github.com/ninepointlabs/bahai-reader/pull/44 | approved, merged |
-| Phase 2, step 3 (+ parts of 4–6): libadwaita window with fallback, Home and library, book contents, Continue reading, toasts, theme mapping, F11 focus mode | `feat/adw-shell` (base: the mockups branch, **stacked on #44**) | https://github.com/ninepointlabs/bahai-reader/pull/45 | merged |
-| Phase 2, step 4–5 (part): Ctrl+K search (This book / Everything), the reader's place line and book progress footer | `feat/search-progress` (base: `feat/adw-shell`, **stacked on #45**) | https://github.com/ninepointlabs/bahai-reader/pull/46 | merged |
-| Phase 2, step 5 (part): highlights and notes | `feat/highlights-notes` (base: `feat/search-progress`, **stacked on #46**) | https://github.com/ninepointlabs/bahai-reader/pull/47 | merged |
-| Phase 2, step 3/6 (rest): settings windows as AdwPreferencesDialog, shortcuts dialog, accessibility pass with Orca | `feat/prefs-shortcuts-a11y` (base: `feat/highlights-notes`, **stacked on #47**) | https://github.com/ninepointlabs/bahai-reader/pull/48 | merged |
-
-Merge order: #42 → #43 → #44 → #45 → #46 → #47 → #48. Each PR's base is the branch before it; GitHub retargets it when the one below merges. Each one's base is the previous branch; GitHub retargets it when the one below merges.
-
-### Phase 1 (one PR)
-
-1. **Interface font.** `window { font-family: monospace; }` is gone. The interface uses the desktop’s own interface font (proportional; Adwaita Sans on TUF). **Aa → Interface font → Monospace** brings the old look back for anyone who wants it. The reading font (`Gtk.TextView`, DejaVu Serif 22 px by default, or the user’s choice) is unchanged and still set separately.
-2. **Compact section switcher.** The six bordered full-width buttons are now one `Gtk.ListBox` of icon-and-label rows with the current section selected. The header’s Today button is gone (Today is the first row; Ctrl+T still works). Random moved into ⋮ as “Random passage” (Ctrl+R still works). The ☰ and ⋮ glyphs are now the standard `sidebar-show-symbolic` and `view-more-symbolic` icons, all present in Debian 12’s Adwaita icon theme.
-3. **Labels.** The obligatory prayers are listed as Short, Medium and Long Obligatory Prayer. A prayer’s heading is its category (“Healing”), using the category it was opened in when it has several. Obligatory prayers are headed “Obligatory prayers” because bahai.org’s text already prints the prayer’s name as its first line; the name, author and length are in the line beneath. The subtitle never repeats the heading (fixes “Epistle to the Son of the Wolf” twice) and adds the author where the book’s name does not already include it. Branch names in the contents list now use the full width, with a tooltip holding the whole name; passage rows keep their tooltips.
-4. **Reading footer.** Previous/Next and the status line sit under a 1 px divider, and the text fades out over its last 28 px above it, so no line is hidden under the bar. The text’s bottom margin (50 px) lets the last line scroll clear of the fade. The citation now follows the text after one line break with a 10 px gap, not an empty paragraph.
-5. **Softer controls.** 6 px radii, no hard borders, a light fill for ordinary buttons, flat buttons in the header, menu and contents list, and one primary style (accent fill, text colour chosen for 4.5:1 contrast) used for Next and the counter’s Count. The pane separator is a 1 px hairline instead of a 5 px selection-coloured bar. Today cards have 12 px radii.
-6. **Hidden Words preamble.** See the finding below. No text was changed.
-
-Also: the said-today toggle under an obligatory prayer has a tooltip explaining what it does. README features, the Aa/⋮ description and the interface-font note are updated; the keyboard shortcuts are unchanged.
-
-### Phase 2, step 1: the split (no visible change)
-
-`reader.py` (2,377 lines after Phase 1) is now a 73-line launcher; the app is the `bahai_reader` package, 21 modules:
-
-- Below the views, no GTK: `config` (paths, app facts), `settings` (settings.json cleaning), `library` (feeds, packs, bahai.org texts, grouping), `search` (folding, cities), `citations`, `labels` (headings, list names), `theme` (contrast, stylesheet, Omarchy palette follow), `ui` (layout constants, shortcut list). `rendering` (styled spans, Pango), `desktop` (autostart, Flatpak, clocks, GLib) and `widgets` (`Choice`) are small shared helpers.
-- The window: `app` (the `Reader` application: header, panes, keys, navigation) plus one mixin per view or window: `contents`, `reading`, `saved`, `today`, `counter`, `reminders`, `about`, `location`, `languages`, and `theme`’s `ThemeMixin`.
-
-How it was done: an AST script moved every top-level statement and every `Reader` method verbatim into its module; imports were then filled in from pyflakes’ undefined-name reports. Only two things are not verbatim: `roman()` moved next to `citation()` (to avoid an import cycle), and code that reads a path the tests change (`STATE`, `CACHE`, `LIBRARY`, `ROOT`, `AUTOSTART`, `in_flatpak`) now reads it from its module at call time (`config.STATE`). `reader.py` re-exports every name, and setting a name on `reader` (as the tests and `scripts/import-bahai-library.py` do) sets it wherever the package holds that object, so **no existing test changed**.
-
-Packaging: `.deb`/`.rpm`/Arch (nfpm), the AppImage and the Flatpak now also install `bahai_reader/*.py` beside `reader.py`. Launchers are unchanged.
-
-### Phase 2, step 3: the libadwaita window (`feat/adw-shell`)
-
-- `bahai_reader/shell.py`: `AdwApplicationWindow` → `AdwToastOverlay` → `AdwNavigationSplitView`, each page an `AdwToolbarView` with an `AdwHeaderBar`; one `AdwBreakpoint` (below 700 px) collapses the split view. It builds the same widgets as the classic window (contents list, reading view, Today, counter), so every view works unchanged in both.
-- Chosen at start: libadwaita ≥ 1.4 → the new window; otherwise the classic one. `BAHAI_READER_SHELL=classic|adwaita` overrides (documented in the README).
-- Sidebar: Home, Prayers (with count), Writings (“18 books”), Saved (count). Today, Obligatory prayers and the Hidden Words keep their own pages and belong to Home, Prayers and Writings respectively.
-- Home: date, obligatory prayer and passage-of-the-day cards; Continue reading (last three books, at the passage left, % of the book by words); the library, by author. Writings shows the library; a book card opens the book with its contents in the sidebar and Back to the library; the branch holding the current passage opens.
-- Settings: `positions` (last passage per book), `recent` (books, most recent first), `book` (the open book), all validated in `clean_settings`.
-- Theme: the palette goes to libadwaita’s named colours (`@define-color`, and the CSS variables libadwaita 1.6+ reads when GTK ≥ 4.16); the sidebar takes Omarchy’s `dark_background` when it keeps 7:1 contrast with the text; accent text and text on the accent are contrast-checked; `AdwStyleManager` is forced light or dark to match. No per-widget button/entry CSS in the new window.
-- Notices are `AdwToast`s (they stay until dismissed). F11 is focus mode (Esc leaves it). Header actions are icons (save, copy), with Aa and ⋮ as before.
-- Packaging: `.deb` depends on `gir1.2-adw-1` (1.2 on Debian 12, which then gets the classic window), `.rpm` and Arch on `libadwaita`; the Flatpak runtime has it; the AppImage uses the host’s if present.
-- Tests: `tests/shell_ui.py` (new, drives the whole new window), `tests/test_shell.py` (13: library, Continue reading settings, theme mapping, choosing the window). `layout_ui`, `chrome_ui` and `smoke_ui` test the classic window and now say so (they pin it). `robustness_ui` reads notices through `notice_texts()` (bar or toasts) and `today_ui` expects Home or Today as the first page, depending on the window. CI runs `shell_ui`, then navigation/today/robustness/dropdown/background in the classic window too, and `shell_ui installed` in the Debian, Fedora and Arch install jobs and the Flatpak.
-
-### Phase 2: Ctrl+K search and book progress (`feat/search-progress`)
-
-- `bahai_reader/finder.py`: Ctrl+K (or the search buttons, or ⋮ → Search the texts…) opens a search over every passage, or only the open book (“This book”; for a prayer, all the prayers). Results are grouped by book or prayer category with the matching words in bold; ↓ moves into them, Enter or a click opens the passage in its place with the match selected and scrolled into view. It is an `AdwDialog` on libadwaita ≥ 1.5 and a small modal window otherwise, so the classic window has it too.
-- `search.py`: `fold_map` maps folded text back to the original characters (checked against `fold()` on every passage), so a match found while ignoring accents and apostrophes is shown exactly where it is. Matching uses each passage's cached folded text: 4 ms per query after the first (0.7 s once).
-- The libadwaita reader: the book and part as a small line above the heading; “Passage 3 of 27 · about 33 minutes” below it; the footer shows “God Passes By · 3 of 27”, a progress bar through the whole book by words, and “5% of the book” (a prayer shows its place in its category instead). Next is the one suggested (primary) button.
-- Tests: `tests/test_finder.py` (8), `tests/finder_ui.py` (in either window; CI runs it in both). README: features and Ctrl+K in the shortcuts table.
-
-### Phase 2: highlights and notes (`feat/highlights-notes`)
-
-- Select words: after the selection settles, a small bar offers four colours (the theme's yellow, green, blue and magenta; defaults where a palette has none), **Note…** and Copy. Ctrl+H highlights the selection in the last colour and opens its note. Clicking a highlight opens its colour, note and Remove. Words with a note are underlined. Both windows have it.
-- Stored in `settings.json` as `highlights`: passage id, character offsets into the passage text, the highlighted words, colour, note, date. Never written into the texts; Copy still copies the official text with its citation. If an update moves the text, a highlight finds its words again (the nearest place they occur); if the words are gone it is kept and listed but not drawn. `clean_settings` drops malformed records.
-- **Saved → Highlights & notes** (the first row of Saved's contents) lists every highlight, newest first, with its place and note; each opens its passage scrolled to the highlight.
-- Also fixed: in the libadwaita window, Copy no longer replaces its icon with the word “Copied”; a short toast says it instead.
-- Tests: `tests/test_marks.py` (9), `tests/highlights_ui.py` (in either window; CI runs it in both). README: feature and Ctrl+H (not bound by Omarchy/Hyprland).
-
-### Phase 2: preferences, shortcuts and accessibility (`feat/prefs-shortcuts-a11y`)
-
-- In the libadwaita window, Location & reminders, Languages & offline libraries and Collections are `AdwPreferencesDialog`s (`AdwPreferencesWindow` on libadwaita 1.4), holding the same content as before. A small adapter keeps the old window interface (present, close, close-request), so their code and tests are unchanged; the classic window keeps its small windows.
-- Keyboard shortcuts: `AdwShortcutsDialog` (libadwaita 1.8+), else GTK's `ShortcutsWindow` built from XML (works on GTK 4.8); four groups with the keys drawn. Ctrl+? opens it (also ⋮). The classic window keeps its list. README table updated.
-- Accessibility fixes found by the audit (both windows unless noted): contents rows, branch headers, calendar dates, the Obligatory prayers and Highlights & notes rows, and ⋮ menu entries had **no name** for screen readers (GTK names a button from a plain label only, and a button made with a label, even an empty one, keeps that label as its name over the one given); the contents search had no name; Previous/Next were heard as "Next →" (now "Next passage"/"Previous passage"); Save and Copy in the libadwaita header (now icon buttons named "Save", "Copy with citation"); the reading text is now named by the passage's heading ("Arabic no. 1 read only text"); search results are said once, not with the opening words twice.
-
-## Accessibility / Orca results
-
-Run 2026-11-11 in a throwaway Arch container (`scripts/accessibility/`, reproducible): Xvfb, the AT-SPI bus, **Orca 51.1** with speech-dispatcher 0.12.1 (no audio device; what Orca speaks is read from its debug log), at-spi2-core 2.62.1, libadwaita 1.10, GTK 4.24. The app was walked through 15 screens (Home, a library card, the library, a book, its contents, the text, Save, Prayers, Obligatory prayers, the counter, Today, Ctrl+K search and a result, the ⋮ menu, Highlights & notes), moving focus as a user would.
-
-- **AT-SPI audit: 0 unnamed controls on all 15 screens** (25 to 123 controls each). Before the fixes: up to 50 unnamed per screen (every contents row).
-- **Orca spoke 34 distinct utterances**; all are in `scripts/accessibility/orca-2026-11-11.txt`. Examples: "Next passage button", "Arabic no. 1 read only text", "Said today toggle button not pressed", "Sections List with 4 items", "Search dialog … 893 passages; the first 60 are listed", "Results List with 60 items", "Highlights & notes button".
-- **Not covered:** a person using Orca with real key presses and audio (focus was moved by the test, not by Tab/arrow keys), Braille, the classic window under Orca (it shares the naming fixes), and Orca on TUF (not installed; no sudo). Worth one session with a screen-reader user before 0.2.0.
-
-## Tests actually run
-
-All on 2026-11-11.
-
-Preferences, shortcuts and accessibility (`feat/prefs-shortcuts-a11y`):
-
-| Where | What | Result |
-| --- | --- | --- |
-| TUF | unit tests | 256 OK (1 skipped) |
-| Arch container, libadwaita window | all 11 UI tests (`shell_ui` now also opens the three preferences dialogs, searches a city inside one, and opens the shortcuts dialog with Ctrl+?) | all passed |
-| Arch container, classic window | `finder`, `highlights`, `navigation`, `robustness`, `today`, `dropdown`, `background` | all passed |
-| `debian:12` (classic window) | unit tests, `highlights_ui`, `finder_ui`, `smoke_ui`, `navigation_ui`, `layout_ui` | all passed |
-| `debian:12` | `dropdown_ui` | **fails, and fails the same way on `main`**: it asserts the language list is searchable, which PyGObject 3.42 (Debian 12) cannot do (known since the October QA). CI never runs it on Debian 12. Not a regression. |
-| Accessibility container | AT-SPI audit + Orca 51.1 | 0 unnamed controls on 15 screens; transcript saved |
-
-Highlights and notes (`feat/highlights-notes`):
-
-| Where | What | Result |
-| --- | --- | --- |
-| TUF | unit tests | 256 OK (1 skipped) |
-| Arch container, libadwaita window | all 11 UI tests (`shell`, `finder`, `highlights` + the 8 existing) | all passed |
-| Arch container, classic window | `finder`, `highlights`, `navigation`, `robustness`, `today`, `dropdown`, `background` | all passed |
-| `debian:12` (classic window) | unit tests, `highlights_ui`, `finder_ui`, `smoke_ui`, `navigation_ui` | all passed |
-
-Ctrl+K search and book progress (`feat/search-progress`):
-
-| Where | What | Result |
-| --- | --- | --- |
-| TUF | unit tests | 247 OK (1 skipped) |
-| Arch container, libadwaita window | `shell_ui`, `finder_ui` + the 8 existing UI tests | all passed |
-| Arch container, classic window | `finder_ui`, `navigation_ui`, `robustness_ui`, `today_ui`, `dropdown_ui`, `background_ui` | all passed |
-| `debian:12` (classic window) | unit tests, `finder_ui`, `smoke_ui`, `shell_ui` (skips) | all passed |
-
-Phase 2 libadwaita window (`feat/adw-shell`):
-
-| Where | What | Result |
-| --- | --- | --- |
-| TUF | unit tests | 239 OK (1 skipped) |
-| Arch container + Xvfb, libadwaita 1.10 (new window) | `shell_ui` + all 8 existing UI tests | all passed |
-| Same, `BAHAI_READER_SHELL=classic` | all 8 existing UI tests | all passed |
-| Classic window unchanged | Phase 1 screenshots re-rendered in the classic window | 8 of 9 byte-identical; the 9th differs only in the search field’s blinking caret (as before) |
-| `debian:12` container, libadwaita 1.2.2 | unit tests, `shell_ui` (skips: classic window chosen), `smoke_ui`, `navigation_ui`, `today_ui`, `chrome_ui` | all passed; the classic window opens |
-| Packages built and installed in `debian:12`, `fedora:43`, `archlinux:base` | `smoke_ui installed`, `shell_ui installed` | all passed; Fedora and Arch open the new window, Debian 12 the classic one |
-
-Phase 2 split branch:
-
-| Where | What | Result |
-| --- | --- | --- |
-| TUF | unit tests | 226 OK (1 skipped): Phase 1’s 214 plus 12 in `tests/test_modules.py` (every pre-split name and method still there, no method hidden inside a function, data modules free of GTK, path and function patches on `reader` reach the package, packaging lists the package) |
-| Arch container + Xvfb | all 8 UI tests | all passed |
-| Packages built with the pinned nFPM 2.47.0, installed in `debian:12`, `fedora:43`, `archlinux:base` (the CI’s install jobs) | `smoke_ui installed` and `chrome_ui installed` (plus `navigation_ui` on Debian 12) | all passed; `bahai-reader --version` works on Debian 12 |
-| No visible change | the 9 Phase 1 screenshots in Light and in Dark, rendered again from the split | 17 of 18 byte-identical; the 18th differs only in the search field’s blinking caret, and two renders of the same split code differ in the same place |
-| pyflakes | `bahai_reader/` | clean |
-
-Not run locally: the AppImage and Flatpak builds (no appimagetool / GNOME 51 SDK on TUF). The PR’s CI builds both and starts the Flatpak.
-
-Phase 1 branch:
-
-| Where | What | Result |
-| --- | --- | --- |
-| TUF (Arch, Python 3.14, GTK 4.24) | `/usr/bin/python3 -m unittest discover -s tests` | 214 tests OK (1 skipped, as on `main`); 200 before, 14 new in `tests/test_chrome.py` |
-| Arch container + Xvfb (the CI’s UI tests, as uid 1000) | `chrome_ui` (new), `navigation_ui`, `layout_ui`, `smoke_ui`, `robustness_ui`, `today_ui`, `dropdown_ui`, `background_ui` | all 8 passed |
-| Debian 12 container + Xvfb (Python 3.11, GTK 4.8.3, PyGObject 3.42) | unit tests, `chrome_ui`, `smoke_ui`, `layout_ui`, `navigation_ui`, `today_ui` | all passed |
-
-Baseline before any change (`main` at 52a84ad): 200 unit tests OK, and all 7 UI tests passed on GTK Broadway.
-
-Notes on the test setup: TUF has no Xvfb. GTK Broadway crashed (`broadway-server.c:1797: decode_nodes: assertion failed`) when screenshots were rendered offscreen, so the UI tests and screenshots run in throwaway Docker containers with Xvfb instead. `robustness_ui` must not run as root, because root can write to its read-only folder. Two existing UI tests were updated for intended changes: `layout_ui` (only Copy moves into ⋮ in a narrow window now) and `smoke_ui` (the obligatory prayer heading and the ⋮ menu entries).
-
-## Debian 12 and libadwaita
-
-Checked in `debian:12` containers on 2026-11-11:
-
-- Debian 12 (bookworm): **libadwaita 1.2.2**, GTK 4.8.3, PyGObject 3.42.2. bookworm-backports has no newer libadwaita. The review was right.
-- Debian 13 (trixie, stable since August 2025): libadwaita 1.7.6, GTK 4.18.6, PyGObject 3.50.0.
-- Fedora 43: libadwaita 1.8.8. TUF (Arch): libadwaita 1.10.0. Flatpak (GNOME 51 runtime): current libadwaita.
-- Ubuntu 24.04: libadwaita 1.5.0, GTK 4.14.5, PyGObject 3.48.2 (checked in an `ubuntu:24.04` container once the mirrors answered): gets the new window.
-
-What libadwaita 1.2 lacks for the Phase 2 shell: `AdwNavigationSplitView`, `AdwToolbarView`, `AdwBreakpoint`, `AdwNavigationView` (all 1.4), `AdwPreferencesDialog` and `AdwDialog` (1.5). It has `AdwApplicationWindow`, `AdwHeaderBar`, `AdwToastOverlay`, `AdwLeaflet` (deprecated in 1.4), `AdwPreferencesWindow`, `AdwStatusPage` and the style manager.
-
-Phase 1 does not use libadwaita at all, so it runs on Debian 12 as before.
-
-### Phase 2 shell on Debian 12: options (Tim to choose; nothing dropped)
-
-The approved shell needs libadwaita 1.4 (split view, breakpoints, toolbar view) and 1.5 (preferences dialog). Debian 12 has 1.2.2 and no backport.
-
-- **A. Graceful fallback (recommended).** One app, two windows: on libadwaita ≥ 1.4 (Debian 13, Fedora 43, Arch, the Flatpak and, if confirmed, Ubuntu 24.04) the new shell; on Debian 12 the Phase 1 window, which the split keeps as its own module. The data and reading code are shared, so the text, search, citations, saved passages and theme work the same on both; features that need the new shell (library home, focus mode, the highlights UI) are new-shell only, and Debian 12 keeps what it has today. The `.deb` keeps `Debian 12+` and adds a dependency on `gir1.2-adw-1` (available as 1.2 on Debian 12). Cost: two window modules to keep starting in CI; the Debian 12 install test stays as the guard. A plain libadwaita 1.2 version of the new shell (with `AdwLeaflet`) is possible, but `AdwLeaflet` is deprecated, so it would be throwaway work.
-- **B. Raise the `.deb` baseline** to Debian 13 / Ubuntu 24.04 for 0.2.0, and point Debian 12 users to the Flatpak (it already ships, with its own GTK and libadwaita) or to staying on 0.1.x. Simplest code; it is a change to a supported target, so it needs Tim’s explicit yes.
-- **C. Flatpak only for Debian 12**, but keep publishing a 0.1.x `.deb` for it with security and text fixes only. Middle ground; two release lines.
-
-Until Tim chooses, nothing about packaging changes: Phase 1 and the split run on Debian 12 (tested in a `debian:12` container) and the shell is not started.
-
-## Hidden Words preamble (finding)
-
-On Hidden Words Arabic no. 1, the official 0.1.9 text opens with “HE IS THE GLORY OF GLORIES” and the prologue (“THIS is that which hath descended from the realm of glory…”), then “* * *”, then “1 O SON OF SPIRIT!”. Persian no. 1 likewise opens with “In the Name of the Lord of Utterance, the Mighty.”
-
-- This is **intended by the importer**, not a stray paste. `scripts/import-bahai-library.py` places short official lines that match no passage (a part’s invocation or prologue) at the start of the passage that follows. Commit 22f5d0e (“Official text, book 1: The Hidden Words”) says so explicitly. The text is bahai.org’s own, word for word; nothing is lost or reworded.
-- The app’s older BahaiPrayers.net copy of Arabic no. 1 has no prologue, so the 0.1.9 change is that the prologue now appears at all, attached to no. 1.
-- **Not changed.** Whether the prologue should stay inside no. 1, or become its own “Prologue” entry before no. 1 in the contents (a change to how the text is divided, not to the text), is Tim’s call. See “Open questions”.
-
-## Mockups
-
-**Made and approved.** In the repo at [`design/mockups/phase2/`](design/mockups/phase2/README.md) on the `design/phase2-mockups` branch, PR https://github.com/ninepointlabs/bahai-reader/pull/44. Ten stills: Home/library, Reader (with a highlight and a note), Reader for a long work with contents, Today, Saved (collections, highlights and notes), Ctrl+K search, Focus mode, Narrow Home, Narrow Reader, and the Reader in Dark. The README lists the eleven design decisions to confirm (for example: Today folds into Home, Obligatory prayers move under Prayers, the Hidden Words becomes a library book, F11 for focus mode).
-
-They are HTML drawn in libadwaita’s layout and rendered in headless Chrome, not running code. All quoted text, titles and counts come from the bundled library through `extract.py` (quotations were checked against the texts: for example “Free thyself from the fetters of this world” is Persian no. 40). Day-to-day content (passage of the day, reading positions, highlights, notes) is example data.
-
-Approved by Tim: **yes**, 2026-11-11 (“Go with those and continue”, relayed by Hermes), as drawn.
-
-## CI
-
-- Until about 17:00 UTC on 2026-11-11, every `build` job hung at `apt-get install` (Ubuntu mirror outage); the Flatpak job passed throughout.
-- Once the mirrors answered, CI found the libadwaita 1.5 dialog bug (see the top). After the fix, the full run on #48's tip (`43075522577`) passed: build (all unit and UI tests, both windows, AppImage), Flatpak, and the installed-package tests on Debian 12, Fedora 43 and Arch.
-- Reproduced locally in an `ubuntu:24.04` container (libadwaita 1.5.0, GTK 4.14.5): Ubuntu 24.04 gets the new window.
-
-## Open questions and blocked gates
-
-Answered 2026-11-11 by “Go with those and continue” (as I read it; correct me if not): mockups approved; Debian 12 option A; no Blueprint; the Hidden Words prologue stays inside Arabic no. 1.
-
-Still open:
-1. **CI** cannot run its `build` job while Ubuntu's mirrors are failing (see “CI”); re-run when they answer.
-4. **Not done (optional or out of scope in the brief):** gettext/translation set-up (optional; not started), the About window is still the app's own (not `AdwAboutDialog`), the Aa popover stays a popover (it is not a settings window), and highlights are not shown in the side-by-side second language.
-5. **0.2.0** released on Tim's instruction (see the top).
-3. **Release 0.2.0** is the intended end; no version bump, tag or release without Tim's OK.
+# STATUS — Bahá’í Reader Flutter port
+
+Date: 2026-11-16 · Machine: TUF (Linux, Omarchy/Hyprland) · Flutter 3.47.9 stable, Dart 3.13.7 (the existing
+user-local install; nothing was reinstalled and no sudo was used).
+
+The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
+
+## Promotion, Phase 1: feature parity (2026-11-16)
+
+Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: https://github.com/ninepointlabs/bahai-reader-flutter/pull/1 (not merged).
+Phase 2 was not started.
+
+**What was done**
+
+1. **Audit:** [`PARITY.md`](PARITY.md) lists 97 user-facing features of the GTK app at v0.2.3 (`1cb4bd0`): 80 match,
+   9 partial, 8 missing. The 8 missing are packaging and distribution (AppImage, Flatpak, .deb/.rpm/pacman, autonomix,
+   the `org.bahai.Reader` desktop id), restart-after-update, the Flatpak Background portal and the classic GTK window;
+   all Phase 2 or not applicable. Every partial row says what differs.
+2. **Missing and partial items implemented** (commits on the branch):
+   - **First-run GTK import** (`lib/core/settings/gtk_import.dart`): on the first start, and from Settings → Import
+     again, it reads `$XDG_CONFIG_HOME/bahai-reader/settings.json` and copies highlights with their notes, saved
+     passages, collections, Said/Fasted records, positions, opened groups, and settings (theme, text size, fonts,
+     spacing, margins, Side by side, language, location, clock hours, prayer, Long prayer period and nudge, counter
+     target, reminder switches, last passage/section/book). The rule: marks are merged, never replaced; settings fill
+     only what has no value here, and the ones that always have a value (theme, size, language, keep records, highlight
+     colour, Continue reading) only on the first run. **Not imported:** `keep_running` (it would add a second login entry
+     beside the GTK app's), `sidebar_width`, `writings_by` (reasons in PARITY.md §14). The GTK file, its `.bad*`
+     backups and both GTK folders are only read. A damaged GTK file imports nothing, is left as it is, and is tried
+     again at the next start; a missing one counts as done.
+   - **Language packs**: a line-by-line Dart port of the GTK pack loader (`lib/core/library/packs.dart`) reads packs
+     in the GTK format from this app's folder and, **read only**, from `~/.local/share/bahai-reader/libraries`.
+     **Languages & offline libraries** (Download & use, Update downloaded content, Check available languages; the
+     network only on those buttons; saved atomically in `~/.local/share/bahai-reader-flutter/libraries`). Search
+     folding now covers the whole BMP.
+   - **Side by side**, **collections** (Saved grouped, Collection under a saved passage, Manage collections; phone
+     Saved tab too), **reading font / interface font / line spacing / page margins** (Aa), **Random passage** (Ctrl+R),
+     **Quit** (Ctrl+Q; hides while reminders keep running), **Ctrl+F** into the section search, **restore the
+     section, book and passage at start**, **remembered contents groups**, **About** with GTK's rows, the counter's
+     **screen-reader announcements**, a notice when settings **cannot be saved**, start **notices shown** on desktop,
+     **`--help` / `--version`**, the full **shortcuts** list.
+3. **Data migration tests** (`test/gtk_import_test.dart`, 7): first run imports every field above with the GTK record
+   shapes; GTK folder unchanged (every file's bytes and mtime, no file added or removed, incl. an existing
+   `settings.json.bad`); importing again adds nothing and keeps changes made here (note, colour, theme, size, prayer,
+   collection filing); an existing settings file keeps its settings and only empty ones are filled; damaged and
+   non-object GTK files; a missing file; the desktop shows what was imported.
+
+**Tests (real results)**
+
+- `flutter analyze`: **No issues found!**
+- `flutter test`: **`00:16 +81 ~1: All tests passed!`** — 81 passed, 1 skipped, 16 test files. The skipped test is
+  the whole-English-library check, which needs a 10 MB fixture outside the repo:
+  `python3 scripts/pack_fixtures.py /tmp/en.json && GTK_ENGLISH_PACK=/tmp/en.json flutter test test/packs_test.dart`
+  → **`+5: All tests passed!`** (2,616 English feed passages identical to the GTK app's output).
+- New test files: `test/gtk_import_test.dart` (7), `test/packs_test.dart` (5), `test/parity_test.dart` (11).
+
+**Linux build**
+
+- `flutter build linux --release` → `✓ Built build/linux/x64/release/bundle/bahai_reader`.
+- `bahai_reader --version` → `Bahá’í Reader 0.0.1` (exit 0); `--help` prints the usage (exit 0); `--bogus` → exit 2.
+  These were run with the earlier build already running in the background, and answered without reaching it.
+- Started hidden (`--background`, `BAHAI_READER_SEPARATE=1`, scratch `XDG_CONFIG_HOME`/`XDG_DATA_HOME` holding a
+  **copy** of the real GTK settings and Amharic pack): first run imported the real shapes (theme, size 21, section,
+  last passage, prayer, five reminder switches, location, 2 positions, Continue reading, 37 groups;
+  `keep_running` left off) and exited as `--background` does with keep-running off. Second run with keep-running on
+  stayed up hidden for 8 s with no window mapped, then was stopped. The copy's SHA-256 was unchanged, and the real
+  `~/.config/bahai-reader/settings.json` and `~/.local/share/bahai-reader/libraries/90.json` kept their size and mtime.
+- **Not looked at on screen**: you were on workspace 12, so no window was opened. The new dialogs (Languages,
+  Collections, Aa) and Side by side are covered by widget tests only.
+
+**Not done / left (also in PARITY.md)**
+
+- **Downloads were not tried against bahaiprayers.net** (tested with a fake network). Worth one real “Download & use”
+  before Phase 2.
+- Accessibility: no AT-SPI/Orca audit of the Flutter window; Tab order differs (the contents list is not one Tab
+  stop with arrow keys). Quotations in bahai.org texts are muted, not indented. Wheel scrolling is not eased.
+- Packaging, `org.bahai.Reader` app id/desktop entry/icon, window title (still “… (Flutter experiment)”),
+  restart-after-update, Flatpak portal: Phase 2.
+- Amharic is still bundled (GTK bundles only English); can be dropped in Phase 2.
+- **On this machine:** your running Flutter copy (pid 1716546) is the earlier build and was not restarted. When
+  the new build first starts with your real settings, it will import from your GTK settings once: it already has its own
+  settings file, so only marks and empty settings are filled. Your GTK settings have all five reminder switches on;
+  any switch not set in the Flutter settings will be turned on, so with both apps running, reminders may come twice.
+
+**Nothing else was touched:** the GTK checkout (`git status`: only its own untracked `CHECKLIST-features.md`), its
+worktrees, its `main`, tags and releases, bahaireader.org, `~/.config/bahai-reader/` and `~/.local/share/bahai-reader/`
+(read only). No merge, tag, release, rename, archive or visibility change. Nobody was contacted.
+
+**Phase 2 (outline only; not started; needs Tim's OK):** tag the GTK app `gtk-final` and keep it on `gtk-legacy`;
+replace `main` of `ninepointlabs/bahai-reader` with this app in one PR; switch the app id to `org.bahai.Reader` (so
+existing autostart entries and desktop files keep working) and drop “(Flutter experiment)”; build the AppImage,
+Flatpak bundle and .deb/.rpm/pacman packages under the **same asset file names**; release 1.0; update bahaireader.org,
+the README (with the autonomix-cli install line), a blog post and social posts (#bahai #linux), adding Android once
+ready; archive `bahai-reader-flutter` with a pointer to the main repo.
+
+---
+
+# Earlier: the Flutter experiment (v0)
+
+## Update 5: reminders on time, and "Use my location" on phones (2026-11-16)
+
+Tried on a real phone (Pixel 11 Pro XL, Android, release build over USB). The first reminder ("Short Obligatory
+Prayer · Its time is open, until 5:20 PM") showed as soon as notifications were allowed, and a week of alarms was set.
+But Android had not allowed exact alarms, so every alarm had a one-hour window: the "closes at" nudge could come too
+late and then be dropped as stale.
+
+- **Reminders on time:** the app now declares `SCHEDULE_EXACT_ALARM`. Turning a reminder on, and once at start if
+  reminders are already on (`asked_exact_times` in settings), offers "Reminders on time" → Android's "Alarms &
+  reminders" page for the app. Location & reminders shows a notice and an "Allow reminders on time" button while it
+  is not allowed. When it is allowed, `BootReceiver` (now also on `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`) sets
+  the alarms again as exact ones, as does the app when it comes back to the front.
+- **Use my location:** a button at the top of Location (phones only) asks the phone once for an approximate fix
+  (`ACCESS_COARSE_LOCATION` only, requested when tapped; `Locate.kt`, `lib/core/platform/locator.dart`). The point is
+  rounded to 0.01° as before, named "Near <city>" after the largest bundled city within 5 km or else the nearest within
+  25 km (`nearestCity`), and given the phone's time zone. Still no `INTERNET` permission.
+- Tests: `test/location_test.dart` (3). 58 tests pass; `flutter analyze` clean.
+- **Verified on the phone:** the build installs, the two permissions are declared, the app starts and sets its alarms.
+  **Not yet seen on the phone:** the dialog, the settings page, and a GPS fix (the phone was locked).
+
+## Update 4: Today and reminders on phones (2026-11-15, late)
+
+Asked for: “add Today and reminders to the phone layout too”.
+
+- **Phone layout** (`lib/features/library/library_screen.dart`, `lib/features/today/phone_today.dart`): tabs Today ·
+  Writings · Prayers, opening on Today (the same `TodayView` cards as the desktop, buttons opening pages); Prayers
+  starts with an “Obligatory prayers” card (counter, Location & reminders, the three prayers and the guidance, read
+  with Next/Previous among them); ⋮ → Location & reminders (the same settings as a full page); the reader shows the
+  “Said today / this morning …” button under an obligatory prayer. Today, the counter, Location & reminders and the
+  Said button moved to `lib/features/today/`, shared by both layouts.
+- **Reminders on Android**: the same rules (`upcomingReminders()` in `reminders.dart`, built on `candidateReminders()`)
+  produce the next 7 days, handed to `android/app/src/main/kotlin/.../Reminders.kt`, which sets an alarm per reminder
+  (exact where Android allows it, otherwise as near as it allows), shows it when due (replacing its group, timing out
+  when stale), and sets the alarms again after a restart (`BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`). Handed over again
+  at start, when the app comes back to the front, hourly while open, and when a setting or Said mark changes.
+  “Said today” on a notification is kept for the app and cancels that prayer’s later reminders at once; “Open” opens the
+  app on the prayer or Today. The device’s time zone now comes from Android (Dart cannot read it there). Notification
+  permission is asked when a reminder is first turned on. New permissions: `POST_NOTIFICATIONS`,
+  `RECEIVE_BOOT_COMPLETED`; still no `INTERNET`.
+
+Verified: `flutter analyze` clean; `flutter test` **54 passed** (new `test/phone_today_test.dart` (3): phone opens on
+Today, prayer chosen on the Location page, Said from Today shows in the prayer, Obligatory prayers → counter, and the
+scheduling/pending-tap flow; `reminders_test.dart` gains a check that the week handed over contains every reminder the
+desktop would send at its time over six days). On the Android emulator (API 36, headless, debug build with seeded clock
+hours): the due reminder showed at once with Said today and Open; 15 alarms were set; with the app process killed, the
+“closes at 10:16 PM” alarm fired on time and replaced the first; tapping Said today in the shade withdrew it and, on
+opening the app, the mark was recorded (Today showed ✓ Said today); tapping Open on a Medium reminder opened the
+Medium prayer among the three. The release APK permissions were checked with aapt.
+
+Not verified / differs: reboot re-arming was not tested (no reboot of the emulator); behaviour under Doze and battery
+savers on real phones untested (alarms may come a few minutes late without the exact-alarm permission, which is not
+requested); reminders stop if the app is not opened for a week. iOS has no reminders.
+
+Follow-up fix: the phone reader headed many passages (655 in English, among them the Medium prayer) with their
+title cut off mid-word (“TO BE RECITED DAILY… le”): titles are the opening words worked out without margin numbers and
+the text’s own heading line, but the check compared them with the raw text. `phoneHeading()` (labels.dart) now
+compares with the unnumbered text, so those show no heading (or just their number); real titles (Some Answered
+Questions chapters, Epistle to the Son of the Wolf) stay; a long title found further in counts as the opening too
+(Hidden Words no. 1, after its preface). Checked in both bundled languages: English keeps 78 title headings, all names
+(the 9 long ones are Some Answered Questions chapters); Amharic (191 passages) has none and was not affected before
+either. Tested in `test/labels_test.dart` (no English prayer headed by an 80+ character title; in English and
+Amharic no long heading is words from the text) and seen on the emulator.
+
+## Update 3: reminders (2026-11-15, night)
+
+Asked for: “add the reminders too”. Ported from the GTK app’s `badi.py` (reminders), `reminders.py` and `location.py`,
+read-only.
+
+- **What is sent** (`lib/core/calendar/reminders.dart`, a line-by-line port): the obligatory prayer when its time opens
+  and 30 minutes before it closes unless said; the Long prayer, once 1–12 hours (default 2) before its period resets if
+  not marked (with “24 hours since last said”, before those 24 hours end); Feasts on the afternoon (15:00, or an hour
+  before an earlier sunset) of the day they begin; Holy Days the afternoon before and at 9:00 on the day; the Fast 5, 3
+  and 1 days before; each fasting day 30 minutes before sunrise and at sunset. Clock times without a location. Each is
+  sent once, only while still current (stale ones after a sleep are skipped), the latest per group; sent ids are kept 3
+  days (`reminders_sent`). Checked every 30 s, like GTK’s tick. Everything is off until turned on.
+- **Notifications** (`lib/core/platform/notifier.dart`): the freedesktop `org.freedesktop.Notifications` service over
+  the local session bus (pure-Dart `dbus` package, already in the dependency tree via `path_provider_linux`). Buttons:
+  “Said today” (marks it without opening the window and withdraws the notification) and “Open” (brings the window
+  forward on Today or the prayer). A later reminder of the same group replaces the shown one. Windows/macOS/phones:
+  not sent (`NoNotifier`); the dialog says so.
+- **Location & reminders** (renamed from Location & obligatory prayer): “Remind me when its time opens and before it
+  closes”, the Long prayer’s nudge and hours, “Feasts, Holy Days and the Fast” (four switches), “Keep reminders running
+  when the window is closed” with its note and status. “Reminders…” buttons are back on Today’s prayer, events and
+  Fast cards.
+- **Keep running** (Linux runner, `linux/runner/my_application.cc`): the app is now single-instance (a second launch
+  presents the window; `BAHAI_READER_SEPARATE=1` opts out for tests); with the setting on, closing the window hides it
+  and the process keeps sending reminders; a login entry `~/.config/autostart/com.ninepointlabs.bahai_reader-reminders.desktop`
+  starts it with `--background` (window hidden). Turning it off removes the entry; then closing quits. A
+  `--background` start with the setting off exits at once. No Flatpak/Background portal path (there is no Flatpak).
+- Settings use the GTK keys: `reminders`, `long_lead_hours`, `reminders_sent`, `keep_running`.
+- Fixed on the way: two settings saves close together could collide on `settings.json.tmp` (“Cannot rename file”);
+  saves now run one after another. Home’s narrow cards clipped long buttons (“Open the Short Obligatory Pra…”); their
+  buttons now stack and wrap.
+
+Verified: `flutter analyze` clean; `flutter test` **50 passed**. New: `test/reminders_test.dart` compares every
+candidate reminder (id, group, title, body, times to the second, Said mark, target) and the due/marked lists with the GTK
+code for 1,152 cases (Haifa, Chicago, clock hours, no location × 8 prayer/switch settings × 9 dates around the Fast,
+Twin Holy Days and Feasts × 4 hours): 11,420 reminders, all equal (`scripts/reminder_fixtures.py`).
+`test/reminders_app_test.dart` (4): sent once, “Said today” marks and stops the closing nudge, a bad mark is ignored,
+“Open” routes to the prayer in the window, settings cleaning, the login entry’s text/quoting and removal, the dialog’s
+switches. On this machine (Linux release build, quickshell as notification server, scratch config): the prayer
+reminder arrived with the right text and buttons (seen on the bus); its “Said today” action recorded the mark and
+closed the notification; with keep-running on, closing the window via Hyprland hid it while the process kept running,
+and a second launch exited and brought the same window back, redrawn.
+
+Not verified / differs: “Open” from a notification bringing a hidden window forward was only covered by the widget
+test (the live try failed because the app forgot a notification once its popup expired; fixed, not re-run live — test
+windows were opening over a game on the active workspace, so live window tests stopped). Login autostart was not
+tested by logging in. If the GTK app’s reminders are also on, both apps notify. (Phones: see Update 4.)
+
+## Update 2: Today and the obligatory prayers (2026-11-15, evening)
+
+Asked for: “add the Today page and obligatory prayers too”. Ported from the GTK app’s `badi.py`, `today.py`,
+`counter.py`, `location.py`, the Today calendar in `contents.py` and `obligatory()`/`directions()`/`passage_of_the_day()`
+in `library.py`, all read-only. Desktop layout only; the phone layout does not have them yet.
+
+- **Today** (Ctrl+T, Home → Open Today, ⋮ → Today): the Badí‘ date (it changes at local sunset), Gregorian date and
+  month; sunrise/solar noon/sunset for the saved place (or the clock hours entered); the chosen obligatory prayer with
+  “Open now, until …” / “Opens at …” / “Its time has ended …”, a “Said …” toggle, guidance links (Q&A 82/83, ¶10) and
+  the Long prayer’s period line and the 1990 letter; the counter card; the next Feast and Holy Day with their prayers or
+  Days of Remembrance readings, and Ayyám-i-Há when near; the Fast (day n of 19, fasting hours, “Fasted today”, prayers,
+  ¶16) during or near ‘Alá’; the passage of the day. Redrawn every 30 s. The sidebar shows the Today calendar (Upcoming,
+  This year) with a search; dates with readings or prayers open them.
+- **Home** gains the GTK app’s three cards: Today’s date, the obligatory prayer (Said / Open), the passage of the day.
+- **Obligatory prayers**: the first row of Prayers opens its own section (Back → Prayers): “Alláh-u-Abhá counter”, “The
+  three prayers” and the Kitáb-i-Aqdas guidance (¶6, 8, 10, 12, 13, 14 and the notes and Q&A they link), groups open
+  as in GTK. Reading an obligatory prayer shows its “Said today / this morning / at noon / this evening” toggle in the
+  footer (the same mark as on Today); its directions are in italics.
+- **Alláh-u-Abhá counter** (Ctrl+Shift+A): count, Complete at the target, target 95/19/9/custom (remembered), Undo,
+  Reset, Back, ¶18 with its citation; Space/Enter count (a held key counts once), Backspace, Ctrl+0, Esc.
+- **Location & obligatory prayer** (⋮, and the cards’ buttons): city search over the bundled GeoNames list, or
+  latitude/longitude/time zone; clock hours in place of the sun; Short/Medium/Long/Don’t track; the Long prayer’s
+  24 hours (sunset/noon/midnight/rolling); keep or clear the private Said/Fasted record.
+- Settings use the GTK app’s keys and meanings (`location`, `clock_hours`, `prayer`, `long_period`, `keep_records`,
+  `records`, `counter_target`). The GTK import still copies only highlights and saved passages.
+- Data: `assets/calendar/badi-dates.json` and `cities.json` (copied from the GTK app; notices added to DATA-NOTICE.md);
+  each library now carries the passage-of-the-day order and the Obligatory prayers groups, precomputed by
+  `scripts/convert_library.py` with the GTK functions; passages are otherwise unchanged (checked). New dependency:
+  `timezone` (bundled IANA data; it pulls in `http`, which nothing in `lib/` uses).
+
+Verified: `flutter analyze` clean; `flutter test` **44 passed**. New: `test/calendar_test.dart` (5) compares the Dart
+port with answers generated by the GTK code (`scripts/calendar_fixtures.py`): Badí‘ dates, upcoming events, the Fast,
+Ayyám-i-Há and months for 12 dates (2014–2066); sun times to the second for Haifa, Chicago, Tromsø (polar day/night),
+Kiritimati and clock hours; the observed day, 450 Short/Medium windows and 135 Long periods; the passage of the day for 9
+dates. `test/today_test.dart` (3): Home and Today cards, Said from Today and from the prayer, the Obligatory prayers
+section and Back, the counter (keys, target), city search → Haifa, prayer choice → Medium on Today. Linux release
+build checked by screenshot (Home cards, Today with Chicago, the Today calendar, the counter counting three Space
+presses, the Medium prayer with italic directions and “Said this morning”). APK rebuilt: still no INTERNET permission.
+
+Not done / differs: no reminders or background notifications (GTK’s Reminders… buttons are left out); daylight-saving
+changes after 2037 are not in the Dart time-zone data, so clock times for 2038–2065 can be an hour off in DST zones
+(Python’s are not); `--open` of an obligatory prayer opens it in its prayer category, as GTK’s search does; not checked
+by hand with a mouse (clicking the cards’ buttons) beyond the widget tests.
+
+## Update: desktop layout matched to the GTK app (2026-11-15, later)
+
+Asked for: “make the desktop version match the GTK version’s UI more”. Built from the GTK app’s own code
+(`shell.py`, `theme.py`, `contents.py`, `reading.py`, `highlights.py`, `finder.py`, `labels.py`) and its
+screenshots in `docs/screenshots/`, read-only.
+
+- **Window** (`lib/features/desktop/`, used on Linux/Windows/macOS; phones keep the touch layout): sidebar with Home,
+  Prayers (count), Writings (“18 books”), Saved (count); a book replaces them with Back + title + “author · parts ·
+  words”; “Search this section…”, passage count and the contents tree (Hidden Words by Arabic/Persian, books by part,
+  prayers by category with word counts), opened at and scrolled to the passage on show. Header bar: sidebar toggle,
+  centred title/subtitle, Search, Aa (appearance + text size), Copy, Save star, ⋮ (search, settings & GTK import,
+  shortcuts, About). Narrow windows (<700 px) take turns between sidebar and content, as the GTK window does.
+- **Home**: Continue reading (last three books, % of the book) and the library as cards with the gold spine, grouped by
+  author in the GTK order. Writings shows the library alone. Today/obligatory-prayer cards are not built (out of scope).
+- **Reading pane**: eyebrow (“From the Arabic · Bahá’u’lláh”), accent heading (“Arabic no. 12”), “Passage 12 of 153 ·
+  about 1 minute”, the text with GTK margins, italic citation; footer with ← Previous, “book · n of m” + “% of the book”
+  + bar, the Next pill, and “English · Available offline · Texts: …”.
+- **Highlights**: selecting words shows a small bar (four colour swatches · Note… · Copy) after the selection settles;
+  clicking a highlight opens colour, note (with “n / 5,000”), Remove highlight and Done; Saved → “Highlights & notes · n”
+  page with cards that open the passage at the highlight.
+- **Search dialog** (Ctrl+K): This book · n / Everything · n, “Ignores accents and apostrophes · offline”, results
+  grouped by book or prayer category, Enter opens the first; the opened passage marks the match and **scrolls to it**.
+- **Look**: the GTK palettes (Dark `#161b19/#e6e1d3/#c9ab70`, Light, Sepia) and derived sidebar/card/popover colours,
+  Adwaita Sans for the interface, Noto Serif for the text, default text size 22 as in GTK. The default appearance
+  follows the live Omarchy theme (`~/.local/state/omarchy/current/theme/colors.toml`, re-read every 2 s, local file only),
+  labelled “Omarchy” in Aa; elsewhere it follows the system. On Omarchy the window has no GTK title bar
+  (`linux/runner/my_application.cc`), like the GTK app.
+- **Keys**: Ctrl+K, Ctrl+D, Ctrl+Shift+C, Ctrl+H, Alt+←/→, Ctrl+PgUp/PgDn, Ctrl+F, F11 focus mode, Esc, F1, Ctrl+?.
+- New settings key `recent` (Continue reading order). Existing settings files load unchanged.
+
+Verified: `flutter analyze` clean; `flutter test` **36 passed** (the 32 below plus `test/desktop_test.dart` (4): home
+and library by author, open a book, Ctrl+D, Next, Continue reading; selection bar → green highlight → click → recolour
++ note → Saved → Highlights & notes → open; Ctrl+K This book/Everything, Enter opens; narrow window turn-taking).
+Linux release build launched with a scratch `XDG_CONFIG_HOME` and checked by screenshot against the GTK screenshots:
+Home, Hidden Words reader with a highlight (dark and light), Prayers in the Omarchy palette, Ctrl+K dialog typed via
+`wtype`, Enter jumping to and marking “Kitáb-i-Íqán” in Epistle to the Son of the Wolf, Ctrl+D toggling the star.
+Not checked by hand: the selection bar and highlight popover with a real mouse (widget tests only), Windows/macOS builds.
+
+Known differences from the GTK app: no Today, obligatory prayers section, counter, collections, side-by-side compare,
+reading font/line spacing/margin settings, or random passage; a highlight’s background shows faint notches between
+words (Flutter paints it per glyph run); the selection bar appears where the pointer was released rather than pointing
+exactly at the selected words.
+
+## Summary
+
+| Goal | State |
+|---|---|
+| Linux build on TUF | ✅ `flutter build linux --release` succeeds; the built binary starts and opens a work (checked by screenshot) |
+| Android | ✅ `flutter build apk --release` succeeds (56.2 MB). **Not run on a device or emulator.** |
+| Windows / macOS / iOS | Scaffolding only. **Not built** (can't be built on Linux). |
+| Browse library | ✅ Writings by book, prayers by category |
+| Read a work | ✅ Passage by passage, contents list, Aqdas cross-references, prev/next, remembers position per work |
+| Switch languages | ✅ English + Amharic (the only pack already downloaded on TUF) |
+| Search | ✅ Full current-language library, accent/apostrophe/hyphen-insensitive |
+| Highlights, notes, bookmarks | ✅ GTK record format and anchoring rules; cross-language follow by `match` |
+| Light/dark | ✅ GTK palettes (Light/Dark/Sepia); follows the Omarchy theme, else the system |
+| Offline | ✅ No network code in `lib/`; release APK has no INTERNET permission |
+| Tests | ✅ 44 tests, all passing (32 in v0 + 4 desktop + 8 Today/calendar) |
+
+## How to run
+
+```sh
+cd ~/Projects/bahai-reader-flutter
+flutter pub get
+flutter test                                  # 32 tests
+flutter build linux --release
+./build/linux/x64/release/bundle/bahai_reader                     # library
+./build/linux/x64/release/bundle/bahai_reader --open aqdas:Paragraphs:6   # open a passage directly
+flutter run -d linux                          # debug run
+flutter build apk --release                   # → build/app/outputs/flutter-apk/app-release.apk
+```
+
+Settings, highlights and saved passages are stored in `~/.config/bahai-reader-flutter/settings.json` (Linux; honours
+`$XDG_CONFIG_HOME`). Other platforms use Flutter’s application support directory.
+
+## What I actually verified
+
+- `flutter analyze`: no issues.
+- `flutter test`: **32 passed, 0 failed** (`00:04 +32: All tests passed!`):
+  - `test/marks_test.dart` (13): highlight creation (trim spaces, colours, 5,000-char notes), `anchor()` (stored
+    offsets, moved text, nearest occurrence, missing words → null, out-of-range offsets), overlap replacement
+    (one colour per word, other passages untouched), GTK record cleaning, `languageOf`, cross-language `follow`
+    in both directions, unmatched ids staying in their language.
+  - `test/library_conversion_test.dart` (7): known ids survive (`hidden:1`, `hidden:2`, `prayers:15692`,
+    `aqdas:Paragraphs:6`, `aqdas:Notes:1`, `gleanings:1`, `iqan:1`, `saq:1`); 3,526 unique English ids with no
+    prefix; bahai.org text under the same id with the copyright notice; no `match` on prayers/days/Riḍván/UHJ;
+    every language has `{id}:`-prefixed unique ids, BMP-only text and in-range spans; Amharic `90:hidden:7400` ↔
+    English `hidden:2` by `match`; works/contents grouping; copied text carries the citation.
+  - `test/search_test.dart` (3): fold parity (`Bahá’u’lláh`→`bahaullah`, `‘Abdu’l‑Bahá`, `Riḍván`,
+    `Kitáb-i-Íqán`), match mapped back to original text, full-library search for “Bahaullah”.
+  - `test/settings_test.dart` (4): round-trip in GTK record shape; a corrupt settings file is set aside as
+    `.bad`/`.bad.1` and never overwritten; GTK import copies highlights + saved ids, is idempotent, and leaves the
+    source file byte-identical with the same mtime; the store path is never the GTK one.
+  - `test/app_test.dart` (5, widget + state): English highlight + bookmark follow to Amharic as a passage-level
+    marker (no guessed word range, stored ids unchanged); app starts, lists the library, opens a work, saves,
+    goes to next; narrow window uses a contents drawer and a selection highlights in green; search screen finds
+    results and opens one; tapping a highlight opens it, recolours and removes it.
+- **Linux, by hand on TUF** (release binary, scratch `XDG_CONFIG_HOME`, screenshots via `grim`):
+  - Started, opened Kitáb-i-Aqdas ¶6 with its Q&A/Notes links, contents panel and citation (dark, following system).
+  - With a scratch settings file set to Amharic + Light + an English `hidden:2` highlight/note/bookmark, `--open hidden:2`
+    opened Amharic Hidden Words no. 2 with the bookmark filled and a “Highlighted in English” card showing the note.
+  - Library screen lists all 18 English books; Gleanings opens within ~2 s on a warm start (not formally measured).
+  - I could not click/type in the real window from here, so **selecting text, the highlight bar, notes, copy and the
+    search screen were verified only by widget tests, not by hand on Linux.**
+- **Android**: release APK built; `aapt2 dump badging` shows no INTERNET permission and label “Bahá’í Reader
+  (experiment)”. The APK is signed with the default debug key (Flutter template); it is not committed. Not installed
+  or run anywhere. Local path: `build/app/outputs/flutter-apk/app-release.apk`.
+  - Note: the first Gradle build auto-installed **Android SDK Platform 35** and **CMake 3.22.1** into the user-local SDK
+    at `~/.local/share/mise/installs/android-sdk/23.0/` (the path the environment points at). No sudo involved.
+- `~/.config/bahai-reader/settings.json` was not modified (mtime still 11:53, before this work). Tim’s current GTK
+  settings contain 0 highlights and 0 saved passages, so the import button currently has nothing to copy.
+
+## Content conversion
+
+- `scripts/convert_library.py` imports the GTK app’s own `load_library()` from `../bahai-reader` **read-only**
+  (bytecode writing disabled, its feed cache and pack paths redirected), so ids, `match`, bahai.org replacements,
+  citations and spans are exactly what the GTK app computes. Output in `assets/library/`:
+  - `1.json` English: 3,526 passages, 3,509 of them bahai.org text (replacements under BahaiPrayers.net ids plus
+    the UHJ and Shoghi Effendi works) (12.8 MB, decoded in a background isolate).
+  - `90.json` Amharic: 191 passages (153 Hidden Words paired by `match`, 38 prayers), from
+    `~/.local/share/bahai-reader/libraries/90.json`. Nothing was downloaded.
+  - `manifest.json` (languages), `fold.json` (search folding table, below).
+- Offsets: the converter refuses texts with characters outside the BMP, so Python code-point offsets equal Dart
+  UTF-16 offsets and GTK highlight records can be used unchanged.
+- Search folding: Dart has no Unicode normalisation in core, so the converter writes, for every character in the
+  texts (plus accented Latin letters a query might use), what the GTK `fold()` produces. Dart applies it per
+  character, matching GTK `fold_map()`. Characters outside that table fall back to `toLowerCase()`.
+- `--without-bahai-org` rebuilds English from BahaiPrayers.net only, should bahai.org permission be withdrawn.
+- Not imported: `cities.json`, `badi-dates.json` (out of scope).
+
+## Highlights, notes, bookmarks
+
+Ported from `marks.py`: records `{"id","start","end","words","color","created","note"}`; anchoring by offsets, then
+the nearest occurrence of `words`, else kept and listed (“The text changed; kept but not drawn”) but not drawn;
+colours yellow/green/blue/magenta; notes trimmed to 5,000 chars; a new highlight replaces overlapping ones in the
+same passage. Saved passages are a list of ids. Stored ids are never rewritten; in another language they follow by
+`match`, and highlights from another language show as a card with the note above the passage, not a word range.
+Settings → “Import from GTK app” copies (never moves) `highlights` and `saved` from the GTK settings file.
+
+## Attribution
+
+`DATA-NOTICE.md` is copied from the GTK app with paths adapted; the BahaiPrayers.net and bahai.org sections are kept in
+full (diffed against the original: only path notes were added). The About screen shows both notices and the full
+DATA-NOTICE + LICENSE; bahai.org citations end with “Copyright © Bahá’í International Community, bahai.org”, and
+copy-with-citation follows GTK `clipping()`. Code is MIT; texts are not relicensed. The app is free and not sold. No
+permission beyond the published terms has been sought or obtained; nobody was contacted.
+
+## Known gaps / not done
+
+- Touch layout only: search marks the match in the opened passage but does not scroll to it (the desktop layout does).
+- bahai.org styling: italics, bold, underline and headings are rendered; indented quotations are shown in a muted
+  colour rather than indented; paragraph numbers are shown small, not as margin numbers.
+- Very long passages (up to ~257k characters, e.g. some Shoghi Effendi chapters) render as one selectable text; not
+  profiled.
+- Touch layout only: the contents list does not auto-scroll to the current passage (the desktop sidebar does).
+- A highlight cannot span two passages (same as GTK).
+- No collections, compare, packaging or CI. (Continue reading, Today/calendar, the counter, reminders and the Omarchy
+  theme follow were added later; see the updates above.)
+- Windows/macOS/iOS untested; Android built but untested on a device.
+
+## Notes on the GTK checkout
+
+Nothing in `~/Projects/bahai-reader`, its worktrees, PR #51 or Speakeasy task df5647 was changed. I read files and
+ran `git status`, `git worktree list` (read-only) in that checkout; `git status` may refresh `.git/index` stat
+data, which does not change content. `CHECKLIST-features.md` is still untracked and untouched.
+
+## Sensible next steps
+
+1. Hand-test on Linux: select → highlight → note → copy, and the search screen (only widget-tested so far).
+2. Install the APK on a phone and check reading and selection handles on touch.
+3. Scroll to the search hit; indent quotations; auto-scroll the contents list.
+4. Profile startup and the longest passages; consider SQLite (with FTS) if JSON startup or search gets slow with
+   more languages.
+5. Build on macOS/Windows machines to check the scaffolding.
+6. If the experiment continues: decide whether to share `scripts/convert_library.py` output format with the GTK app.

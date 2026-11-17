@@ -1,9 +1,10 @@
 #!/bin/sh
 # Build the single-file Flatpak bundle attached to GitHub releases (not published to Flathub).
-# Needs flatpak and flatpak-builder with Flathub reachable for the GNOME runtime and SDK.
+# Needs flatpak and flatpak-builder with Flathub reachable for the GNOME runtime and SDK (GTK 3 for the Flutter bundle).
 set -eu
 cd "$(dirname "$0")/.."
-VERSION=$(cat VERSION)
+VERSION=$(scripts/version.sh)
+test -x build/linux/x64/release/bundle/bahai-reader || { echo "Run flutter build linux --release first" >&2; exit 1; }
 OUT=${1:-"$PWD/dist/bahai-reader-${VERSION}-x86_64.flatpak"}
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 flatpak-builder --user --install-deps-from=flathub --force-clean --disable-rofiles-fuse \
