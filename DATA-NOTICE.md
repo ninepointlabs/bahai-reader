@@ -1,9 +1,8 @@
 # Content attribution
 
-This file is adapted from the GTK Bahá’í Reader's DATA-NOTICE.md (https://github.com/ninepointlabs/bahai-reader).
-In this repository the texts are in assets/library/ (English as 1.json, other bundled languages as <id>.json),
-converted from the GTK app's data/ folder and already-downloaded language packs by scripts/convert_library.py.
-Where this notice names the GTK app's data/ files, their content is in assets/library/1.json.
+The texts are in assets/library/ (English as 1.json, other bundled languages as <id>.json), converted by
+scripts/convert_library.py from the data/ folder and language packs of the GTK app (0.2.3 and earlier, on the
+gtk-legacy branch). Where this notice names data/ files, their content is in assets/library/1.json.
 
 The prayer and writings collections are supplied by BahaiPrayers.net, except the bahai.org
 texts listed below. In English, the app shows bahai.org's text in their place
@@ -19,8 +18,8 @@ The app preserves the source text while converting HTML presentation to paragrap
 For content corrections, contact the provider through https://bahaiprayers.net/.
 
 This is an independent community project, not an official publication of a Bahá’í
-institution or of Omarchy. Translations (for example the Amharic library bundled here, downloaded earlier by the
-GTK app) come from the same provider; this experiment does not download anything.
+institution or of Omarchy. Translations, including the Amharic library bundled with the app, come from the same
+provider; other languages are downloaded from it only when you ask, in Languages & offline libraries.
 
 # Bahá’í Reference Library (bahai.org)
 
@@ -38,8 +37,8 @@ and the individual author, and that any use for a commercial purpose have permis
 Bahá’í International Community may withdraw permission at any time. These texts are not covered by this
 project's MIT software license, no ownership is claimed, and no permission beyond those published terms
 has been sought or obtained. This app is free and is not sold. Should permission be withdrawn, the three
-files can be deleted and the app works without them (showing BahaiPrayers.net's text again). In this
-experiment, run scripts/convert_library.py --without-bahai-org to rebuild assets/library/1.json from
+files can be deleted and the app works without them (showing BahaiPrayers.net's text again). Run
+scripts/convert_library.py --without-bahai-org to rebuild assets/library/1.json from
 BahaiPrayers.net's text only; the app works the same with it.
 
 The texts are copied as published: words, punctuation, diacritics, headings, dates and footnotes are
@@ -67,8 +66,8 @@ closing line naming a prayer's printed source ("Gleanings, CXXXVIII", with a pag
 official text has no such line and no page numbers.
 
 Each passage records its source URL, the SHA-256 of the downloaded file and the download date.
-The GTK app's scripts/import-bahai-library.py downloads and rebuilds them by hand; neither app ever connects to bahai.org,
-and this experiment makes no network connections at all at runtime.
+scripts/import-bahai-library.py on the gtk-legacy branch downloads and rebuilds them by hand. The app never connects to
+bahai.org; it connects to bahaiprayers.net only when you ask it to download a language or the list of languages.
 
 # Badí‘ calendar dates
 
@@ -110,7 +109,7 @@ Sunrise, solar noon and sunset use the public-domain NOAA solar calculation
 Time zones come from the IANA time zone database (public domain), bundled through the Dart `timezone` package
 (BSD-3-Clause, Copyright (c) 2014, timezone project authors). Nothing is downloaded.
 
-# This experiment
+# License
 
 This app is free and is not sold. The software code is under the MIT License (LICENSE); the texts and translations
 are not, and are not relicensed by it.
