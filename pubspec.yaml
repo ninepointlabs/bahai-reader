@@ -27,5 +27,6 @@ flutter:
   assets:
     - assets/library/
     - assets/calendar/
+    - assets/licenses/pdfium/
     - DATA-NOTICE.md
     - LICENSE

@@ -109,6 +109,24 @@ Sunrise, solar noon and sunset use the public-domain NOAA solar calculation
 Time zones come from the IANA time zone database (public domain), bundled through the Dart `timezone` package
 (BSD-3-Clause, Copyright (c) 2014, timezone project authors). Nothing is downloaded.
 
+# Study section and Ruhi books
+
+The app includes no Ruhi Institute material. The Study section opens PDF copies you import yourself. An imported file is
+copied into the app's private storage on this device (Linux: `$XDG_DATA_HOME/bahai-reader-flutter/books/`) so your marks
+always have their book; it is never changed, uploaded or shared, and the app has no way to send it anywhere. On Android
+it is also kept out of Android's own backup and device-to-device transfer. Removing a book from Study and then deleting it
+for good deletes the app's copy; your own file is never touched. Ruhi Institute books are copyrighted by the Ruhi
+Institute; use your copies according to the terms you obtained them under. This app is not affiliated with or endorsed
+by the Ruhi Institute.
+
+# Bundled software
+
+PDFs are shown with PDFium (BSD-3-Clause, Copyright 2014 The PDFium Authors), as built by
+https://github.com/bblanchon/pdfium-binaries (MIT), through the pdfrx package (MIT). PDFium contains further libraries
+(FreeType, HarfBuzz, ICU, libjpeg-turbo, OpenJPEG, libpng, zlib, Little CMS, Abseil and others) under their own
+licenses; their texts are in assets/licenses/pdfium/ and on the app's license page (About → Open source). Highlights,
+notes and the rest of your data are kept with SQLite, which is in the public domain.
+
 # License
 
 This app is free and is not sold. The software code is under the MIT License (LICENSE); the texts and translations
