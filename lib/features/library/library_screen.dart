@@ -10,6 +10,8 @@ import '../marks/marks_screen.dart';
 import '../reader/reader_screen.dart';
 import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
+import '../study/study_book_screen.dart';
+import '../study/study_library_view.dart';
 import '../today/exact_times.dart';
 import '../today/location_dialog.dart';
 import '../today/phone_today.dart';
@@ -17,8 +19,9 @@ import '../today/today_view.dart';
 import 'contents_screen.dart';
 import 'language_menu.dart';
 
-/// The phone layout's home: Today (the date, the obligatory prayer, Feasts, the Fast, the passage of the day), the
-/// writings (books) and the prayers (by category, after the Obligatory prayers), for the chosen language.
+/// The phone layout's home, with a bottom bar: Today (the date, the obligatory prayer, Feasts, the Fast, the passage of
+/// the day), the writings (books), the prayers (by category, after the Obligatory prayers), and Study (PDFs imported
+/// to study, such as Ruhi books).
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key, this.openId});
 
@@ -29,13 +32,14 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProviderStateMixin {
-  late final tabs = TabController(length: 3, vsync: this);
+class _LibraryScreenState extends State<LibraryScreen> {
+  /// Today, Writings, Prayers, Study.
+  int tab = 0;
   StreamSubscription<String>? _opens;
 
   void showToday() {
     Navigator.of(context).popUntil((r) => r.isFirst);
-    tabs.animateTo(0);
+    setState(() => tab = 0);
   }
 
   /// A reminder's tap: its obligatory prayer, or Today.
@@ -47,7 +51,6 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
   @override
   void dispose() {
     _opens?.cancel();
-    tabs.dispose();
     super.dispose();
   }
 
@@ -116,14 +119,21 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             ],
           ),
         ],
-        bottom: TabBar(
-          controller: tabs,
-          tabs: const [
-            Tab(text: 'Today'),
-            Tab(text: 'Writings'),
-            Tab(text: 'Prayers'),
-          ],
-        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (i) => setState(() => tab = i),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.wb_sunny_outlined), selectedIcon: Icon(Icons.wb_sunny), label: 'Today'),
+          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Writings'),
+          NavigationDestination(
+            icon: Icon(Icons.local_florist_outlined),
+            selectedIcon: Icon(Icons.local_florist),
+            label: 'Prayers',
+          ),
+          NavigationDestination(icon: Icon(Icons.school_outlined), selectedIcon: Icon(Icons.school), label: 'Study'),
+        ],
       ),
       body: state.error != null
           ? Center(
@@ -131,8 +141,8 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
             )
           : state.loading || library == null
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: tabs,
+          : IndexedStack(
+              index: tab,
               children: [
                 TodayView(onAction: (row) => actOnPhone(context, row, showToday: showToday)),
                 _WorkList(works: library.books, emptyText: 'No writings in this language yet.', unit: 'passage'),
@@ -147,6 +157,7 @@ class _LibraryScreenState extends State<LibraryScreen> with SingleTickerProvider
                           () => _push(context, const ObligatoryScreen()),
                         ),
                 ),
+                StudyLibraryView(study: state.study, onOpen: () => _push(context, const StudyBookScreen())),
               ],
             ),
     );

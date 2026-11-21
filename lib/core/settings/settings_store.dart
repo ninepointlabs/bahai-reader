@@ -331,7 +331,7 @@ class Settings {
   static const chromeFonts = ['System', 'Monospace'];
 
   /// The sections a window can open on (GTK `SHELL_SECTIONS`; `hidden` is the Hidden Words, a book in Writings here).
-  static const sections = ['home', 'today', 'prayers', 'obligatory', 'hidden', 'writings', 'saved'];
+  static const sections = ['home', 'today', 'prayers', 'obligatory', 'hidden', 'writings', 'study', 'saved'];
 }
 
 /// A number setting clamped to its range (GTK `LIMITS`), or null if it is not a number.

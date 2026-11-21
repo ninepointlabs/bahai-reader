@@ -14,6 +14,10 @@ import '../about/about_screen.dart';
 import '../settings/collections_dialog.dart';
 import '../settings/languages_dialog.dart';
 import '../settings/settings_screen.dart';
+import '../study/study_actions.dart';
+import '../study/study_library_view.dart';
+import '../study/study_panels.dart';
+import '../study/study_reader.dart';
 import '../../core/calendar/badi.dart';
 import '../../core/calendar/today.dart';
 import '../today/counter_view.dart';
@@ -47,6 +51,7 @@ class DesktopShell extends StatefulWidget {
 class _DesktopShellState extends State<DesktopShell> {
   late final ShellModel model = ShellModel(widget.state);
   final reading = GlobalKey<ReadingViewState>();
+  final studyReader = GlobalKey<StudyReaderState>();
   late int _language = widget.state.settings.language;
   late String _saved = _savedSignature();
 
@@ -224,9 +229,80 @@ class _DesktopShellState extends State<DesktopShell> {
         const SingleActivator(LogicalKeyboardKey.keyQ, control: true): () => widget.state.window.close(),
         const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true): model.showCounter,
         const SingleActivator(LogicalKeyboardKey.slash, control: true, shift: true): () => _shortcuts(context),
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): () {
+          final study = widget.state.study;
+          if (model.section == Section.study && study != null) {
+            importStudyPdf(context, study, opened: model.showStudyReader);
+          }
+        },
       };
 
+  /// Study's panes: the library of imported books, or the open book with its own buttons.
+  Widget _studyContent(BuildContext context, AppState state, bool narrow) {
+    final study = state.study;
+    final book = study?.book;
+    final reader = model.pane == Pane.studyReader && study != null && book != null;
+    final colors = ReaderColors.of(context);
+    final bookmarked = reader && study.bookmarkOn(study.page) != null;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (!model.focusMode)
+        HeaderBar(
+          start: [
+            narrow
+                ? HeaderButton(
+                    icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Back', onPressed: () => model.toggleSidebar(narrow: true))
+                : HeaderButton(
+                    icon: Icons.view_sidebar_outlined,
+                    tooltip: 'Show or hide the sidebar',
+                    onPressed: () => model.toggleSidebar(narrow: false)),
+          ],
+          title: reader
+              ? WindowTitle(title: book.name, subtitle: study.run?.name ?? '')
+              : WindowTitle(
+                  title: 'Study',
+                  subtitle: study == null ? '' : '${study.library.length} book${study.library.length == 1 ? '' : 's'}'),
+          end: [
+            if (reader) ...[
+              HeaderButton(
+                icon: Icons.search,
+                tooltip: 'Search in this book (Ctrl+F)',
+                onPressed: () => studyReader.currentState?.openSearch(),
+              ),
+              HeaderButton(
+                icon: bookmarked ? Icons.bookmark : Icons.bookmark_outline,
+                tooltip: bookmarked ? 'Remove the page’s bookmark (Ctrl+D)' : 'Bookmark this page (Ctrl+D)',
+                color: bookmarked ? colors.accentText : null,
+                onPressed: study.readOnly ? null : () => study.toggleBookmark(study.page),
+              ),
+              HeaderButton(
+                icon: Icons.ios_share,
+                tooltip: 'Export this run to Markdown (Ctrl+E)',
+                onPressed: () => exportStudyRun(context, study),
+              ),
+            ] else
+              HeaderButton(
+                icon: Icons.file_open_outlined,
+                tooltip: 'Import a PDF (Ctrl+O)',
+                onPressed: study == null ? null : () => importStudyPdf(context, study, opened: model.showStudyReader),
+              ),
+            _menu(context, narrow, false),
+          ],
+        ),
+      Expanded(
+        child: reader
+            ? StudyReader(
+                key: studyReader,
+                study: study,
+                onExport: () => exportStudyRun(context, study),
+                onNewNote: () => newBookNote(context, study),
+              )
+            : StudyLibraryView(study: study, onOpen: model.showStudyReader),
+      ),
+    ]);
+  }
+
   Widget _content(BuildContext context, AppState state, bool narrow) {
+    if (model.pane == Pane.study || model.pane == Pane.studyReader) return _studyContent(context, state, narrow);
     final p = model.current;
     var (title, sub) = switch (model.pane) {
       Pane.home => ('Home', ''),
@@ -235,6 +311,7 @@ class _DesktopShellState extends State<DesktopShell> {
       Pane.library => ('Library', '${state.library!.books.length} books'),
       Pane.prayers => ('Prayers', '${state.library!.prayerCategories.length} topics'),
       Pane.highlights => ('Highlights & notes', ''),
+      Pane.study || Pane.studyReader => ('Study', ''),
       Pane.reading => p == null
           ? (model.section == Section.saved ? 'Saved' : 'Prayers', '')
           : (
@@ -255,6 +332,7 @@ class _DesktopShellState extends State<DesktopShell> {
       Pane.library => WritingsView(model: model),
       Pane.prayers => PrayersView(model: model),
       Pane.highlights => HighlightsView(model: model),
+      Pane.study || Pane.studyReader => const SizedBox.shrink(),
       Pane.reading => ReadingView(key: reading, model: model),
     };
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -379,6 +457,10 @@ class _DesktopShellState extends State<DesktopShell> {
         ('Search this section’s contents', 'Ctrl+F'),
         ('Today', 'Ctrl+T'),
         ('Random passage', 'Ctrl+R'),
+      ]),
+      ('Study (in a book)', [
+        ('Import a PDF (in Study)', 'Ctrl+O'),
+        ...StudyReaderState.keyList,
       ]),
       ('Alláh-u-Abhá counter', [
         ('Open the counter', 'Ctrl+Shift+A'),

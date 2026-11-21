@@ -165,11 +165,12 @@ class PageData {
   /// Reads a pdfrx page: its text with character boxes, and its answer lines from a rendering at up to 2 px/pt.
   static Future<PageData> load(PdfPage page) async {
     final w = page.width, h = page.height;
-    final raw = await page.loadText();
-    final text = raw?.fullText ?? '';
+    // The same text (and character indexes) the viewer's own selection uses.
+    final PdfPageText raw = await page.loadStructuredText();
+    final text = raw.fullText;
     final chars = <Box>[
       for (var i = 0; i < text.length; i++)
-        if (raw != null && i < raw.charRects.length)
+        if (i < raw.charRects.length)
           Box(raw.charRects[i].left, h - raw.charRects[i].top, raw.charRects[i].width, raw.charRects[i].height)
         else
           const Box(0, 0, 0, 0),
