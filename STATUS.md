@@ -5,6 +5,41 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Study: times through (Study plan, Phase 2) — 2026-11-20
+
+Branch **`feat/study-runs`** from `origin/main` `58b033b` (PR #65 merged), committed locally; not pushed.
+
+**What it does**
+
+- **Run menu** in the reader's header (desktop: clock button with the run's name; phones: an icon in the app bar): every
+  time through with its dates (✓ on show, lock when finished), *Start a new time through…* (Ctrl+Shift+N), rename,
+  *Compare with…*, *Export all times through…* (Ctrl+Shift+E), delete an earlier one.
+- **New time through**: a dialog with the name prefilled ("2nd time, Nov 2026", editable) says what happens; the new run
+  starts with no marks; every earlier run is finished and locked in the same transaction; nothing in them changes.
+- **Earlier runs**: shown read-only with a banner (*Unlock* / *Back to the current one*). Unlock asks once and lasts until
+  the book is closed; the run stays locked in the store (`StudyStore.unlocked` is per session).
+- **Answer history**: a small ↺n mark beside an answer (or an empty blank) that was answered in other times through;
+  click it for that question's answers in every run, oldest first, with *Use in this run*. The Answers panel has
+  *This time / Every time*: every question in reading order with each run's answer under it.
+- **Compare** (Ctrl+Shift+V or the menu): in a reader at least 1000 px wide, a second pane shows the other run's pages and
+  marks, read-only, scrolling with yours; narrower (and on phones), its answers are drawn in grey under your lines.
+- **Export all runs**: `<book> — all runs.md`, each question with every run's labelled answer, then highlights labelled
+  by run, and each run's book notes.
+- Library rows say "… · 2 times through".
+
+**Bug fixed (from Phase 1)**: the reader passed the controller's PDF to pdfrx as `PdfDocumentRefDirect(doc)`, whose
+`autoDispose` defaults to true, so the viewer disposed a document the controller still owned (and closing a book
+disposed it twice). Found when the compare pane made it hang; now `autoDispose: false`.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **138 passed, 1 skipped**. New: two store tests
+(runs: new run empty and the old one untouched, locked, session unlock, rename, third run; history, questions in
+reading order, all-runs export, delete an earlier run but not the current) and `study_runs_test` (desktop: library
+row, Every time answers, earlier run banner and unlock, side-by-side compare opening and closing). Off-screen renders
+checked by eye: side-by-side compare, grey answers in a narrow window, history marks clear of the text.
+
+**Not verified**: not on a phone or Windows, nor by hand in a real Linux window. Not in Phase 2: carrying a run to a new
+edition (Phase 4).
+
 ## Study, v1 (Study plan, Phase 1) — 2026-11-20
 
 Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section` (Tim's decisions: section named Study, PDF only, phone

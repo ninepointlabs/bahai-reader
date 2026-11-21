@@ -193,6 +193,83 @@ void main() {
     v.close();
   });
 
+  group('runs', () {
+    test('a new time through starts empty, finishes and locks the last one, and leaves it as it was', () {
+      final b = addBook();
+      final first = study.currentRun(b);
+      final p = page(['The group meets every week']);
+      study.addHighlight(first.id, b.docId, p, 0, 9, color: 'green');
+      const line = AnswerPlace(page: 1, kind: 'line', x: 100, y: 200, w: 150);
+      study.putAnswer(first.id, b.docId, line, 'week', context: '1. Meets every ___.');
+      study.addNote(b, first.id, 'First notes');
+      study.addBookmark(first.id, b.docId, 1, 'Start');
+
+      final second = study.startRun(study.book(b.id)!);
+      expect((second.ordinal, second.name, second.locked), (2, '2nd time, Nov 2026', false));
+      expect(study.currentRun(study.book(b.id)!).id, second.id);
+      final done = study.run(first.id)!;
+      expect((done.locked, done.finishedAt), (true, now.millisecondsSinceEpoch));
+      expect(study.counts(second.id), (highlights: 0, notes: 0, answers: 0, bookmarks: 0), reason: 'starts empty');
+      expect(study.counts(first.id), (highlights: 1, notes: 1, answers: 1, bookmarks: 1), reason: 'never overwritten');
+      expect(() => study.addNote(b, first.id, 'late'), throwsA(isA<RunLocked>()));
+
+      // Unlocked for this session only.
+      study.unlocked.add(first.id);
+      study.addNote(b, first.id, 'An afterthought');
+      expect(study.run(first.id)!.locked, isTrue, reason: 'still locked in the store');
+      study.unlocked.clear();
+      expect(() => study.addNote(b, first.id, 'x'), throwsA(isA<RunLocked>()));
+
+      study.renameRun(study.run(first.id)!, '  Autumn circle  ');
+      expect(study.run(first.id)!.name, 'Autumn circle', reason: 'naming a locked run changes no marks');
+      final third = study.startRun(study.book(b.id)!, name: 'Tutor training');
+      expect((third.ordinal, third.name), (3, 'Tutor training'));
+      expect(study.run(second.id)!.locked, isTrue);
+      expect([for (final r in study.runsOf(study.book(b.id)!)) r.ordinal], [1, 2, 3]);
+    });
+
+    test('one question\'s answers across runs, oldest first, and all questions in reading order', () {
+      final b = addBook();
+      final first = study.currentRun(b);
+      const q1 = AnswerPlace(page: 1, kind: 'line', x: 100, y: 200, w: 150);
+      const q2 = AnswerPlace(page: 1, kind: 'line', x: 100, y: 120, w: 150);
+      study.putAnswer(first.id, b.docId, q1, 'week', context: '1. Meets every ___.');
+      study.putAnswer(first.id, b.docId, q2, 'reading', context: '0. What do we do?');
+      final second = study.startRun(study.book(b.id)!);
+      final a2 = study.putAnswer(second.id, b.docId, q1, 'Sunday', context: '1. Meets every ___.')!;
+      final h = study.history(study.book(b.id)!, a2.slotKey);
+      expect([for (final (r, a) in h) '${r.ordinal}:${a.text}'], ['1:week', '2:Sunday']);
+      final qs = study.questions(study.book(b.id)!);
+      expect([for (final q in qs) q.context], ['0. What do we do?', '1. Meets every ___.'], reason: 'top to bottom');
+      expect(
+        [for (final (r, a) in qs.last.answers) '${r.name}: ${a.text}'],
+        ['1st time, Nov 2026: week', '2nd time, Nov 2026: Sunday'],
+      );
+      final md = renderAllRunsMarkdown(
+        book: study.book(b.id)!,
+        runs: [
+          for (final r in study.runsOf(study.book(b.id)!))
+            (run: r, highlights: study.highlights(r.id), answers: study.answers(r.id), notes: study.notes(r.id)),
+        ],
+        exportedAt: DateTime(2026, 11, 20, 19),
+      );
+      expect(
+        md,
+        contains(
+          '**Q:** 1. Meets every ___.  \n**A (1st time, Nov 2026):** week  \n**A (2nd time, Nov 2026):** Sunday  \n',
+        ),
+      );
+      expect(md.indexOf('0. What do we do?'), lessThan(md.indexOf('1. Meets every')));
+      expect(allRunsFileName(study.book(b.id)!), 'Workbook_2.2.1 — all runs.md');
+
+      // An earlier run can be deleted with its marks; the current one cannot.
+      expect(() => study.deleteRun(study.book(b.id)!, second), throwsStateError);
+      study.deleteRun(study.book(b.id)!, first);
+      expect(study.runsOf(study.book(b.id)!).map((r) => r.ordinal), [2]);
+      expect(study.answers(first.id), isEmpty);
+    });
+  });
+
   group('import', () {
     test('a PDF is copied once into books/ by its hash; anything else is refused', () async {
       final books = Directory('${dir.path}/books');

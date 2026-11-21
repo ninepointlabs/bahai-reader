@@ -19,6 +19,7 @@ import '../study/study_incoming.dart';
 import '../study/study_library_view.dart';
 import '../study/study_panels.dart';
 import '../study/study_reader.dart';
+import '../study/study_runs.dart';
 import '../../core/calendar/badi.dart';
 import '../../core/calendar/today.dart';
 import '../today/counter_view.dart';
@@ -265,6 +266,7 @@ class _DesktopShellState extends State<DesktopShell> {
                   subtitle: study == null ? '' : '${study.library.length} book${study.library.length == 1 ? '' : 's'}'),
           end: [
             if (reader) ...[
+              RunMenuButton(study: study),
               HeaderButton(
                 icon: Icons.search,
                 tooltip: 'Search in this book (Ctrl+F)',
@@ -462,6 +464,7 @@ class _DesktopShellState extends State<DesktopShell> {
       ]),
       ('Study (in a book)', [
         ('Import a PDF (in Study)', 'Ctrl+O'),
+        ('Times through a book: switch, start, compare, export all', 'the clock button in the header'),
         ...StudyReaderState.keyList,
       ]),
       ('Alláh-u-Abhá counter', [

@@ -160,3 +160,100 @@ Future<File> exportMarkdown(Directory folder, String markdown, StudyBook book, S
   await tmp.rename(target.path);
   return target;
 }
+
+/// `<book> — all runs.md`.
+String allRunsFileName(StudyBook book) {
+  final base = '${book.name} — all runs'.replaceAll(_unsafeName, ' ').trim().replaceAll(RegExp(r'^[ .]+|[ .]+$'), '');
+  return '${base.isEmpty ? 'Study' : base}.md';
+}
+
+/// One run's marks, for [renderAllRunsMarkdown].
+typedef RunMarks = ({StudyRun run, List<DocHighlight> highlights, List<Answer> answers, List<DocNote> notes});
+
+/// Every run of a book in one file, to see how answers changed: each page's questions with every run's answer under
+/// them (labelled with the run), then the highlights of every run, and each run's book notes.
+String renderAllRunsMarkdown({required StudyBook book, required List<RunMarks> runs, DateTime? exportedAt}) {
+  final stamp = (exportedAt ?? DateTime.now()).toIso8601String().split('.').first;
+  final out = <String>[
+    '---',
+    'title: ${_yaml(book.name)}',
+    'runs: [${runs.map((r) => _yaml(r.run.name)).join(', ')}]',
+    'file: ${_yaml(book.doc.fileName)}',
+    'sha256: ${book.doc.sha256}',
+    'generator: bahai-reader',
+    'exported: $stamp',
+    'tags: [bahai-reader, study]',
+    '---',
+    '',
+    '# ${book.name}',
+    '',
+    '*Every time through, side by side: ${runs.map((r) => r.run.name).join('; ')}. Exported from Bahá’í Reader; this '
+        'file is made again on every export, so keep your own edits elsewhere.*',
+    '',
+  ];
+  for (final r in runs) {
+    final notes = [
+      for (final n in r.notes)
+        if (n.text.trim().isNotEmpty) n.text.trim(),
+    ];
+    if (notes.isEmpty) continue;
+    out.addAll(['## Notes — ${r.run.name}', '']);
+    for (final n in notes) {
+      out.addAll([n, '']);
+    }
+  }
+  // Questions: one entry per blank (its slot key), placed where it first appears.
+  final groups = <String, List<(StudyRun, Answer)>>{};
+  for (final r in runs) {
+    for (final a in r.answers) {
+      if (a.text.trim().isEmpty) continue;
+      (groups[a.slotKey] ??= []).add((r.run, a));
+    }
+  }
+  final highlights = [
+    for (final r in runs)
+      for (final h in r.highlights) (r.run, h),
+  ];
+  final pages = {...groups.values.map((g) => g.first.$2.page), ...highlights.map((h) => h.$2.page)}.toList()..sort();
+  for (final page in pages) {
+    out.addAll(['## ${pageHeading(page, '')}', '']);
+    final qs =
+        [
+          for (final g in groups.values)
+            if (g.first.$2.page == page) g,
+        ]..sort((a, b) {
+          final pa = a.first.$2.place, pb = b.first.$2.place;
+          return pa.y != pb.y ? pa.y.compareTo(pb.y) : pa.x.compareTo(pb.x);
+        });
+    String? lastContext;
+    for (final g in qs) {
+      final context = g.map((e) => e.$2.context).firstWhere((c) => c.isNotEmpty, orElse: () => '');
+      if (context != lastContext || context.isEmpty) {
+        if (lastContext != null) out.add('');
+        out.add(context.isEmpty ? '**Q:** (p. $page)  ' : '**Q:** $context  ');
+      }
+      lastContext = context;
+      for (final (run, a) in g) {
+        out.add('**A (${run.name}):** ${[for (final l in a.text.trim().split('\n')) l.trimRight()].join('  \n')}  ');
+      }
+    }
+    if (qs.isNotEmpty) out.add('');
+    final hs =
+        [
+          for (final h in highlights)
+            if (h.$2.page == page) h,
+        ]..sort(
+          (a, b) => a.$2.order.$2 != b.$2.order.$2
+              ? a.$2.order.$2.compareTo(b.$2.order.$2)
+              : a.$2.order.$3.compareTo(b.$2.order.$3),
+        );
+    for (final (run, h) in hs) {
+      out.add(_quote(h.quote.isEmpty ? '(no text)' : h.quote));
+      out.add('> — p. $page · ${h.color} · ${run.name}');
+      out.add('');
+      if (h.note?.trim() case final note? when note.isNotEmpty) out.addAll([note, '']);
+    }
+  }
+  if (pages.isEmpty) out.addAll(['*No highlights or answers yet.*', '']);
+  return '${out.join('\n').replaceAll(RegExp(r'\n+$'), '')}\n';
+}

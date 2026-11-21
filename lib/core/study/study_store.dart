@@ -370,11 +370,109 @@ class StudyStore {
     return r ?? runsOf(b).last;
   }
 
+  /// Finished runs unlocked for this session (until the book is closed). They stay locked in the store.
+  final Set<String> unlocked = {};
+
+  /// Whether a run's marks can be changed now: it is not finished, or it was unlocked for this session.
+  bool editable(StudyRun r) => !r.locked || unlocked.contains(r.id);
+
   StudyRun _open(String runId) {
     final r = run(runId);
     if (r == null) throw StateError('no such run');
-    if (r.locked) throw RunLocked(r);
+    if (!editable(r)) throw RunLocked(r);
     return r;
+  }
+
+  /// Starts another time through the book: a new, empty run named [name] (default "2nd time, Nov 2026"). The run that
+  /// was current is finished and locked; nothing in it changes. Returns the new run.
+  StudyRun startRun(StudyBook b, {String? name}) {
+    final runs = runsOf(b);
+    final ordinal = (runs.isEmpty ? 0 : runs.map((r) => r.ordinal).reduce((a, c) => a > c ? a : c)) + 1;
+    final now = _now();
+    final id = uuidV7(now);
+    data.batch(() {
+      for (final r in runs) {
+        if (!r.locked || r.finishedAt == null) {
+          data.put('study_run', r.id, {
+            ...data.record('study_run', r.id)!,
+            'finished_at': r.finishedAt ?? now.millisecondsSinceEpoch,
+            'locked': 1,
+          });
+        }
+      }
+      final clean = name?.trim();
+      data.put('study_run', id, {
+        'book_id': b.id,
+        'ordinal': ordinal,
+        'name': clean == null || clean.isEmpty ? runName(ordinal, now) : clean,
+        'started_at': now.millisecondsSinceEpoch,
+        'locked': 0,
+      });
+      _putBook(book(b.id) ?? b, currentRunId: id);
+    });
+    unlocked.removeWhere((x) => runs.any((r) => r.id == x));
+    return run(id)!;
+  }
+
+  /// A run's name ("2nd time, Nov 2026" → "Autumn study circle"). Allowed on a locked run: it changes no marks.
+  void renameRun(StudyRun r, String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) return;
+    data.put('study_run', r.id, {...data.record('study_run', r.id)!, 'name': clean});
+  }
+
+  /// Deletes a run that is not the book's current one, with everything made in it.
+  void deleteRun(StudyBook b, StudyRun r) {
+    if (currentRun(b).id == r.id) throw StateError('the current run cannot be deleted');
+    data.batch(() {
+      for (final t in ['doc_highlight', 'doc_bookmark', 'answer', 'doc_view', 'doc_note']) {
+        for (final x in data.records(t)) {
+          if (x['run_id'] == r.id) data.remove(t, x['id'] as String);
+        }
+      }
+      data.remove('study_run', r.id);
+    });
+    unlocked.remove(r.id);
+  }
+
+  /// Every run's answer to the same printed question blank (by [slotKey]), oldest run first.
+  List<(StudyRun, Answer)> history(StudyBook b, String slotKey) {
+    final runs = {for (final r in runsOf(b)) r.id: r};
+    final out = <(StudyRun, Answer)>[
+      for (final x in data.records('answer'))
+        if (x['slot_key'] == slotKey && runs.containsKey(x['run_id'])) (runs[x['run_id']]!, Answer(x)),
+    ]..sort((a, c) => a.$1.ordinal.compareTo(c.$1.ordinal));
+    return out;
+  }
+
+  /// All runs' answers of a book, grouped by question blank in reading order (page, then place), for comparing how
+  /// each answer changed. Each group: the question, its first place, and the answers by run (oldest first).
+  List<({String slotKey, String context, int page, double y, double x, List<(StudyRun, Answer)> answers})> questions(
+    StudyBook b,
+  ) {
+    final runs = {for (final r in runsOf(b)) r.id: r};
+    final groups = <String, List<(StudyRun, Answer)>>{};
+    for (final x in data.records('answer')) {
+      final r = runs[x['run_id']];
+      if (r == null) continue;
+      final a = Answer(x);
+      (groups[a.slotKey] ??= []).add((r, a));
+    }
+    final out = [
+      for (final MapEntry(key: key, value: list) in groups.entries)
+        (
+          slotKey: key,
+          context: list.map((e) => e.$2.context).firstWhere((c) => c.isNotEmpty, orElse: () => ''),
+          page: list.first.$2.page,
+          y: list.first.$2.place.y,
+          x: list.first.$2.place.x,
+          answers: list..sort((a, c) => a.$1.ordinal.compareTo(c.$1.ordinal)),
+        ),
+    ];
+    out.sort(
+      (a, c) => a.page != c.page ? a.page.compareTo(c.page) : (a.y != c.y ? a.y.compareTo(c.y) : a.x.compareTo(c.x)),
+    );
+    return out;
   }
 
   // ----- highlights -----

@@ -28,9 +28,9 @@ void listenForIncomingPdfs(BuildContext Function() context, StudyController? stu
       if (bytes is Uint8List) {
         await importStudyBytes(c, study, bytes, name, opened: opened);
       } else {
-        ScaffoldMessenger.of(c).showSnackBar(
-          SnackBar(content: Text('“$name” could not be read (${item['error'] ?? 'unknown problem'}).')),
-        );
+        ScaffoldMessenger.of(
+          c,
+        ).showSnackBar(SnackBar(content: Text('“$name” could not be read (${item['error'] ?? 'unknown problem'}).')));
       }
     }
   }
