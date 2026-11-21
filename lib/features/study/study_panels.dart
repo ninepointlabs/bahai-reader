@@ -153,7 +153,61 @@ class StudyPanels extends StatelessWidget {
           ],
         );
       case StudyPanel.answers:
+        final several = study.runs.length > 1;
+        final toggle = several
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('This time')),
+                    ButtonSegment(value: true, label: Text('Every time')),
+                  ],
+                  selected: {study.answersAllRuns},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (v) => study.setAnswersAllRuns(v.first),
+                ),
+              )
+            : null;
+        if (several && study.answersAllRuns && study.book != null) {
+          final qs = study.store.questions(study.book!);
+          return ListView(
+            children: [
+              ?toggle,
+              if (qs.isEmpty) _empty(context, 'No answers yet in any time through.'),
+              for (final q in qs) ...[
+                ListTile(
+                  dense: true,
+                  title: Text(
+                    q.context.isEmpty ? 'p. ${q.page}' : q.context,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onTap: () => _go(q.page, q.y),
+                ),
+                for (final (run, a) in q.answers)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(28, 0, 12, 6),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${run.name}: ',
+                            style: TextStyle(color: p.dim),
+                          ),
+                          TextSpan(text: a.text),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          );
+        }
         final as = study.answers;
+        if (as.isEmpty && toggle != null) {
+          return ListView(children: [toggle, _empty(context, 'No answers yet in this time through.')]);
+        }
         if (as.isEmpty) {
           return _empty(
             context,
@@ -162,6 +216,7 @@ class StudyPanels extends StatelessWidget {
         }
         return ListView(
           children: [
+            ?toggle,
             for (final a in as)
               ListTile(
                 dense: true,
@@ -253,5 +308,6 @@ String marksSummary(({int highlights, int notes, int answers, int bookmarks}) c)
 /// For the library: the book's current run and its marks.
 String bookSummary(StudyStore store, StudyBook b) {
   final run = store.currentRun(b);
-  return '${run.name} · ${marksSummary(store.counts(run.id))}';
+  final times = store.runsOf(b).length;
+  return [run.name, marksSummary(store.counts(run.id)), if (times > 1) '$times times through'].join(' · ');
 }

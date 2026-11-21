@@ -60,7 +60,7 @@ void main() {
         place: AnswerPlace(page: 1, kind: 'line', x: slot.x, y: slot.y, w: slot.w, pitch: slot.pitch,
             lines: slot.lines, indent: slot.indent, size: slot.size),
         context: p1.contextAt(r.x + 5, r.y),
-        ordinal: 0,
+        ordinal: i == 1 ? 1 : 0,
       ));
       study.finishAnswer(text);
     }
@@ -87,8 +87,32 @@ void main() {
     await tester.tap(find.text('Answers'));
     await wait(tester);
     await expectLater(find.byType(BahaiReaderApp), matchesGoldenFile('out/study-02-reader.png'));
-    await tester.runAsync(() => study.close());
+
+    // A second time through, with different answers, compared side by side.
+    final first = study.run!;
+    study.startNewRun();
+    answer(0, 'Sunday');
+    answer(2, 'We read, talk it over, and then each of us writes what we understood in our own words.');
+    study.setCompare(first);
+    for (var i = 0; i < 6; i++) {
+      await wait(tester, 300);
+    }
+    await expectLater(find.byType(BahaiReaderApp), matchesGoldenFile('out/study-03-compare.png'));
+    tester.view.physicalSize = const Size(1100, 900);
+    for (var i = 0; i < 4; i++) {
+      await wait(tester, 300);
+    }
+    await expectLater(find.byType(BahaiReaderApp), matchesGoldenFile('out/study-03b-compare-narrow.png'));
+    tester.view.physicalSize = const Size(1600, 1000);
+    await wait(tester, 300);
+    study.setCompare(null);
+    await tester.tap(find.text('Every time'));
+    for (var i = 0; i < 4; i++) {
+      await wait(tester, 300);
+    }
+    await expectLater(find.byType(BahaiReaderApp), matchesGoldenFile('out/study-04-history.png'));
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
+    await tester.runAsync(() => study.close());
   });
 }

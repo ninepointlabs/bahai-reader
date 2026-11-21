@@ -64,7 +64,87 @@ class StudyController extends ChangeNotifier {
 
   File fileOf(StudyBook b) => bookFile(books, b.doc.sha256);
 
-  bool get readOnly => run?.locked ?? true;
+  /// The run on show cannot be changed: it is finished (and not unlocked for this session), or nothing is open.
+  bool get readOnly {
+    final r = run;
+    return r == null || !store.editable(r);
+  }
+
+  /// The book's runs, oldest first.
+  List<StudyRun> get runs => book == null ? const [] : store.runsOf(book!);
+
+  /// Whether the run on show is the one being worked on (not an earlier one opened to look at).
+  bool get onCurrentRun => book != null && run != null && store.currentRun(book!).id == run!.id;
+
+  /// Another run whose answers are shown beside (or under) this run's, or null.
+  StudyRun? compare;
+
+  /// The Answers panel lists every time through's answers by question, instead of the run on show's.
+  bool answersAllRuns = false;
+
+  void setAnswersAllRuns(bool all) {
+    answersAllRuns = all;
+    notifyListeners();
+  }
+
+  /// Shows another run of the book (an earlier one is read-only until unlocked).
+  void viewRun(StudyRun r) {
+    editing = null;
+    run = store.run(r.id) ?? r;
+    if (compare?.id == run!.id) compare = null;
+    notifyListeners();
+  }
+
+  void backToCurrent() {
+    final b = book;
+    if (b != null) viewRun(store.currentRun(b));
+  }
+
+  /// Starts a new, empty time through the book; the run that was current is finished and locked.
+  StudyRun? startNewRun({String? name}) {
+    final b = book;
+    if (b == null) return null;
+    editing = null;
+    final r = store.startRun(b, name: name);
+    book = store.book(b.id);
+    run = r;
+    compare = null;
+    notifyListeners();
+    return r;
+  }
+
+  /// Lets a finished run be changed until the book is closed.
+  void unlockRun() {
+    final r = run;
+    if (r == null) return;
+    store.unlocked.add(r.id);
+    notifyListeners();
+  }
+
+  void renameRun(StudyRun r, String name) {
+    store.renameRun(r, name);
+    if (run?.id == r.id) run = store.run(r.id);
+    if (compare?.id == r.id) compare = store.run(r.id);
+    notifyListeners();
+  }
+
+  /// Deletes an earlier run with its marks (never the current one).
+  void deleteRun(StudyRun r) {
+    final b = book;
+    if (b == null) return;
+    store.deleteRun(b, r);
+    if (compare?.id == r.id) compare = null;
+    if (run?.id == r.id) run = store.currentRun(b);
+    notifyListeners();
+  }
+
+  void setCompare(StudyRun? r) {
+    compare = r == null || r.id == run?.id ? null : r;
+    notifyListeners();
+  }
+
+  /// Every run's answer to the same printed question blank, oldest run first.
+  List<(StudyRun, Answer)> history(String slotKey) => book == null ? const [] : store.history(book!, slotKey);
 
   /// Opens a book at its current run and the place reached in it.
   Future<void> open(StudyBook b) async {
@@ -111,6 +191,8 @@ class StudyController extends ChangeNotifier {
     _loading.clear();
     editing = null;
     goTo = null;
+    compare = null;
+    store.unlocked.clear();
     if (doc != null) await doc.dispose();
     if (notify) notifyListeners();
   }

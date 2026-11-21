@@ -73,7 +73,30 @@ Future<void> exportStudyRun(BuildContext context, StudyController study) async {
     answers: study.answers,
     notes: study.notes,
   );
-  final name = exportFileName(book, run);
+  await _saveMarkdown(say, exportFileName(book, run), markdown);
+}
+
+/// Writes every time through the book into one Markdown file (each question with every run's answer under it).
+Future<void> exportAllRuns(BuildContext context, StudyController study) async {
+  final book = study.book;
+  if (book == null) return;
+  final say = ScaffoldMessenger.of(context);
+  final markdown = renderAllRunsMarkdown(
+    book: book,
+    runs: [
+      for (final r in study.runs)
+        (
+          run: r,
+          highlights: study.store.highlights(r.id),
+          answers: study.store.answers(r.id),
+          notes: study.store.notes(r.id),
+        ),
+    ],
+  );
+  await _saveMarkdown(say, allRunsFileName(book), markdown);
+}
+
+Future<void> _saveMarkdown(ScaffoldMessengerState say, String name, String markdown) async {
   try {
     if (Platform.isAndroid || Platform.isIOS) {
       final saved = await _files.invokeMethod<bool>('save', {'name': name, 'mime': 'text/markdown', 'text': markdown});

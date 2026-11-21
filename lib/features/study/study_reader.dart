@@ -11,6 +11,8 @@ import '../../core/study/rules.dart';
 import '../../core/study/study_controller.dart';
 import '../../core/study/study_store.dart';
 import '../marks/highlight_sheet.dart' show editNote;
+import 'study_actions.dart' show exportAllRuns;
+import 'study_runs.dart';
 
 /// The ink answers are written in: blue, so they read as filled in rather than printed (as in Dogear).
 const answerInk = Color(0xFF1F4FA8);
@@ -22,8 +24,20 @@ const answerInk = Color(0xFF1F4FA8);
 /// view, `j`/`k` scroll, `J`/`K` and Alt+→/Alt+← turn pages, `g`/`G` go to the first or last page, `+`/`-`/`0` zoom,
 /// Ctrl+G goes to a page, Ctrl+F or `/` searches.
 class StudyReader extends StatefulWidget {
-  const StudyReader({super.key, required this.study, this.touch = false, this.onExport, this.onNewNote});
+  const StudyReader({
+    super.key,
+    required this.study,
+    this.touch = false,
+    this.onExport,
+    this.onNewNote,
+    this.showRun,
+    this.follow,
+  });
   final StudyController study;
+
+  /// The compare pane: shows this run's marks, read-only, scrolled with [follow] (the main reader's view).
+  final StudyRun? showRun;
+  final PdfViewerController? follow;
 
   /// Phones and tablets: no hover, long-press selection, and the colour bar is the way to highlight.
   final bool touch;
@@ -52,9 +66,62 @@ class StudyReaderState extends State<StudyReader> {
 
   StudyController get study => widget.study;
 
+  /// A compare pane: another run's marks, read-only, following the main reader.
+  bool get _mirror => widget.showRun != null;
+  String? get _runId => widget.showRun?.id ?? study.run?.id;
+  bool get _readOnly => _mirror || study.readOnly;
+  List<DocHighlight> get _highlights => _runId == null ? const [] : study.store.highlights(_runId!);
+  List<Answer> get _answers => _runId == null ? const [] : study.store.answers(_runId!);
+  bool _bookmarked(int page) =>
+      _runId != null && study.book != null && study.store.bookmarkOn(_runId!, study.book!.docId, page) != null;
+
+  /// Every run's answers by question blank, worked out once per build (for the history marks).
+  Map<String, List<(StudyRun, Answer)>> _bySlot = const {};
+
+  /// Comparing in a second pane beside this one (wide windows); otherwise the other run's answers are drawn faintly
+  /// under this run's.
+  bool _sideBySide = false;
+
+  /// History marks on [page]: where an answer of this question exists in another time through (a box in points, how
+  /// many other runs answered it, and its question).
+  List<({Rect at, int count, String slotKey})> _chips(int page) {
+    if (_bySlot.isEmpty) return const [];
+    final runId = _runId;
+    final out = <({Rect at, int count, String slotKey})>[];
+    final seen = <String>{};
+    void add(Answer a) {
+      if (a.page != page || !seen.add(a.slotKey)) return;
+      final others = (_bySlot[a.slotKey] ?? const []).where((e) => e.$1.id != runId).length;
+      if (others == 0) return;
+      final r = _answerRect(a.place);
+      // Beside a block of ruled lines or a box; above the end of a one-line blank, clear of the words after it.
+      final at = a.place.lines > 1 || a.place.kind == 'box'
+          ? Rect.fromLTWH(r.right + 2, r.bottom - 11, 20, 10)
+          : Rect.fromLTWH(r.right - 16, r.top - 9, 18, 9);
+      out.add((at: at, count: others, slotKey: a.slotKey));
+    }
+
+    for (final a in _answers) {
+      add(a);
+    }
+    for (final list in _bySlot.values) {
+      for (final (_, a) in list) {
+        add(a);
+      }
+    }
+    return out;
+  }
+
+  void _follow() {
+    final f = widget.follow;
+    if (f != null && f.isReady && pdf.isReady && pdf.value != f.value) pdf.value = f.value;
+  }
+
   @override
   void initState() {
     super.initState();
+    widget.follow?.addListener(_follow);
+    if (_mirror) return;
     study.goTo = _goTo;
     answer.addListener(_typed);
     answerFocus.addListener(() {
@@ -66,7 +133,8 @@ class StudyReaderState extends State<StudyReader> {
   @override
   void dispose() {
     _keep?.cancel();
-    if (study.editing != null) study.finishAnswer(answer.text);
+    widget.follow?.removeListener(_follow);
+    if (!_mirror && study.editing != null) study.finishAnswer(answer.text);
     if (study.goTo == _goTo) study.goTo = null;
     searcher.removeListener(_searchChanged);
     searcher.dispose();
@@ -118,7 +186,7 @@ class StudyReaderState extends State<StudyReader> {
 
   /// Highlights the selected text in [color] (the last colour used if null); with [note], asks for a note too.
   Future<void> highlightSelection({String? color, bool note = false}) async {
-    if (study.readOnly) return;
+    if (_readOnly) return;
     final delegate = pdf.textSelectionDelegate;
     if (!delegate.hasSelectedText) return;
     final ranges = await delegate.getSelectedTextRanges();
@@ -138,7 +206,7 @@ class StudyReaderState extends State<StudyReader> {
 
   /// Change a highlight's colour, its note, copy its words, or remove it.
   Future<void> _highlightMenu(DocHighlight h) async {
-    final locked = study.readOnly;
+    final locked = _readOnly;
     final p = ReaderColors.of(context);
     await showModalBottomSheet<void>(
       context: context,
@@ -222,7 +290,7 @@ class StudyReaderState extends State<StudyReader> {
 
   /// Starts typing on the answer line [index] of [data] (with the ruled lines below it), or in [box].
   void _startAnswer(PageData data, {int? index, Rect? box}) {
-    if (study.readOnly) return;
+    if (_readOnly) return;
     if (study.editing != null) _finishAnswer();
     AnswerPlace place;
     String context;
@@ -330,6 +398,13 @@ class StudyReaderState extends State<StudyReader> {
     final hit = _hit(d.documentPosition);
     if (hit == null) return false;
     final (page, at) = hit;
+    // A history mark: this question's answers in every time through.
+    for (final c in _chips(page.pageNumber)) {
+      if (c.at.inflate(3).contains(at)) {
+        showAnswerHistory(context, study, c.slotKey);
+        return true;
+      }
+    }
     final data = study.pageIfLoaded(page.pageNumber);
     if (data == null) {
       study.pageData(page.pageNumber);
@@ -338,14 +413,14 @@ class StudyReaderState extends State<StudyReader> {
     final type = d.type;
     if (type == PdfViewerGeneralTapType.tap || type == PdfViewerGeneralTapType.secondaryTap) {
       // A highlight under the pointer.
-      for (final h in study.highlights.reversed) {
+      for (final h in _highlights.reversed) {
         if (h.page == page.pageNumber && h.rects.any((r) => _inflate(r, 1.5).contains(at))) {
           _highlightMenu(h);
           return true;
         }
       }
       // An answer box or line.
-      for (final a in study.answers) {
+      for (final a in _answers) {
         if (a.page == page.pageNumber && _answerRect(a.place).contains(at)) {
           _startAnswerAt(data, a.place);
           return true;
@@ -363,7 +438,7 @@ class StudyReaderState extends State<StudyReader> {
     }
     // Long press (or right-click) on empty paper: an answer box there.
     if ((type == PdfViewerGeneralTapType.longPress || type == PdfViewerGeneralTapType.secondaryTap) &&
-        !study.readOnly &&
+        !_readOnly &&
         !_nearText(data, at)) {
       final w = math.min(220.0, page.width - at.dx - 24);
       if (w > 40) {
@@ -379,7 +454,7 @@ class StudyReaderState extends State<StudyReader> {
       final i = data.rules.indexWhere((r) => (r.y - place.y).abs() < 1 && (r.x - (place.x + place.indent)).abs() < 2);
       if (i >= 0) return _startAnswer(data, index: i);
     }
-    if (study.readOnly) return;
+    if (_readOnly) return;
     if (study.editing != null) _finishAnswer();
     final existing = study.answerAt(place);
     answer.text = existing?.text ?? '';
@@ -400,7 +475,7 @@ class StudyReaderState extends State<StudyReader> {
   }
 
   void _hover(PointerHoverEvent e) {
-    if (widget.touch || study.readOnly) return;
+    if (widget.touch || _readOnly) return;
     final doc = pdf.isReady ? pdf.globalToDocument(e.position) : null;
     (int, Rule)? found;
     if (doc != null) {
@@ -438,20 +513,26 @@ class StudyReaderState extends State<StudyReader> {
             scale: s,
             pageWidth: page.width,
             highlights: [
-              for (final h in study.highlights)
+              for (final h in _highlights)
                 if (h.page == number) h,
             ],
             answers: [
-              for (final a in study.answers)
-                if (a.page == number && !(edit != null && edit.place.key('') == a.place.key(''))) a,
+              for (final a in _answers)
+                if (a.page == number && !(edit != null && !_mirror && edit.place.key('') == a.place.key(''))) a,
             ],
             hovered: hovered?.$1 == number ? hovered!.$2 : null,
-            bookmarked: study.bookmarkOn(number) != null,
+            bookmarked: _bookmarked(number),
             palette: palette,
+            ghosts: [
+              if (!_mirror && study.compare != null && !_sideBySide)
+                for (final a in study.store.answers(study.compare!.id))
+                  if (a.page == number) a,
+            ],
+            chips: _mirror ? const [] : _chips(number),
           ),
         ),
       ),
-      if (edit != null && edit.place.page == number) _editor(edit, s),
+      if (!_mirror && edit != null && edit.place.page == number) _editor(edit, s),
     ];
   }
 
@@ -545,7 +626,7 @@ class StudyReaderState extends State<StudyReader> {
   Widget? _contextMenu(BuildContext context, PdfViewerContextMenuBuilderParams params) {
     if (params.contextMenuFor != PdfViewerPart.selectedText) return null;
     final p = ReaderColors.of(context);
-    final locked = study.readOnly;
+    final locked = _readOnly;
     return Positioned(
       left: math.max(8, params.anchorA.dx - 20),
       top: math.max(8, params.anchorA.dy - 56),
@@ -650,9 +731,9 @@ class StudyReaderState extends State<StudyReader> {
       SingleActivator(LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + i)): () => highlightSelection(color: c),
     const SingleActivator(LogicalKeyboardKey.keyA): () => highlightSelection(note: true),
     const SingleActivator(LogicalKeyboardKey.keyH, control: true): () => highlightSelection(note: true),
-    const SingleActivator(LogicalKeyboardKey.keyB): () => study.readOnly ? null : study.toggleBookmark(study.page),
+    const SingleActivator(LogicalKeyboardKey.keyB): () => _readOnly ? null : study.toggleBookmark(study.page),
     const SingleActivator(LogicalKeyboardKey.keyD, control: true): () =>
-        study.readOnly ? null : study.toggleBookmark(study.page),
+        _readOnly ? null : study.toggleBookmark(study.page),
     const SingleActivator(LogicalKeyboardKey.keyI): _answerFirstInView,
     const SingleActivator(LogicalKeyboardKey.keyJ): () => _scrollBy(60),
     const SingleActivator(LogicalKeyboardKey.keyK): () => _scrollBy(-60),
@@ -677,6 +758,9 @@ class StudyReaderState extends State<StudyReader> {
     const SingleActivator(LogicalKeyboardKey.keyF, control: true): openSearch,
     const SingleActivator(LogicalKeyboardKey.slash): openSearch,
     const SingleActivator(LogicalKeyboardKey.keyE, control: true): () => widget.onExport?.call(),
+    const SingleActivator(LogicalKeyboardKey.keyE, control: true, shift: true): () => exportAllRuns(context, study),
+    const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): () => startNewRunDialog(context, study),
+    const SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true): toggleCompare,
     const SingleActivator(LogicalKeyboardKey.keyN, control: true): () => widget.onNewNote?.call(),
     for (final (i, panel) in StudyPanel.values.indexed)
       SingleActivator(LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + i), control: true): () =>
@@ -703,6 +787,9 @@ class StudyReaderState extends State<StudyReader> {
     ('Go to a page', 'Ctrl+G'),
     ('Search in this book', 'Ctrl+F, /'),
     ('Export this run to Markdown', 'Ctrl+E'),
+    ('Export every time through to one Markdown file', 'Ctrl+Shift+E'),
+    ('Start a new time through the book', 'Ctrl+Shift+N'),
+    ('Compare with another time through, or stop', 'Ctrl+Shift+V'),
     ('New book note', 'Ctrl+N'),
     ('Contents, Highlights, Bookmarks, Answers, Notes', 'Ctrl+1 … Ctrl+5'),
   ];
@@ -719,9 +806,13 @@ class StudyReaderState extends State<StudyReader> {
       );
     }
     if (doc == null) return const Center(child: CircularProgressIndicator());
+    final book = study.book;
+    _bySlot = book == null || study.runs.length < 2
+        ? const {}
+        : {for (final q in study.store.questions(book)) q.slotKey: q.answers};
     final view = study.run == null ? null : study.store.view(study.run!.id);
     final viewer = PdfViewer(
-      PdfDocumentRefDirect(doc),
+      PdfDocumentRefDirect(doc, autoDispose: false), // StudyController owns and closes it
       controller: pdf,
       params: PdfViewerParams(
         backgroundColor: palette.isDark
@@ -740,6 +831,10 @@ class StudyReaderState extends State<StudyReader> {
         calculateInitialPageNumber: (document, controller) =>
             (view?.page ?? study.page).clamp(1, document.pages.length),
         onViewerReady: (document, controller) {
+          if (_mirror) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _follow());
+            return;
+          }
           study.page = controller.pageNumber ?? study.page;
           final z = view?.zoom;
           if (z != null && z > 0 && (z - controller.currentZoom).abs() > 0.01) {
@@ -747,34 +842,125 @@ class StudyReaderState extends State<StudyReader> {
           }
         },
         onPageChanged: (n) {
-          if (n == null) return;
+          if (n == null || _mirror) return;
           study.rememberView(n, zoom: pdf.isReady ? pdf.currentZoom : 1);
           study.pageData(n);
           if (n + 1 <= doc.pages.length) study.pageData(n + 1);
         },
       ),
     );
+    if (_mirror) {
+      // The compare pane: a label, and the pages following the main reader (it takes no input of its own).
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: palette.card,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(
+              '${widget.showRun!.name} · read-only',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: palette.dim),
+            ),
+          ),
+          Expanded(child: IgnorePointer(child: viewer)),
+        ],
+      );
+    }
+    final run = study.run;
+    final compare = study.compare;
     return CallbackShortcuts(
       bindings: _keys,
       child: Focus(
         focusNode: focus,
         autofocus: !widget.touch,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (study.readOnly)
-              MaterialBanner(
-                content: Text('${study.run?.name ?? 'This run'} is finished: you can read it, not change it.'),
-                actions: const [SizedBox.shrink()],
-              ),
-            if (searching) _searchBar(palette),
-            Expanded(
-              child: MouseRegion(onHover: _hover, child: viewer),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final side = compare != null && box.maxWidth >= 1000;
+            if (side != _sideBySide) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _sideBySide = side);
+              });
+            }
+            final main = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (run != null && !study.onCurrentRun)
+                  MaterialBanner(
+                    content: Text(
+                      study.readOnly
+                          ? 'You are looking at “${run.name}”, an earlier time through. It is finished, so it can be '
+                                'read but not changed.'
+                          : '“${run.name}” is unlocked until you close the book: changes go into that time through.',
+                    ),
+                    actions: [
+                      if (study.readOnly) TextButton(onPressed: _unlock, child: const Text('Unlock')),
+                      TextButton(onPressed: study.backToCurrent, child: const Text('Back to the current one')),
+                    ],
+                  ),
+                if (compare != null)
+                  MaterialBanner(
+                    content: Text(
+                      side
+                          ? 'Comparing with “${compare.name}”, shown on the right.'
+                          : 'Comparing with “${compare.name}”: its answers are shown in grey under yours.',
+                    ),
+                    actions: [TextButton(onPressed: () => study.setCompare(null), child: const Text('Stop comparing'))],
+                  ),
+                if (searching) _searchBar(palette),
+                Expanded(
+                  child: MouseRegion(onHover: _hover, child: viewer),
+                ),
+              ],
+            );
+            if (!side) return main;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: main),
+                VerticalDivider(width: 1, color: palette.selection),
+                Expanded(
+                  child: StudyReader(
+                    key: ValueKey('compare:${compare.id}'),
+                    study: study,
+                    showRun: compare,
+                    follow: pdf,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+
+  Future<void> _unlock() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text('Unlock “${study.run?.name}”?'),
+        content: const Text(
+          'Changes will go into this earlier time through until you close the book; then it is locked again.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Unlock')),
+        ],
+      ),
+    );
+    if (ok == true) study.unlockRun();
+  }
+
+  /// Ctrl+Shift+V: compare with the latest other time through, or stop comparing.
+  void toggleCompare() {
+    if (study.compare != null) return study.setCompare(null);
+    final others = [
+      for (final r in study.runs.reversed)
+        if (r.id != study.run?.id) r,
+    ];
+    if (others.isNotEmpty) study.setCompare(others.first);
   }
 
   Widget _searchBar(Palette p) {
@@ -853,6 +1039,8 @@ class _MarksPainter extends CustomPainter {
     required this.hovered,
     required this.bookmarked,
     required this.palette,
+    this.ghosts = const [],
+    this.chips = const [],
   });
   final double scale, pageWidth;
   final List<DocHighlight> highlights;
@@ -860,6 +1048,12 @@ class _MarksPainter extends CustomPainter {
   final Rule? hovered;
   final bool bookmarked;
   final Palette palette;
+
+  /// Another run's answers, drawn faintly just under the lines (comparing on a narrow screen).
+  final List<Answer> ghosts;
+
+  /// Marks where a question was answered in another time through.
+  final List<({Rect at, int count, String slotKey})> chips;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -897,8 +1091,20 @@ class _MarksPainter extends CustomPainter {
           ..strokeWidth = 1.2,
       );
     }
+    for (final a in ghosts) {
+      _paintGhost(canvas, a);
+    }
     for (final a in answers) {
       _paintAnswer(canvas, a);
+    }
+    for (final c in chips) {
+      final r = Rect.fromLTWH(c.at.left * s, c.at.top * s, c.at.width * s, c.at.height * s);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(r, Radius.circular(3 * s)),
+        Paint()..color = palette.accent.withValues(alpha: 0.85),
+      );
+      final tp = _painter('↺${c.count}', 7.5 * s, double.infinity, null, color: Colors.white);
+      tp.paint(canvas, Offset(r.center.dx - tp.width / 2, r.center.dy - tp.height / 2));
     }
     if (bookmarked) {
       final w = size.width;
@@ -952,11 +1158,34 @@ class _MarksPainter extends CustomPainter {
     tp.paint(canvas, Offset(left + 1 * s, p.y * s - tp.height + 1.5 * s));
   }
 
-  static TextPainter _painter(String text, double size, double width, double? lineHeight) {
+  /// An answer from the run being compared: grey, small, just under its line (one line, shrunk to fit a short blank).
+  void _paintGhost(Canvas canvas, Answer a) {
+    final p = a.place;
+    final s = scale;
+    const grey = Color(0xFF7A7A7A);
+    final width = math.max(1.0, (p.w - p.indent) * s);
+    final oneLine = p.kind == 'line' && p.lines <= 1;
+    var size = math.max(6.0, p.size * 0.8) * s;
+    TextPainter tp;
+    do {
+      tp = oneLine
+          ? _painter(a.text.replaceAll('\n', ' '), size, double.infinity, null, color: grey)
+          : _painter(a.text, size, width, null, color: grey);
+      if (!oneLine || tp.width <= width || size <= 5 * s) break;
+      size *= 0.92;
+    } while (true);
+    final top = p.kind == 'box' ? (p.y + math.max(p.h, 14) + 1) : (p.y + (p.lines - 1) * p.pitch + 1.5);
+    canvas.save();
+    if (oneLine) canvas.clipRect(Rect.fromLTWH((p.x + p.indent) * s, top * s, width, tp.height));
+    tp.paint(canvas, Offset((p.x + p.indent) * s, top * s));
+    canvas.restore();
+  }
+
+  static TextPainter _painter(String text, double size, double width, double? lineHeight, {Color color = answerInk}) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: answerInk, fontSize: size, height: lineHeight == null ? 1.15 : lineHeight / size),
+        style: TextStyle(color: color, fontSize: size, height: lineHeight == null ? 1.15 : lineHeight / size),
       ),
       textDirection: TextDirection.ltr,
     );

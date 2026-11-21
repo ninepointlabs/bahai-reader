@@ -4,6 +4,7 @@ import '../../core/app/app_state.dart';
 import 'study_actions.dart';
 import 'study_panels.dart';
 import 'study_reader.dart';
+import 'study_runs.dart';
 
 /// A Study book on a phone: the pages full screen, with the panels (contents, highlights, bookmarks, answers, notes)
 /// in a sheet, a bookmark button and the export in the menu. Leaving it closes the book.
@@ -39,6 +40,7 @@ class _StudyBookScreenState extends State<StudyBookScreen> {
                 ],
               ),
               actions: [
+                RunMenuButton(study: study, showName: false),
                 IconButton(
                   tooltip: 'Contents, highlights, bookmarks, answers and notes',
                   icon: const Icon(Icons.toc),
