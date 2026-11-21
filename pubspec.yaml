@@ -1,7 +1,7 @@
 name: bahai_reader
 description: "Flutter port of Bahá’í Reader. Offline; the network is used only to download a language when asked."
 publish_to: 'none'
-version: 1.0.1+101
+version: 1.1.0+110
 
 environment:
   sdk: ^3.13.7
