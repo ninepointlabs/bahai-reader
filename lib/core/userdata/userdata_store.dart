@@ -658,6 +658,17 @@ class UserDataStore {
       ..userdataVersion = movedMarker;
   }
 
+  /// This device's own bookkeeping (never exported): what was last synced, and the like.
+  String? meta(String key) =>
+      _db.select('SELECT value FROM local_meta WHERE key = ?', [key]).firstOrNull?['value'] as String?;
+
+  void setMeta(String key, String? value) => value == null
+      ? _db.execute('DELETE FROM local_meta WHERE key = ?', [key])
+      : _db.execute('INSERT OR REPLACE INTO local_meta (key, value) VALUES (?, ?)', [key, value]);
+
+  /// The latest change stamp this device has given or taken in (changes when anything is stored or merged).
+  String get stamp => hlc.stamp;
+
   // ----- backup and merge (sync step A) -----
 
   /// Every record (deletion markers included) with its sync columns, as a JSON-ready map: the notes backup file, and
