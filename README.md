@@ -79,8 +79,13 @@ Checksums for every download are in `SHA256SUMS`.
   libraries, and read offline after that.
 - **Search**: the whole current-language library, ignoring case, accents, apostrophes and hyphens
   (“Bahaullah” finds “Bahá’u’lláh”).
-- **Highlights, notes and saved passages**, stored the same way as the GTK app (passage id + character offsets + the
-  quoted words), and following passages across languages by their `match`.
+- **Highlights, notes and saved passages**, anchored the same way as the GTK app (passage id + character offsets + the
+  quoted words), and following passages across languages by their `match`. They are kept, with collections, reading
+  places and Said/Fasted records, in `userdata.sqlite` beside `settings.json`: one record per mark with a permanent id,
+  change times and deletion markers, so they can be synced between devices later (nothing syncs yet). The first start
+  of a version with this store moves them out of `settings.json` and keeps a copy of the old file as
+  `settings.json.pre-userdata-<date>`; `settings.json` keeps its copies as they were at the move, so an older version
+  still finds them.
 - **Light, Dark and Sepia** palettes from the GTK app; by default it follows the live Omarchy theme where there is one,
   else the system's light or dark.
 - **Desktop layout like the GTK app** (Linux, Windows, macOS): a sidebar with Home, Prayers, Writings and Saved and the
@@ -153,6 +158,8 @@ lib/
     marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
+    userdata/   userdata_store.dart (marks and personal choices in SQLite, sync-ready records, the move from
+                settings.json), ids.dart (UUIDv7, UUIDv5, hybrid logical clock)
   features/
     desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
                 Highlights & notes (shell_model.dart holds where the window is)

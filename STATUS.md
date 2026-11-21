@@ -5,6 +5,72 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## User-data layer (Study plan, Phase 0) — 2026-11-20
+
+Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section`. Branch **`feat/userdata-layer`** (from `origin/main`
+`07de00f`), committed locally; not pushed, no PR, no version bump, no release.
+
+**What changed**
+
+- New `lib/core/userdata/`: `userdata_store.dart` keeps highlights (with notes), saved passages, collections, reading
+  positions, Continue reading, Said/Fasted records and five personal choices (prayer, Long prayer period, keep records,
+  counter target, highlight colour) in `userdata.sqlite` beside `settings.json`. Every record has a permanent id
+  (UUIDv7, or UUIDv5 of its meaning for saved passages, positions, records, collections, prefs), `created_at`,
+  `updated_at`, a hybrid-logical-clock stamp, the device id, and a `deleted_at` tombstone. A save writes only the
+  records that changed, in one transaction. `ids.dart`: UUIDv7, UUIDv5, HLC.
+- The app still works on its in-memory `Settings`, so no screen changed; `AppState._save()` writes the store, then
+  `settings.json`. GTK import is unchanged and is stored through the same path (it used to call `store.save` directly).
+- **The move**: first start copies `settings.json` to `settings.json.pre-userdata-<date>`, writes the marks, reads them
+  back and compares before committing; then `settings.json` gets `"userdata_version": 1` and keeps the moved keys
+  frozen as they were. If the store can't be opened (or is from a newer schema), the marks stay in `settings.json` as
+  before, a notice says so, and the next start tries again. If an older version rewrites `settings.json` after the
+  move, its marks are merged in at the next start (GTK-import rules, nothing dropped).
+- Dependencies: `sqlite3` 3.8.0 (MIT; pinned; bundles a hash-checked SQLite 3.54.1 with FTS5 through Dart build
+  hooks: `lib/libsqlite3.so` in the Linux bundle, `libsqlite3.so` per ABI in the APK, a DLL on Windows) and `crypto`
+  (BSD-3, for UUIDv5).
+- `--version` prints a second line, `SQLite 3.54.1`, and exits 1 if SQLite can't load, so the existing release checks
+  (AppImage, Flatpak, the four distro installs) fail on a package without it.
+
+**Tests (real results)**
+
+- `flutter analyze`: **No issues found!**
+- `flutter test`: **93 passed, 1 skipped** (the skipped one is the existing whole-English-library check). New
+  `test/userdata_test.dart` (11): UUIDv5 RFC vector, UUIDv7 layout, HLC order; first start moves every mark unchanged
+  (same order, shapes, counts), byte-identical backup, frozen keys and device settings unchanged, sync columns set;
+  changes after the move survive restarts while `settings.json` copies stay frozen; deletion = tombstone, unchanged
+  save writes nothing, re-saving revives the same record; two devices make the same saved-passage id with different
+  device ids; marks written by an older version after the move are merged; store can't open → marks kept in
+  `settings.json`, moved on the next start; newer-schema store left alone; fresh install. `gtk_import_test` and
+  `parity_test` now check the store instead of `settings.json` for marks.
+- `flutter build linux --release`: built; bundle has `lib/libsqlite3.so` (needs GLIBC ≤ 2.34, fine for Ubuntu 22.04 /
+  Debian 12); `--version` → `Bahá’í Reader 1.0.1` / `SQLite 3.54.1`, exit 0.
+- **On a copy of the real `~/.config/bahai-reader-flutter/settings.json`** (scratch `XDG_CONFIG_HOME`, `--background`):
+  2 highlights, 15 positions, 6 recent books and 3 prefs moved, same order and values; backup byte-identical; moved
+  keys and every device setting in `settings.json` unchanged; a second start changed nothing (same DB dump, same
+  file, no second backup). The real file's SHA-256, size and mtime were unchanged.
+- `flutter build apk --debug`: `libsqlite3.so` for arm64-v8a, armeabi-v7a, x86_64.
+
+**Not verified**
+
+- Not run on Android or Windows (no phone/emulator attached; no Windows machine). Windows CI runs `flutter test`,
+  which exercises SQLite there; the release workflow wasn't run.
+- Flatpak/AppImage/distro packages not built here; they copy the whole bundle, so `libsqlite3.so` should be included,
+  and `--version` in CI now checks it.
+- The real-data trial ran with your `keep_running` on and real reminder switches, hidden, for 30 s + 10 s; it may have
+  shown a reminder notification if one was due.
+
+**Differences from the plan (decided while building)**
+
+- `userdata.sqlite` sits **beside `settings.json`** (Linux `~/.config/bahai-reader-flutter/`), not in
+  `$XDG_DATA_HOME`: tests and the later Android backup switch move/inject both together, and `settings.json` already
+  held these marks in that folder.
+- Continue reading is `recent_book` rows with an `opened_at` order stamp, not an append-only `history_event` log.
+- Study tables are not created yet; they come with Phase 1 as schema 2. `magenta` stays `magenta` until then.
+- **Downgrading** to 1.0.x shows marks as they were at the move; marks made in 1.0.x are merged back on the next
+  upgrade. Draft release-note line: "Your highlights, notes and saved passages now live in a small database beside the
+  settings file, ready for syncing between devices later. Nothing changes on screen; a copy of the old settings file
+  is kept."
+
 ## Promotion, Phase 1: feature parity (2026-11-16)
 
 Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: https://github.com/ninepointlabs/bahai-reader-flutter/pull/1 (not merged).

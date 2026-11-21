@@ -18,6 +18,7 @@ class Highlight {
     required this.color,
     this.created,
     this.note,
+    this.uid,
   });
 
   final String id;
@@ -28,6 +29,13 @@ class Highlight {
   final String? created;
   final String? note;
 
+  /// The record's own id in the user-data store (a UUID), or null until it is first stored. Not part of the GTK shape
+  /// ([toJson]) and not part of equality: two records with the same place, words, colour and note are the same mark.
+  final String? uid;
+
+  Highlight withUid(String uid) =>
+      Highlight(id: id, start: start, end: end, words: words, color: color, created: created, note: note, uid: uid);
+
   Highlight copyWith({int? start, int? end, String? color, String? note, bool clearNote = false}) => Highlight(
         id: id,
         start: start ?? this.start,
@@ -36,6 +44,7 @@ class Highlight {
         color: color ?? this.color,
         created: created,
         note: clearNote ? null : (note ?? this.note),
+        uid: uid,
       );
 
   /// The same keys and shape as a GTK `settings.json` highlight record.
@@ -57,6 +66,7 @@ class Highlight {
     if (!highlightColors.contains(color) || words is! String || words.isEmpty) return null;
     final note = r['note'];
     final created = r['created'];
+    final uid = r['uid'];
     return Highlight(
       id: id,
       start: start,
@@ -65,6 +75,7 @@ class Highlight {
       color: color as String,
       note: note is String && note.trim().isNotEmpty ? _limit(note) : null,
       created: created is String ? created : null,
+      uid: uid is String && uid.isNotEmpty ? uid : null,
     );
   }
 

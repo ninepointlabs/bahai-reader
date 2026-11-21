@@ -27,15 +27,20 @@ import '../search/fold.dart';
 import '../search/search_index.dart';
 import '../settings/gtk_import.dart';
 import '../settings/settings_store.dart';
+import '../userdata/userdata_store.dart';
 
 /// The app's shared state: the chosen language's library, settings, highlights and saved passages.
 /// Features read it through [AppScope] and change it through its methods, which save as they go.
 class AppState extends ChangeNotifier {
-  AppState({required this.repository, required this.store, required this.settings, this.notice});
+  AppState({required this.repository, required this.store, required this.settings, this.notice, this.userData});
 
   final LibraryRepository repository;
   final SettingsStore store;
   final Settings settings;
+
+  /// Where highlights, notes, saved passages, collections, positions and records are kept (`userdata.sqlite`), or null
+  /// if it could not be opened: then they stay in `settings.json`, as before the store existed.
+  UserDataStore? userData;
 
   /// A message to show once (e.g. a settings file that could not be read).
   String? notice;
@@ -60,11 +65,56 @@ class AppState extends ChangeNotifier {
     final fresh = await s.isNew();
     final (settings, notice) = await s.load();
     final state = AppState(repository: repository ?? LibraryRepository(), store: s, settings: settings, notice: notice);
+    await state._openUserData();
     // Tests never read the real GTK file unless they pass one.
     final gtk = gtkSettings ?? (Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST') ? gtkSettingsFile() : null);
     if (gtk != null && settings.gtkImport == null) await state._firstRunImport(gtk, fresh: fresh);
     await state._start();
     return state;
+  }
+
+  /// Opens the user-data store and brings the marks in line with it:
+  /// * first start with the store: the marks in `settings.json` move in (see [UserDataStore.migrate]);
+  /// * later starts: the stored marks replace what `settings.json` holds (its copies are frozen);
+  /// * `settings.json` written by an older version after the move (it has lost `userdata_version`): marks made there
+  ///   are merged in like a GTK import, so nothing made in either version is lost.
+  /// If the store cannot be used, the marks stay in `settings.json` and it says so once; the next start tries again.
+  Future<void> _openUserData() async {
+    final UserDataStore data;
+    try {
+      data = UserDataStore.open(store.file);
+    } on UserDataProblem catch (e) {
+      _addNotice('Your highlights, notes and saved passages are kept in the settings file this time, because $e.');
+      return;
+    }
+    try {
+      if (data.migratedAt == null) {
+        await data.migrate(settings, store.file);
+      } else if (settings.userdataVersion == null) {
+        final older = settings.userDataJson();
+        final hadImported = settings.importedGtk;
+        data.loadInto(settings);
+        mergeGtk(settings, older, fresh: false);
+        settings.importedGtk = hadImported;
+        settings
+          ..legacy = older
+          ..userdataVersion = userDataSchema;
+        data.save(settings);
+      } else {
+        data.loadInto(settings);
+      }
+    } on Object catch (e) {
+      data.close();
+      _addNotice('Your highlights, notes and saved passages are kept in the settings file this time, because '
+          '${e is UserDataProblem ? e : 'the store could not be used ($e)'}.');
+      return;
+    }
+    userData = data;
+    try {
+      await store.save(settings);
+    } on FileSystemException {
+      // _save() reports it at the next change
+    }
   }
 
   /// What the first-run import did, for tests and the settings page.
@@ -77,7 +127,7 @@ class AppState extends ChangeNotifier {
     if (result.done) settings.gtkImport = {'at': DateTime.now().toIso8601String(), 'status': result.status};
     final message = result.message;
     if (message != null) _addNotice(message);
-    await store.save(settings);
+    await _save(notify: false);
   }
 
   Future<void> _start() async {
@@ -552,6 +602,7 @@ class AppState extends ChangeNotifier {
     _clicks?.cancel();
     _lifecycle?.dispose();
     _openRequests.close();
+    userData?.close();
     super.dispose();
   }
 
@@ -830,9 +881,22 @@ class AppState extends ChangeNotifier {
 
   bool _saveFailed = false;
 
+  /// Stores everything now: the marks in the user-data store, the rest in `settings.json`. For changes made to
+  /// [settings] directly; the methods above save by themselves.
+  Future<void> save() => _save();
+
   /// Saves the settings. If they cannot be stored, reading still works; it says so once (GTK `save()`).
   Future<void> _save({bool notify = true}) async {
     if (notify) notifyListeners();
+    try {
+      userData?.save(settings);
+    } on Object catch (e) {
+      if (!_saveFailed) {
+        _saveFailed = true;
+        _addNotice('Highlights, notes and saved passages cannot be stored ($e). Changes last until you close the app.');
+        notifyListeners();
+      }
+    }
     try {
       await store.save(settings);
     } on FileSystemException catch (e) {

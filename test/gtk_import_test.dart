@@ -9,6 +9,7 @@ import 'package:bahai_reader/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/stored.dart';
 import 'helpers/temp.dart';
 
 import 'disk_bundle.dart';
@@ -154,16 +155,21 @@ void main() {
       expect(s.lastImport!.settings, isNot(contains('sidebar_width')));
       expect(st.gtkImport!['status'], 'imported');
       expect(s.notice, contains('Imported 1 highlight and notes, 4 saved passages, 1 collection and your settings'));
-      // Stored in this app's own file, in the GTK record shapes.
-      final saved = jsonDecode(store().file.readAsStringSync()) as Map;
-      expect(saved['highlights'], [st.highlights.single.toJson()]);
-      expect(saved['collections'], [
+      // Stored in this app's user-data store, in the GTK record shapes; settings.json keeps the device's settings.
+      final marks = storedMarks(store().file);
+      expect(marks['highlights'], [st.highlights.single.toJson()]);
+      expect(marks['collections'], [
         {
           'name': 'Morning',
           'items': ['hidden:2', 'prayers:15692'],
         },
       ]);
+      expect(marks['positions'], {'Riḍván Messages': 'ridvan:1019'});
+      expect((marks['prayer'], marks['counter_target'], marks['highlight_color']), ('medium', 19, 'blue'));
+      final saved = jsonDecode(store().file.readAsStringSync()) as Map;
       expect(saved['gtk_import'], isNotNull);
+      expect(saved['userdata_version'], 1);
+      expect(saved['theme'], 'sepia');
       // The GTK folder: same files, same bytes, same times. Nothing added (no .bad, no .tmp), nothing removed.
       expect(snapshot(), before);
     },
@@ -180,7 +186,7 @@ void main() {
     await s.setPrayer('short');
     s.settings.collections.first.items.remove('prayers:15692');
     s.settings.collections.add(Collection('Evening', ['gleanings:1']));
-    await s.store.save(s.settings);
+    await s.save();
     // A second start: the import is done, so it does not run again.
     s = await start();
     expect(s.lastImport, isNull);

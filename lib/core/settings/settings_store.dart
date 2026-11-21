@@ -47,7 +47,10 @@ class Settings {
     this.section,
     this.book,
     this.gtkImport,
-  }) : collections = collections ?? [],
+    this.userdataVersion,
+    Map<String, Object?>? legacy,
+  }) : legacy = legacy ?? {},
+       collections = collections ?? [],
        expanded = expanded ?? {},
        reminders = reminders ?? {},
        remindersSent = remindersSent ?? [],
@@ -137,6 +140,39 @@ class Settings {
   /// When the first-run import from the GTK app was done, and what it found ({"at", "status"}); null until then.
   Map<String, String>? gtkImport;
 
+  /// Set once highlights, notes, saved passages, collections, positions, Said/Fasted records and the personal choices
+  /// in [userDataKeys] live in the user-data store (`userdata.sqlite`, see `lib/core/userdata/`); null before that.
+  int? userdataVersion;
+
+  /// The [userDataKeys] values exactly as they were in this file when they moved to the user-data store. They are
+  /// written back unchanged, never updated, so an older version of the app opened on this file still finds the marks
+  /// as they were at the move.
+  Map<String, Object?> legacy;
+
+  /// Keys whose values live in the user-data store once [userdataVersion] is set: what a person made, and the
+  /// personal choices that should follow them to another device. Everything else here belongs to this device.
+  static const userDataKeys = [
+    'highlights',
+    'saved',
+    'collections',
+    'positions',
+    'recent',
+    'records',
+    'prayer',
+    'long_period',
+    'keep_records',
+    'counter_target',
+    'highlight_color',
+  ];
+
+  /// The [userDataKeys] part of [toJson] as if nothing had moved yet: what the user-data store holds.
+  Map<String, Object> userDataJson() {
+    final all = _toJson();
+    return {
+      for (final k in userDataKeys) k: ?all[k],
+    };
+  }
+
   int get spacingOrDefault => spacing ?? 8;
   int get marginOrDefault => margin ?? 80;
 
@@ -149,7 +185,19 @@ class Settings {
   static const themes = ['system', 'light', 'dark', 'sepia'];
   static const recentBooks = 6;
 
-  Map<String, Object> toJson() => {
+  /// This file's contents. Once [userdataVersion] is set, the [userDataKeys] are the frozen [legacy] values.
+  Map<String, Object> toJson() {
+    final all = _toJson();
+    if (userdataVersion == null) return all;
+    return {
+      for (final e in all.entries)
+        if (!userDataKeys.contains(e.key)) e.key: e.value,
+      for (final e in legacy.entries) e.key: ?e.value,
+      'userdata_version': userdataVersion!,
+    };
+  }
+
+  Map<String, Object> _toJson() => {
     'theme': theme,
     'language': language,
     'size': textSize,
@@ -264,6 +312,13 @@ class Settings {
       last: j['last'] is String ? j['last'] as String : null,
       section: sections.contains(j['section']) ? j['section'] as String : null,
       book: j['book'] is String ? j['book'] as String : null,
+      userdataVersion: j['userdata_version'] is int ? j['userdata_version'] as int : null,
+      legacy: j['userdata_version'] is int
+          ? {
+              for (final k in userDataKeys)
+                if (j.containsKey(k)) k: j[k],
+            }
+          : null,
       gtkImport: j['gtk_import'] is Map
           ? {
               for (final e in (j['gtk_import'] as Map).entries)
@@ -286,9 +341,12 @@ const unsorted = 'Unsorted';
 
 /// A named collection of saved passages (GTK `{"name", "items"}`).
 class Collection {
-  Collection(this.name, [List<String>? items]) : items = items ?? [];
+  Collection(this.name, [List<String>? items, this.uid]) : items = items ?? [];
   String name;
   final List<String> items;
+
+  /// The collection's id in the user-data store, or null until it is first stored. Not part of the GTK shape.
+  String? uid;
   Map<String, Object> toJson() => {'name': name, 'items': items};
 }
 
@@ -316,7 +374,8 @@ List<Collection> cleanCollections(Object? data, List<String> saved) {
     final name = collectionName(entry['name']);
     if (name.isEmpty || name.toLowerCase() == unsorted.toLowerCase()) continue;
     var target = clean.where((c) => c.name.toLowerCase() == name.toLowerCase()).firstOrNull;
-    if (target == null) clean.add(target = Collection(name));
+    final uid = entry['uid'];
+    if (target == null) clean.add(target = Collection(name, null, uid is String && uid.isNotEmpty ? uid : null));
     for (final item in items) {
       if (filed.add(item)) target.items.add(item);
     }
