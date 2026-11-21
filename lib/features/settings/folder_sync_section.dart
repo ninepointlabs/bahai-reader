@@ -48,10 +48,11 @@ class FolderSyncSection extends StatelessWidget {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            title: const Text('Also share imported Study PDFs'),
+            title: const Text('Share imported Study PDFs too'),
             subtitle: const Text(
-              'Copies your imported PDFs into the folder, so your other devices have the books too. They are your own '
-              'copies; keep the folder private.',
+              'Your imported PDFs are copied into the folder (in bahai-reader-books), so a book imported on one device '
+              'opens on the others. They are your own copies; keep the folder private. Turn this off to import each '
+              'book on each device yourself.',
             ),
             value: state.settings.syncBooks,
             onChanged: (v) => state.setSyncFolder(folder, books: v ?? false),

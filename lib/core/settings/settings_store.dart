@@ -49,7 +49,7 @@ class Settings {
     this.book,
     this.gtkImport,
     this.syncFolder,
-    this.syncBooks = false,
+    this.syncBooks = true,
     this.userdataVersion,
     Map<String, Object?>? legacy,
   }) : legacy = legacy ?? {},
@@ -147,7 +147,7 @@ class Settings {
   /// through: a path, or on Android a `content://` folder chosen in the system picker. This device's own choice.
   String? syncFolder;
 
-  /// Also share imported Study PDFs through [syncFolder].
+  /// Also share imported Study PDFs through [syncFolder] (on unless turned off), so every device has the books.
   bool syncBooks;
 
   /// Set once highlights, notes, saved passages, collections, positions, Said/Fasted records and the personal choices
@@ -241,7 +241,7 @@ class Settings {
     'book': ?book,
     'gtk_import': ?gtkImport,
     'sync_folder': ?syncFolder,
-    if (syncBooks) 'sync_books': true,
+    if (!syncBooks) 'sync_books': false,
   };
 
   /// Drops or replaces values of the wrong type, keeping everything usable (like GTK `clean_settings()`).
@@ -332,7 +332,7 @@ class Settings {
             }
           : null,
       syncFolder: j['sync_folder'] is String && (j['sync_folder'] as String).isNotEmpty ? j['sync_folder'] as String : null,
-      syncBooks: j['sync_books'] == true,
+      syncBooks: j['sync_books'] != false,
       gtkImport: j['gtk_import'] is Map
           ? {
               for (final e in (j['gtk_import'] as Map).entries)

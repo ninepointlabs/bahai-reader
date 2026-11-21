@@ -85,6 +85,19 @@ void main() {
     b.dispose();
   });
 
+  test('PDFs are shared by default; a book imported later goes out within seconds', () async {
+    final a = await device('a');
+    expect(a.settings.syncBooks, isTrue, reason: 'on unless turned off');
+    await a.setSyncFolder(shared.path);
+    expect(a.settings.toJson().containsKey('sync_books'), isFalse, reason: 'only "off" is written');
+    final pdf = File('test/fixtures/worksheet.pdf').readAsBytesSync();
+    final (book, _) = await a.study!.importBytes(pdf, 'worksheet.pdf');
+    // The import itself schedules a sync a few seconds later (no waiting for the minute).
+    await Future<void>.delayed(const Duration(seconds: 6));
+    expect(File('${shared.path}/$booksFolder/${book.doc.sha256}.pdf').existsSync(), isTrue);
+    a.dispose();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
   test('with books shared, a Study PDF goes through the folder and arrives whole', () async {
     final a = await device('a'), b = await device('b');
     final pdf = File('test/fixtures/worksheet.pdf').readAsBytesSync();
@@ -98,9 +111,9 @@ void main() {
     final copy = File('${b.studyBooksFolder().path}/$sha.pdf');
     expect(sha256.convert(copy.readAsBytesSync()).toString(), sha);
     expect(b.study!.library.single.name, 'worksheet');
-    // Without books shared, PDFs stay put.
+    // With books turned off, PDFs stay put.
     final c = await device('c');
-    await c.setSyncFolder(shared.path);
+    await c.setSyncFolder(shared.path, books: false);
     expect(File('${c.studyBooksFolder().path}/$sha.pdf').existsSync(), isFalse);
     expect(c.study!.library.single.name, 'worksheet', reason: 'the marks come, the PDF does not');
     a.dispose();
