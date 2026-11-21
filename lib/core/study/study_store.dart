@@ -543,6 +543,14 @@ class StudyStore {
     }
   });
 
+  /// Changes fields of existing records (the app correcting them, not a change by the person: locked runs too).
+  void updateRecords(List<(String, String, Map<String, Object?>)> updates) => data.batch(() {
+    for (final (table, id, values) in updates) {
+      final old = data.record(table, id);
+      if (old != null) data.put(table, id, {...old, ...values});
+    }
+  });
+
   bool dogearDone(String dogearSha, String bookId) => declined('dogear:$dogearSha', bookId);
   void markDogearDone(String dogearSha, String bookId) => decline('dogear:$dogearSha', bookId);
 

@@ -242,6 +242,7 @@ class StudyController extends ChangeNotifier {
       }
       document = doc;
       outline = _flatten(await doc.loadOutline(), 0);
+      _repairDogear(b);
       if (outline.isEmpty) {
         // No contents in the PDF: the one made from its headings (built once, then kept on this device).
         final kept = _savedContents(b.doc.sha256);
@@ -440,6 +441,19 @@ class StudyController extends ChangeNotifier {
     final d = findDogear(readDogear(dir), b);
     if (d == null || (!again && store.dogearDone(d.sha256, b.id))) return null;
     return d;
+  }
+
+  /// Answers brought in from Dogear by 1.1.0/1.1.1 lost their first-line indent; put back from Dogear's file (Linux,
+  /// the same file only). Synced like any change, so other devices get it too.
+  void _repairDogear(StudyBook b) {
+    try {
+      final dir = dogearFolder();
+      if (dir == null) return;
+      final d = findDogear(readDogear(dir), b);
+      if (d != null && repairDogearIndents(store, b, d) > 0) notifyListeners();
+    } on Object {
+      // Dogear's files unreadable: nothing to repair from.
+    }
   }
 
   /// "Not now"/"never": Dogear's marks for [b] are not offered again after an import.

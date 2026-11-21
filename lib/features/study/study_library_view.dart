@@ -9,8 +9,8 @@ import 'study_panels.dart';
 
 /// The one-line promise shown where books are imported.
 const studyPrivacyLine =
-    'Imported books are copied into the app on this device. They are never uploaded or shared, and the app includes '
-    'no Ruhi Institute material.';
+    'Imported books are copied into the app on this device (and, if you sync through a folder, into that folder for '
+    'your other devices). They are never uploaded anywhere else, and the app includes no Ruhi Institute material.';
 
 const studyNotAffiliated = 'Bahá’í Reader is not affiliated with or endorsed by the Ruhi Institute.';
 

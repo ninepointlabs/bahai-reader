@@ -437,7 +437,7 @@ class StudyReaderState extends State<StudyReader> {
       }
       // An answer box or line.
       for (final a in _answers) {
-        if (a.page == page.pageNumber && _answerRect(a.place).contains(at)) {
+        if (a.page == page.pageNumber && _hitRect(a.place).contains(at)) {
           _startAnswerAt(data, a.place);
           return true;
         }
@@ -481,6 +481,12 @@ class StudyReaderState extends State<StudyReader> {
   static bool _nearText(PageData data, Offset at) => data.chars.any((c) => c.w > 0 && _inflate(c, 6).contains(at));
 
   static Rect _inflate(Box b, double by) => Rect.fromLTWH(b.x - by, b.y - by, b.w + 2 * by, b.h + 2 * by);
+
+  /// Where a tap opens an answer: its text, and for ruled lines the whole block (left of an indent too).
+  static Rect _hitRect(AnswerPlace p) {
+    if (p.kind != 'line' || p.lines <= 1 || p.pitch <= 0) return _answerRect(p);
+    return Rect.fromLTWH(p.x, p.y - p.pitch + 2, p.w, p.lines * p.pitch + 2);
+  }
 
   /// Where an answer's text sits, in points.
   static Rect _answerRect(AnswerPlace p) {
@@ -1240,16 +1246,31 @@ class _MarksPainter extends CustomPainter {
     final left = (p.x + p.indent) * s;
     final width = (p.w - p.indent) * s;
     if (p.lines > 1 && p.pitch > 0) {
-      // Ruled lines: the text wraps from line to line, sitting on each.
+      // Ruled lines: the text wraps from line to line, sitting on each. With an indent (a blank at the end of the
+      // question's own line), the first line starts after the question and the rest use the whole width, as in Dogear.
+      final top = (p.y - p.pitch + 1.5) * s;
       var size = p.size * s;
-      TextPainter tp;
-      do {
-        tp = _painter(a.text, size, width, p.pitch * s);
-        if (tp.height <= p.lines * p.pitch * s + 1 || size <= 6 * s) break;
+      while (true) {
+        if (p.indent <= 0) {
+          final tp = _painter(a.text, size, width, p.pitch * s);
+          if (tp.height <= p.lines * p.pitch * s + 1 || size <= 6 * s) {
+            tp.paint(canvas, Offset(left, top));
+            return;
+          }
+        } else {
+          final first = _painter(a.text, size, width, p.pitch * s);
+          final end = first.getLineBoundary(const TextPosition(offset: 0)).end;
+          final head = a.text.substring(0, end).trimRight();
+          final rest = a.text.substring(end).trimLeft();
+          final tail = _painter(rest, size, p.w * s, p.pitch * s);
+          if (rest.isEmpty || tail.height <= (p.lines - 1) * p.pitch * s + 1 || size <= 6 * s) {
+            _painter(head, size, double.infinity, p.pitch * s).paint(canvas, Offset(left, top));
+            if (rest.isNotEmpty) tail.paint(canvas, Offset(p.x * s, top + p.pitch * s));
+            return;
+          }
+        }
         size *= 0.92;
-      } while (true);
-      tp.paint(canvas, Offset(left, (p.y - p.pitch + 1.5) * s));
-      return;
+      }
     }
     // One line: shrink a long answer to fit its blank.
     var size = p.size * s;
