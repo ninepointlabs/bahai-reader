@@ -130,6 +130,8 @@ class AppState extends ChangeNotifier {
         _save(notify: false);
       },
     );
+    // A book imported (or any Study change) goes to the sync folder a few seconds later.
+    study!.addListener(_syncAfterChange);
     try {
       await store.save(settings);
     } on FileSystemException {
@@ -967,6 +969,8 @@ class AppState extends ChangeNotifier {
     _syncing = true;
     try {
       lastSync = await sync.sync();
+      // Books that arrived from another device: the library (and an open book that was missing) shows them.
+      if (lastSync!.booksIn > 0) await study?.refresh();
       lastSyncAt = DateTime.now();
       syncProblem = lastSync!.problems.isEmpty ? null : lastSync!.problems.join(' ');
     } on FileSystemException catch (e) {

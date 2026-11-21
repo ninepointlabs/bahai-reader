@@ -79,7 +79,14 @@ class StudyPanels extends StatelessWidget {
     switch (study.panel) {
       case StudyPanel.contents:
         final entries = study.outline;
-        if (entries.isEmpty) return _empty(context, 'This PDF has no table of contents.');
+        if (entries.isEmpty) {
+          return _empty(
+            context,
+            study.makingContents
+                ? 'This PDF has no table of contents of its own; making one from its headings…'
+                : 'This PDF has no table of contents, and no headings were found to make one from.',
+          );
+        }
         return ListView(
           children: [
             for (final e in entries)
@@ -89,7 +96,7 @@ class StudyPanels extends StatelessWidget {
                 contentPadding: EdgeInsets.only(left: 12.0 + e.depth * 14, right: 12),
                 title: Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                 trailing: Text('${e.page}', style: TextStyle(color: p.dim, fontSize: 12)),
-                onTap: () => _go(e.page),
+                onTap: () => _go(e.page, e.y),
               ),
           ],
         );

@@ -45,6 +45,9 @@ Future<void> importStudyBytes(
   VoidCallback? opened,
 }) async {
   final say = ScaffoldMessenger.of(context);
+  // Opening the book replaces the screen the import started from: questions after that are asked through the app's
+  // own navigator, which stays.
+  final root = Navigator.of(context, rootNavigator: true);
   try {
     final check = await study.prepare(bytes, name);
     StudyBook book;
@@ -78,7 +81,7 @@ Future<void> importStudyBytes(
     }
     await study.open(book);
     opened?.call();
-    if (context.mounted) await offerDogear(context, study, book);
+    if (root.mounted) await offerDogear(root.context, study, book);
   } on ImportProblem catch (e) {
     _say(say, e.message);
   } on FileSystemException catch (e) {

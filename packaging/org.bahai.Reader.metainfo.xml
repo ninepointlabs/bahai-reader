@@ -42,6 +42,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.1" date="2026-11-21">
+      <description><p>Typing an answer in Study no longer turns the page when you press Space, and keys such as j, k and b now type instead of moving or bookmarking. A PDF without its own table of contents now gets one made from its headings. Imported PDFs now travel through your sync folder unless you turn that off. The question about bringing in Dogear marks after an import can no longer be lost.</p></description>
+    </release>
     <release version="1.1.0" date="2026-11-20">
       <description><p>New: Study. Import PDFs of your own, such as your copies of Ruhi Institute books (the app includes none), and highlight them in five colours, write notes, bookmark pages and type your answers on the workbook’s blank lines. Each time through a book is kept separately, so you can compare your answers. Your notes can be exported to Markdown, backed up, merged from another device, and kept in step between devices through a folder your own sync program shares. Highlights now come in five colours everywhere.</p></description>
     </release>
