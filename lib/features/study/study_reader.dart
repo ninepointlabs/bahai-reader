@@ -526,6 +526,10 @@ class StudyReaderState extends State<StudyReader> {
         child: CustomPaint(
           size: pageRect.size,
           painter: _MarksPainter(
+            font: TextStyle(
+              fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+              fontFamilyFallback: Theme.of(context).textTheme.bodyMedium?.fontFamilyFallback,
+            ),
             scale: s,
             pageWidth: page.width,
             highlights: [
@@ -556,7 +560,14 @@ class StudyReaderState extends State<StudyReader> {
     final r = _answerRect(e.place);
     final size = e.place.size * s;
     final lineHeight = e.place.pitch > 0 ? e.place.pitch * s : null;
-    final style = TextStyle(color: answerInk, fontSize: size, height: lineHeight == null ? 1.2 : lineHeight / size);
+    final base = Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    final style = TextStyle(
+      color: answerInk,
+      fontSize: size,
+      height: lineHeight == null ? 1.2 : lineHeight / size,
+      fontFamily: base.fontFamily,
+      fontFamilyFallback: base.fontFamilyFallback,
+    );
     return Positioned(
       left: r.left * s,
       top: r.top * s,
@@ -1085,6 +1096,7 @@ class _MarksPainter extends CustomPainter {
     required this.hovered,
     required this.bookmarked,
     required this.palette,
+    this.font = const TextStyle(),
     this.ghosts = const [],
     this.chips = const [],
   });
@@ -1094,6 +1106,9 @@ class _MarksPainter extends CustomPainter {
   final Rule? hovered;
   final bool bookmarked;
   final Palette palette;
+
+  /// The interface font (family and fallbacks) answers are written in, as the rest of the app's own text.
+  final TextStyle font;
 
   /// Another run's answers, drawn faintly just under the lines (comparing on a narrow screen).
   final List<Answer> ghosts;
@@ -1227,11 +1242,11 @@ class _MarksPainter extends CustomPainter {
     canvas.restore();
   }
 
-  static TextPainter _painter(String text, double size, double width, double? lineHeight, {Color color = answerInk}) {
+  TextPainter _painter(String text, double size, double width, double? lineHeight, {Color color = answerInk}) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color, fontSize: size, height: lineHeight == null ? 1.15 : lineHeight / size),
+        style: font.copyWith(color: color, fontSize: size, height: lineHeight == null ? 1.15 : lineHeight / size),
       ),
       textDirection: TextDirection.ltr,
     );
