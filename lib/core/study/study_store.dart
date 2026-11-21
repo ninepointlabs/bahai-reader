@@ -13,6 +13,7 @@ import 'dart:math' as math;
 
 import '../userdata/ids.dart';
 import '../userdata/userdata_store.dart';
+import 'editions.dart';
 import 'page_data.dart';
 
 /// Thrown when a change would alter a locked (finished) run.
@@ -282,12 +283,15 @@ class StudyStore {
     String? pdfDocId,
   }) {
     final docId = 'sha256:$sha256';
-    final bookId = uuidV5('book:$sha256');
-    final existing = book(bookId);
-    if (existing != null) {
-      if (existing.removedAt != null) restore(existing);
-      return (book(bookId)!, false);
+    // A book on this file already (restored if it was removed).
+    final onFile = _books().where((b) => b.docId == docId).firstOrNull;
+    if (onFile != null) {
+      if (onFile.removedAt != null) restore(onFile);
+      return (book(onFile.id)!, false);
     }
+    // The id two devices give the same file; taken when the book first made from it moved to another edition.
+    var bookId = uuidV5('book:$sha256');
+    if (data.record('study_book', bookId) != null) bookId = uuidV7(_now());
     data.batch(() {
       data.put('doc_file', docId, {
         'sha256': sha256,
@@ -452,6 +456,98 @@ class StudyStore {
     }
     return n;
   }
+
+  // ----- other editions (schema 4) -----
+
+  /// What is known about a book's file, for recognizing other copies of it.
+  static FileFacts facts(DocFile d) =>
+      FileFacts(sha256: d.sha256, fileName: d.fileName, title: d.title, pageCount: d.pageCount, pdfDocId: d.pdfDocId);
+
+  bool declined(String sha256, String bookId) =>
+      data.record('study_decline', uuidV5('decline:$sha256:$bookId')) != null;
+
+  /// "Not the same book": [sha256] is not offered [bookId]'s marks again.
+  void decline(String sha256, String bookId) =>
+      data.put('study_decline', uuidV5('decline:$sha256:$bookId'), {'sha256': sha256, 'book_id': bookId});
+
+  /// A book with marks that [file] looks like another copy or edition of (most marked first), unless declined.
+  StudyBook? otherEditionOf(FileFacts file) {
+    final found = [
+      for (final b in books)
+        if (!declined(file.sha256, b.id) && isCopyOf(file, facts(b.doc)) && markCount(b) > 0) b,
+    ]..sort((a, b) => markCount(b).compareTo(markCount(a)));
+    return found.firstOrNull;
+  }
+
+  /// Moves a book to another edition: [newDoc] becomes its file, and each mark in [updates] (table, id, new values)
+  /// is put where it was found in the new edition. Marks not in [updates] keep their old file and are listed as not
+  /// placed yet. Finished runs' marks move too: this is the app keeping them with their book, not a change to them.
+  void moveToEdition(StudyBook b, Map<String, Object?> newDoc, List<(String, String, Map<String, Object?>)> updates) {
+    final docId = 'sha256:${newDoc['sha256']}';
+    data.batch(() {
+      data.put('doc_file', docId, newDoc);
+      for (final (table, id, values) in updates) {
+        final old = data.record(table, id);
+        if (old != null) data.put(table, id, {...old, ...values, 'doc_id': docId});
+      }
+      final current = book(b.id) ?? b;
+      data.put('study_book', b.id, {
+        'label': current.label,
+        'doc_id': docId,
+        'current_run_id': current.currentRunId,
+        'sort': current.sort,
+        'removed_at': current.removedAt,
+      });
+    });
+  }
+
+  /// Marks of a run that are not on the book's file (carried from another edition and not found there yet).
+  ({List<DocHighlight> highlights, List<Answer> answers, List<DocBookmark> bookmarks}) unplaced(
+    StudyBook b,
+    String runId,
+  ) => (
+    highlights: [
+      for (final h in highlights(runId))
+        if (h.docId != b.docId) h,
+    ],
+    answers: [
+      for (final a in answers(runId))
+        if (a.docId != b.docId) a,
+    ],
+    bookmarks: [
+      for (final m in bookmarks(runId))
+        if (m.docId != b.docId) m,
+    ],
+  );
+
+  /// A run made from marks brought in from elsewhere (Dogear): not the current one; [ordinal] 0 lists it first.
+  StudyRun addRun(StudyBook b, {required String name, int ordinal = 0, bool locked = true}) {
+    final now = _now();
+    final id = uuidV7(now);
+    data.put('study_run', id, {
+      'book_id': b.id,
+      'ordinal': ordinal,
+      'name': name,
+      'started_at': now.millisecondsSinceEpoch,
+      'finished_at': locked ? now.millisecondsSinceEpoch : null,
+      'locked': locked ? 1 : 0,
+    });
+    return run(id)!;
+  }
+
+  /// Writes marks brought in from elsewhere, each with a new id, in one transaction (the run may be locked: this is
+  /// the app filling it, not a change to it).
+  void addRecords(List<(String, Map<String, Object?>)> records) => data.batch(() {
+    for (final (table, values) in records) {
+      data.put(table, uuidV7(_now()), values);
+    }
+  });
+
+  bool dogearDone(String dogearSha, String bookId) => declined('dogear:$dogearSha', bookId);
+  void markDogearDone(String dogearSha, String bookId) => decline('dogear:$dogearSha', bookId);
+
+  /// Puts an unplaced mark aside for good (the person will mark it again themselves).
+  void dropUnplaced(String table, String id) => data.remove(table, id);
 
   // ----- runs -----
 
@@ -711,7 +807,10 @@ class StudyStore {
     int ordinal = 0,
   }) {
     _open(runId);
-    final id = uuidV5('answer:$runId:${place.key(docId)}');
+    // The record already at this place (one moved here from another edition keeps the id it was made with).
+    final key = place.key(docId);
+    final existing = answers(runId).where((a) => a.docId == docId && a.place.key(docId) == key).firstOrNull;
+    final id = existing?.id ?? uuidV5('answer:$runId:$key');
     final clean = text.length > studyTextLimit ? text.substring(0, studyTextLimit) : text;
     if (clean.trim().isEmpty) {
       data.remove('answer', id);
@@ -789,8 +888,10 @@ class StudyStore {
 
   // ----- where reading stopped -----
 
+  static String viewId(String runId) => uuidV5('view:$runId');
+
   DocView? view(String runId) {
-    final r = data.record('doc_view', uuidV5('view:$runId'));
+    final r = data.record('doc_view', viewId(runId));
     if (r == null) return null;
     return DocView(
       page: r['page'] as int? ?? 1,

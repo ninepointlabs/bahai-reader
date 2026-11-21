@@ -5,6 +5,47 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Study: other editions and Dogear marks (Study plan, Phase 4; also the plan's Phase 1b) — 2026-11-20
+
+Branch **`feat/study-editions`** from `feat/study-library` (PR #67, merged as `2764cfb`), committed locally; not pushed.
+Phase 1b (bringing in Dogear marks) was in the plan for Phase 1 but was not built then; it is built here.
+
+**What it does**
+
+- **Another edition on import**: a PDF that looks like another copy or edition of a book with marks (Dogear's rules:
+  same PDF id, or the same title/file name apart from version numbers and dates with page counts within ~5%) asks:
+  *Move my marks* / *Keep it separate* / *Not the same book* (remembered, schema 4 `study_decline`).
+- **Moving a book to an edition** moves every time through's marks: highlights found by their words and the 32
+  characters either side; answers on lines by their printed question and which blank (same engine both sides, so
+  exact); answer boxes keep their page and place; bookmarks by their contents entry, else the same page; the place
+  reached. Marks keep their ids. What is not found keeps its old file, is not drawn, and is listed under **Not placed
+  yet** (banner in the book): copy a highlight's words, *Place…* an answer by tapping its line, or remove. The old
+  edition's copy is kept.
+- **Dogear marks** (Linux): after an import, and from the run menu (*Bring in Dogear marks…*), if Dogear has marks for
+  the same file or another edition. Into the first time through if it is still empty, else a finished time through
+  "From Dogear" listed before the others (nothing else changes). Same file: Dogear's own boxes and lines. Another
+  edition: found as above (questions matched loosely nearby, since Dogear's PDF engine reads lines of a list a little
+  differently). Label and categories come too. Dogear's files are only read (checked in the test).
+
+**Real data** (a read-only copy of your Dogear workbook in the scratchpad, 170 pages, 11 highlights, 100 answers; not
+committed): same file → 111 of 111 brought in, 100 of 100 answers on the exact line (0.7 s). The same book treated as
+another edition (text search path) → 110 of 111 placed, 98 answers on the right line, 1 on a neighbouring line in a
+list of tick boxes, 1 left to place (its question is longer than the 300 characters kept); 6–24 s.
+
+**Bugs fixed while building**: an edited answer that had been moved (or brought in) now updates its record instead of
+making a second one; importing a file whose id-from-hash belongs to a book that moved to another edition makes a book
+of its own instead of returning the moved one.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **152 passed, 1 skipped**. New: `study_editions_test`
+(Dogear's name and copy tests; a highlight and answer blanks found in `test/fixtures/worksheet-2.pdf`, a revised
+edition where everything moved down), `study_carry_test` (every run moved, ids kept, slot keys kept, bookmark by its
+contents entry, the unfound answer listed and placed by hand, "not the same book"), `study_dogear_test` (same file and
+another edition; "From Dogear" run; Dogear's file unchanged), `study_edition_ui_test` (the question, Move my marks, the
+message, the unplaced answer).
+
+**Not verified**: a real second edition of a Ruhi book (none on this machine; the fixtures and the simulated edition
+stand in); phones, Windows, a real Linux window by hand.
+
 ## Study: library and search (Study plan, Phase 3) — 2026-11-20
 
 Branch **`feat/study-library`** from `feat/study-runs` (PR #66, merged as `3dad7d8`), committed locally; not pushed.

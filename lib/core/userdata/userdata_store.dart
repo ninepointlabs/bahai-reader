@@ -28,12 +28,12 @@ import '../settings/settings_store.dart';
 import 'ids.dart';
 
 /// The store's schema version (`PRAGMA user_version`).
-const userDataSchema = 3;
+const userDataSchema = 4;
 
 /// `userdata_version` in `settings.json` once the marks have moved into the store. Not the store's schema version.
 const movedMarker = 1;
 
-/// Schema 3: Study categories. Schema 2: the Study section's tables; highlight colour `magenta` became `pink` (five colours).
+/// Schema 4: books not offered each other's marks. Schema 3: Study categories. Schema 2: the Study section's tables; highlight colour `magenta` became `pink` (five colours).
 
 /// The columns every synced table has, after `id`.
 const _sync =
@@ -67,6 +67,8 @@ const _tables = <String, List<String>>{
   // Schema 3: categories for Study's library (a book can be in several).
   'study_category': ['name'],
   'book_category': ['book_id', 'category_id'],
+  // Schema 4: "not the same book" answers, so a file is not offered that book's marks again.
+  'study_decline': ['sha256', 'book_id'],
 };
 
 /// The Study tables, which are read and written record by record ([UserDataStore.put]) rather than from [Settings].
@@ -81,6 +83,7 @@ const studyTables = [
   'doc_view',
   'study_category',
   'book_category',
+  'study_decline',
 ];
 
 const _schema =
@@ -116,6 +119,7 @@ CREATE TABLE IF NOT EXISTS doc_view (id TEXT PRIMARY KEY, $_sync, run_id TEXT NO
   page INTEGER, offset REAL, zoom REAL);
 CREATE TABLE IF NOT EXISTS study_category (id TEXT PRIMARY KEY, $_sync, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS book_category (id TEXT PRIMARY KEY, $_sync, book_id TEXT NOT NULL, category_id TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS study_decline (id TEXT PRIMARY KEY, $_sync, sha256 TEXT NOT NULL, book_id TEXT NOT NULL);
 ''';
 
 /// The personal choices kept as `user_pref` records, by their `settings.json` key.
