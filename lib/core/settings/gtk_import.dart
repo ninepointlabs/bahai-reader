@@ -254,8 +254,8 @@ GtkImport mergeGtk(Settings into, Map data, {required bool fresh}) {
       into.keepRecords = data['keep_records'] as bool;
       took('keep_records');
     }
-    if (highlightColors.contains(data['highlight_color'])) {
-      into.highlightColor = data['highlight_color'] as String;
+    if (cleanHighlightColor(data['highlight_color']) case final color?) {
+      into.highlightColor = color;
       took('highlight_color');
     }
     final recent = data['recent'];

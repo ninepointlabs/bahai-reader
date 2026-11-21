@@ -98,7 +98,7 @@ class AppState extends ChangeNotifier {
         settings.importedGtk = hadImported;
         settings
           ..legacy = older
-          ..userdataVersion = userDataSchema;
+          ..userdataVersion = movedMarker;
         data.save(settings);
       } else {
         data.loadInto(settings);

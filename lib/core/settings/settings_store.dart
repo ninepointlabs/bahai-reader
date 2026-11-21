@@ -258,7 +258,7 @@ class Settings {
       theme: themes.contains(j['theme']) ? j['theme'] as String : 'system',
       language: j['language'] is int ? j['language'] as int : 1,
       textSize: size is num && size.isFinite ? size.toDouble().clamp(15, 36) : 22,
-      highlightColor: highlightColors.contains(j['highlight_color']) ? j['highlight_color'] as String : 'yellow',
+      highlightColor: cleanHighlightColor(j['highlight_color']) ?? 'yellow',
       highlights: cleanHighlights(j['highlights']),
       saved: savedList,
       positions: positions is Map

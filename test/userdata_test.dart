@@ -130,7 +130,7 @@ void main() {
     final disk = onDisk();
     expect(disk['userdata_version'], 1);
     for (final k in Settings.userDataKeys) {
-      expect(jsonEncode(disk[k]), jsonEncode((Settings.fromJson(before()).userDataJson())[k]), reason: k);
+      expect(jsonEncode(disk[k]), jsonEncode(before()[k]), reason: '$k is kept exactly as the file had it');
     }
     for (final k in ['theme', 'size', 'reminders', 'reminders_sent', 'expanded', 'last', 'section', 'book']) {
       expect(disk[k], before()[k], reason: k);

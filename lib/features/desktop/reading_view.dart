@@ -475,7 +475,7 @@ class _Swatches extends StatelessWidget {
   final ValueChanged<String> onChoose;
   final String? chosen;
 
-  static const names = {'yellow': 'Yellow', 'green': 'Green', 'blue': 'Blue', 'magenta': 'Magenta'};
+  static const names = {'yellow': 'Yellow', 'green': 'Green', 'blue': 'Blue', 'pink': 'Pink', 'purple': 'Purple'};
 
   @override
   Widget build(BuildContext context) {
