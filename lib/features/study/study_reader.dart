@@ -70,8 +70,19 @@ class StudyReaderState extends State<StudyReader> {
   bool get _mirror => widget.showRun != null;
   String? get _runId => widget.showRun?.id ?? study.run?.id;
   bool get _readOnly => _mirror || study.readOnly;
-  List<DocHighlight> get _highlights => _runId == null ? const [] : study.store.highlights(_runId!);
-  List<Answer> get _answers => _runId == null ? const [] : study.store.answers(_runId!);
+  String? get _docId => study.book?.docId;
+  List<DocHighlight> get _highlights => _runId == null
+      ? const []
+      : [
+          for (final h in study.store.highlights(_runId!))
+            if (h.docId == _docId) h,
+        ];
+  List<Answer> get _answers => _runId == null
+      ? const []
+      : [
+          for (final a in study.store.answers(_runId!))
+            if (a.docId == _docId) a,
+        ];
   bool _bookmarked(int page) =>
       _runId != null && study.book != null && study.store.bookmarkOn(_runId!, study.book!.docId, page) != null;
 
@@ -90,7 +101,7 @@ class StudyReaderState extends State<StudyReader> {
     final out = <({Rect at, int count, String slotKey})>[];
     final seen = <String>{};
     void add(Answer a) {
-      if (a.page != page || !seen.add(a.slotKey)) return;
+      if (a.page != page || a.docId != _docId || !seen.add(a.slotKey)) return;
       final others = (_bySlot[a.slotKey] ?? const []).where((e) => e.$1.id != runId).length;
       if (others == 0) return;
       final r = _answerRect(a.place);
@@ -324,6 +335,11 @@ class StudyReaderState extends State<StudyReader> {
       );
       context = data.contextAt(b.left + 5, b.top);
     }
+    if (study.placing != null) {
+      // Placing an answer brought from another edition: it goes here, with this edition's question.
+      study.place(place, context: context, ordinal: ordinal);
+      return;
+    }
     final existing = study.answerAt(place);
     if (existing != null) place = existing.place;
     answer.text = existing?.text ?? '';
@@ -526,7 +542,7 @@ class StudyReaderState extends State<StudyReader> {
             ghosts: [
               if (!_mirror && study.compare != null && !_sideBySide)
                 for (final a in study.store.answers(study.compare!.id))
-                  if (a.page == number) a,
+                  if (a.page == number && a.docId == _docId) a,
             ],
             chips: _mirror ? const [] : _chips(number),
           ),
@@ -892,6 +908,22 @@ class StudyReaderState extends State<StudyReader> {
             final main = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (study.placing != null)
+                  MaterialBanner(
+                    content: Text(
+                      'Tap the line (or an empty spot, with a long press) where this answer goes: '
+                      '“${_short(study.placing!.text)}”',
+                    ),
+                    actions: [TextButton(onPressed: () => study.startPlacing(null), child: const Text('Cancel'))],
+                  )
+                else if (_unplacedCount > 0)
+                  MaterialBanner(
+                    content: Text(
+                      '$_unplacedCount mark${_unplacedCount == 1 ? '' : 's'} from the other edition could not be '
+                      'found in this one and ${_unplacedCount == 1 ? 'is' : 'are'} not placed yet.',
+                    ),
+                    actions: [TextButton(onPressed: () => showUnplaced(context, study), child: const Text('Show'))],
+                  ),
                 if (run != null && !study.onCurrentRun)
                   MaterialBanner(
                     content: Text(
@@ -958,6 +990,14 @@ class StudyReaderState extends State<StudyReader> {
     );
     if (ok == true) study.unlockRun();
   }
+
+  int get _unplacedCount {
+    if (_mirror) return 0;
+    final u = study.unplaced;
+    return u.highlights.length + u.answers.length + u.bookmarks.length;
+  }
+
+  static String _short(String s) => s.length <= 60 ? s : '${s.substring(0, 59)}…';
 
   /// Ctrl+Shift+V: compare with the latest other time through, or stop comparing.
   void toggleCompare() {

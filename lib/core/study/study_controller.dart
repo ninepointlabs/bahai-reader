@@ -8,6 +8,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import 'carry.dart';
+import 'editions.dart';
 import 'importer.dart';
 import 'page_data.dart';
 import 'study_search.dart';
@@ -292,7 +294,11 @@ class StudyController extends ChangeNotifier {
   // ----- importing -----
 
   /// Imports a PDF (its bytes and file name), adds it to the library and returns the book and whether it is new.
-  Future<(StudyBook, bool)> importBytes(Uint8List bytes, String fileName) async {
+  Future<(StudyBook, bool)> importBytes(Uint8List bytes, String fileName) async => add(await prepare(bytes, fileName));
+
+  /// Copies a PDF into the app and looks at it: the book it already is (the same file), or a book it looks like
+  /// another edition of. Nothing is added to the library yet.
+  Future<ImportCheck> prepare(Uint8List bytes, String fileName) async {
     final file = await importPdfBytes(bytes, fileName, books);
     var pages = 0;
     try {
@@ -302,15 +308,96 @@ class StudyController extends ChangeNotifier {
     } catch (_) {
       // Counted when it opens; a damaged file still shows in the library with its problem.
     }
+    final facts = FileFacts(sha256: file.sha256, fileName: file.fileName, pageCount: pages, pdfDocId: file.pdfDocId);
+    final same = store.books.where((b) => b.doc.sha256 == file.sha256).firstOrNull;
+    return ImportCheck(file, pages, same: same, other: same == null ? store.otherEditionOf(facts) : null);
+  }
+
+  /// Adds a checked import to the library as a book of its own; [notSameAs] records "not the same book".
+  (StudyBook, bool) add(ImportCheck c, {StudyBook? notSameAs}) {
+    if (notSameAs != null) store.decline(c.file.sha256, notSameAs.id);
     final result = store.addBook(
-      sha256: file.sha256,
-      fileName: file.fileName,
-      byteSize: file.byteSize,
-      pageCount: pages,
-      pdfDocId: file.pdfDocId,
+      sha256: c.file.sha256,
+      fileName: c.file.fileName,
+      byteSize: c.file.byteSize,
+      pageCount: c.pages,
+      pdfDocId: c.file.pdfDocId,
     );
     notifyListeners();
     return result;
+  }
+
+  /// Moves [b] to the edition in [c]: finds every mark of every time through in it and puts it there; what is not
+  /// found stays listed as unplaced. The old edition's copy is kept.
+  Future<CarryPlan> moveToEdition(StudyBook b, ImportCheck c, {void Function(String)? progress}) async {
+    final wasOpen = book?.id == b.id;
+    if (wasOpen) await close(notify: false);
+    final doc = await PdfDocument.openFile(c.file.copy.path);
+    try {
+      progress?.call('Reading the new edition…');
+      final pages = [for (final p in doc.pages) await PageData.load(p, rules: false)];
+      final outline = [for (final e in _flatten(await doc.loadOutline(), 0)) (e.title, e.page)];
+      final plan = await planCarry(
+        store: store,
+        book: b,
+        pages: pages,
+        outline: outline,
+        withRules: (n) => PageData.load(doc.pages[n - 1]),
+        progress: progress,
+      );
+      store.moveToEdition(b, {
+        'sha256': c.file.sha256,
+        'file_name': c.file.fileName,
+        'title': '',
+        'page_count': c.pages,
+        'byte_size': c.file.byteSize,
+        'pdf_doc_id': c.file.pdfDocId,
+      }, plan.updates);
+      return plan;
+    } finally {
+      await doc.dispose();
+      notifyListeners();
+      if (wasOpen) {
+        final again = store.book(b.id);
+        if (again != null) await open(again);
+      }
+    }
+  }
+
+  /// The run on show's marks that are not on the book's file yet (after moving to another edition).
+  ({List<DocHighlight> highlights, List<Answer> answers, List<DocBookmark> bookmarks}) get unplaced =>
+      book == null || run == null
+      ? (highlights: const [], answers: const [], bookmarks: const [])
+      : store.unplaced(book!, run!.id);
+
+  /// An unplaced answer waiting for a tap on the line where it goes.
+  Answer? placing;
+
+  void startPlacing(Answer? a) {
+    placing = a;
+    notifyListeners();
+  }
+
+  /// Puts the answer being placed at [place] (with this edition's question) and drops its unplaced record.
+  void place(AnswerPlace place, {String context = '', int ordinal = 0}) {
+    final a = placing;
+    placing = null;
+    if (a == null || run == null || book == null) return notifyListeners();
+    store.putAnswer(
+      run!.id,
+      book!.docId,
+      place,
+      a.text,
+      context: context.isEmpty ? a.context : context,
+      ordinal: ordinal,
+    );
+    store.dropUnplaced('answer', a.id);
+    notifyListeners();
+  }
+
+  void dropUnplaced(String table, String id) {
+    store.dropUnplaced(table, id);
+    notifyListeners();
   }
 
   // ----- the library -----
@@ -347,9 +434,26 @@ class StudyController extends ChangeNotifier {
   String get _runId => run!.id;
   String get _docId => book!.docId;
 
-  List<DocHighlight> get highlights => run == null ? const [] : store.highlights(_runId);
-  List<DocBookmark> get bookmarks => run == null ? const [] : store.bookmarks(_runId);
-  List<Answer> get answers => run == null ? const [] : store.answers(_runId);
+  /// The run on show's marks on the book's file (marks still to be placed after a move to another edition are left
+  /// out; see [unplaced]).
+  List<DocHighlight> get highlights => run == null
+      ? const []
+      : [
+          for (final h in store.highlights(_runId))
+            if (h.docId == _docId) h,
+        ];
+  List<DocBookmark> get bookmarks => run == null
+      ? const []
+      : [
+          for (final b in store.bookmarks(_runId))
+            if (b.docId == _docId) b,
+        ];
+  List<Answer> get answers => run == null
+      ? const []
+      : [
+          for (final a in store.answers(_runId))
+            if (a.docId == _docId) a,
+        ];
   List<DocNote> get notes => run == null ? const [] : store.notes(_runId);
 
   T _change<T>(T Function() body) {
@@ -453,6 +557,15 @@ class StudyController extends ChangeNotifier {
     document?.dispose();
     super.dispose();
   }
+}
+
+/// An import looked at before it is added: the file, its page count, and the book it already is or may be another
+/// edition of.
+class ImportCheck {
+  const ImportCheck(this.file, this.pages, {this.same, this.other});
+  final ImportedFile file;
+  final int pages;
+  final StudyBook? same, other;
 }
 
 /// An answer being typed: where, the printed question, and which of its blanks.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/study/study_controller.dart';
 import '../../core/study/study_store.dart';
@@ -202,3 +203,87 @@ Future<void> showAnswerHistory(BuildContext context, StudyController study, Stri
     ),
   );
 }
+
+/// Marks brought from another edition that could not be found in this one: copy a highlight's words to mark them
+/// again, place an answer on its line, or bookmark the page on show instead; or let them go.
+Future<void> showUnplaced(BuildContext context, StudyController study) => showDialog<void>(
+  context: context,
+  builder: (d) => ListenableBuilder(
+    listenable: study,
+    builder: (d, _) {
+      final u = study.unplaced;
+      return AlertDialog(
+        title: const Text('Not placed yet'),
+        content: SizedBox(
+          width: 560,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Text(
+                'These were not found in this edition. Highlight the words again where they are now, place each answer '
+                'on its line, or remove what you no longer need.',
+              ),
+              const SizedBox(height: 8),
+              for (final h in u.highlights)
+                ListTile(
+                  leading: const Icon(Icons.border_color_outlined),
+                  title: Text(h.quote, maxLines: 3, overflow: TextOverflow.ellipsis),
+                  subtitle: Text([if (h.note != null) h.note!, 'was on p. ${h.page}'].join(' · ')),
+                  trailing: Wrap(
+                    children: [
+                      IconButton(
+                        tooltip: 'Copy the words',
+                        icon: const Icon(Icons.copy, size: 18),
+                        onPressed: () => Clipboard.setData(ClipboardData(text: h.quote)),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove',
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        onPressed: () => study.dropUnplaced('doc_highlight', h.id),
+                      ),
+                    ],
+                  ),
+                ),
+              for (final a in u.answers)
+                ListTile(
+                  leading: const Icon(Icons.edit_note),
+                  title: Text(a.text, maxLines: 3, overflow: TextOverflow.ellipsis),
+                  subtitle: Text([if (a.context.isNotEmpty) a.context, 'was on p. ${a.page}'].join(' · ')),
+                  trailing: Wrap(
+                    children: [
+                      TextButton(
+                        onPressed: study.readOnly
+                            ? null
+                            : () {
+                                study.startPlacing(a);
+                                Navigator.pop(d);
+                              },
+                        child: const Text('Place…'),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove',
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        onPressed: () => study.dropUnplaced('answer', a.id),
+                      ),
+                    ],
+                  ),
+                ),
+              for (final m in u.bookmarks)
+                ListTile(
+                  leading: const Icon(Icons.bookmark_outline),
+                  title: Text(m.name.isEmpty ? 'Page ${m.page}' : m.name),
+                  trailing: IconButton(
+                    tooltip: 'Remove',
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: () => study.dropUnplaced('doc_bookmark', m.id),
+                  ),
+                ),
+              if (u.highlights.isEmpty && u.answers.isEmpty && u.bookmarks.isEmpty) const Text('Everything is placed.'),
+            ],
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(d), child: const Text('Close'))],
+      );
+    },
+  ),
+);

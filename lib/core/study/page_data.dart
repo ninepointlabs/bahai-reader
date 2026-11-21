@@ -162,8 +162,9 @@ class PageData {
     );
   }
 
-  /// Reads a pdfrx page: its text with character boxes, and its answer lines from a rendering at up to 2 px/pt.
-  static Future<PageData> load(PdfPage page) async {
+  /// Reads a pdfrx page: its text with character boxes, and (unless [rules] is false) its answer lines from a rendering
+  /// at up to 2 px/pt.
+  static Future<PageData> load(PdfPage page, {bool rules = true}) async {
     final w = page.width, h = page.height;
     // The same text (and character indexes) the viewer's own selection uses.
     final PdfPageText raw = await page.loadStructuredText();
@@ -175,6 +176,7 @@ class PageData {
         else
           const Box(0, 0, 0, 0),
     ];
+    if (!rules) return build(number: page.pageNumber, width: w, height: h, text: text, chars: chars);
     final scale = math.min(2.0, 2400 / math.max(w, h));
     final pw = (w * scale).round(), ph = (h * scale).round();
     final image = await page.render(fullWidth: pw.toDouble(), fullHeight: ph.toDouble(), width: pw, height: ph);

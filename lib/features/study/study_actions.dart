@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/study/export.dart';
 import '../../core/study/importer.dart';
 import '../../core/study/study_controller.dart';
+import '../../core/study/study_store.dart';
 
 const _pdf = XTypeGroup(
   label: 'PDF',
@@ -34,7 +35,8 @@ Future<void> importStudyPdf(BuildContext context, StudyController study, {VoidCa
   await importStudyBytes(context, study, bytes, file.name, opened: opened);
 }
 
-/// Adds a PDF's bytes to Study and opens the book.
+/// Adds a PDF's bytes to Study and opens the book. If it looks like another edition of a book you have marked, asks
+/// whether to move that book (and all its marks) to it.
 Future<void> importStudyBytes(
   BuildContext context,
   StudyController study,
@@ -44,17 +46,97 @@ Future<void> importStudyBytes(
 }) async {
   final say = ScaffoldMessenger.of(context);
   try {
-    final (book, isNew) = await study.importBytes(bytes, name);
-    _say(
-      say,
-      isNew ? 'Imported “${book.name}”. It is kept on this device only.' : '“${book.name}” is already in Study.',
-    );
+    final check = await study.prepare(bytes, name);
+    StudyBook book;
+    if (check.same != null) {
+      book = check.same!;
+      study.add(check); // puts a removed copy back
+      _say(say, '“${book.name}” is already in Study.');
+    } else if (check.other != null && context.mounted) {
+      final other = check.other!;
+      final choice = await _askEdition(context, other, check, study.store.markCount(other));
+      if (choice == null) return;
+      if (choice == _Edition.move && context.mounted) {
+        final plan = await _withProgress(context, (progress) => study.moveToEdition(other, check, progress: progress));
+        book = study.store.book(other.id)!;
+        if (plan != null) {
+          _say(
+            say,
+            plan.unplaced == 0
+                ? 'All ${plan.placed} marks of “${book.name}” were found in this edition.'
+                : '${plan.placed} marks were found in this edition; ${plan.unplaced} could not be, and are listed '
+                      'under “Not placed yet” in the book.',
+          );
+        }
+      } else {
+        book = study.add(check, notSameAs: choice == _Edition.different ? other : null).$1;
+        _say(say, 'Imported “${book.name}”. It is kept on this device only.');
+      }
+    } else {
+      book = study.add(check).$1;
+      _say(say, 'Imported “${book.name}”. It is kept on this device only.');
+    }
     await study.open(book);
     opened?.call();
   } on ImportProblem catch (e) {
     _say(say, e.message);
   } on FileSystemException catch (e) {
     _say(say, 'The book could not be stored (${e.osError?.message ?? e.message}).');
+  }
+}
+
+enum _Edition { move, separate, different }
+
+Future<_Edition?> _askEdition(BuildContext context, StudyBook other, ImportCheck check, int marks) =>
+    showDialog<_Edition>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Another edition of a book you have marked?'),
+        content: SizedBox(
+          width: 480,
+          child: Text(
+            '“${check.file.fileName}” looks like another copy or edition of “${other.name}”, which has $marks '
+            'mark${marks == 1 ? '' : 's'}.\n\nMoving the book to this edition looks for every highlight, answer and '
+            'bookmark (from every time through) in it and puts it there. Anything that cannot be found is kept and '
+            'listed so you can place it yourself. The old edition’s copy is kept.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, _Edition.different), child: const Text('Not the same book')),
+          TextButton(onPressed: () => Navigator.pop(d, _Edition.separate), child: const Text('Keep it separate')),
+          FilledButton(onPressed: () => Navigator.pop(d, _Edition.move), child: const Text('Move my marks')),
+        ],
+      ),
+    );
+
+/// Runs [task] behind a dialog that shows its progress; null if it failed (the failure is shown).
+Future<T?> _withProgress<T>(BuildContext context, Future<T> Function(void Function(String)) task) async {
+  final message = ValueNotifier('Working…');
+  final nav = Navigator.of(context);
+  final say = ScaffoldMessenger.of(context);
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (d) => AlertDialog(
+      content: Row(
+        children: [
+          const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 3)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ValueListenableBuilder(valueListenable: message, builder: (_, m, _) => Text(m)),
+          ),
+        ],
+      ),
+    ),
+  );
+  try {
+    return await task((m) => message.value = m);
+  } catch (e) {
+    _say(say, 'That did not work ($e). Nothing was changed.');
+    return null;
+  } finally {
+    nav.pop();
+    message.dispose();
   }
 }
 
