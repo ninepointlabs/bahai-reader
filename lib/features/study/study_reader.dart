@@ -855,6 +855,8 @@ class StudyReaderState extends State<StudyReader> {
         pageOverlaysBuilder: _overlays,
         pagePaintCallbacks: [searcher.pageTextMatchPaintCallback],
         onGeneralTap: _onTap,
+        // pdfrx's own keys (Space for the next page, arrows, Home, End) leave a field being typed in alone.
+        onKey: (params, key, isRealKeyPress) => typing ? false : null,
         calculateInitialPageNumber: (document, controller) =>
             (study.jump?.$1 ?? view?.page ?? study.page).clamp(1, document.pages.length),
         onViewerReady: (document, controller) {
@@ -903,87 +905,104 @@ class StudyReaderState extends State<StudyReader> {
     }
     final run = study.run;
     final compare = study.compare;
-    return CallbackShortcuts(
-      bindings: _keys,
-      child: Focus(
-        focusNode: focus,
-        autofocus: !widget.touch,
-        child: LayoutBuilder(
-          builder: (context, box) {
-            final side = compare != null && box.maxWidth >= 1000;
-            if (side != _sideBySide) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() => _sideBySide = side);
-              });
-            }
-            final main = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (study.placing != null)
-                  MaterialBanner(
-                    content: Text(
-                      'Tap the line (or an empty spot, with a long press) where this answer goes: '
-                      '“${_short(study.placing!.text)}”',
+    // Keys without Ctrl/Alt (j, k, b, 1–5, Space…) are for the page: while typing an answer, a note or a search they
+    // are letters, and go to the text field.
+    return Shortcuts(
+      shortcuts: {for (final MapEntry(key: k, value: run) in _keys.entries) k: _KeyIntent(run, _plain(k))},
+      child: Actions(
+        actions: {_KeyIntent: _KeyAction(() => typing)},
+        child: Focus(
+          focusNode: focus,
+          autofocus: !widget.touch,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final side = compare != null && box.maxWidth >= 1000;
+              if (side != _sideBySide) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _sideBySide = side);
+                });
+              }
+              final main = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (study.placing != null)
+                    MaterialBanner(
+                      content: Text(
+                        'Tap the line (or an empty spot, with a long press) where this answer goes: '
+                        '“${_short(study.placing!.text)}”',
+                      ),
+                      actions: [TextButton(onPressed: () => study.startPlacing(null), child: const Text('Cancel'))],
+                    )
+                  else if (_unplacedCount > 0)
+                    MaterialBanner(
+                      content: Text(
+                        '$_unplacedCount mark${_unplacedCount == 1 ? '' : 's'} from the other edition could not be '
+                        'found in this one and ${_unplacedCount == 1 ? 'is' : 'are'} not placed yet.',
+                      ),
+                      actions: [TextButton(onPressed: () => showUnplaced(context, study), child: const Text('Show'))],
                     ),
-                    actions: [TextButton(onPressed: () => study.startPlacing(null), child: const Text('Cancel'))],
-                  )
-                else if (_unplacedCount > 0)
-                  MaterialBanner(
-                    content: Text(
-                      '$_unplacedCount mark${_unplacedCount == 1 ? '' : 's'} from the other edition could not be '
-                      'found in this one and ${_unplacedCount == 1 ? 'is' : 'are'} not placed yet.',
+                  if (run != null && !study.onCurrentRun)
+                    MaterialBanner(
+                      content: Text(
+                        study.readOnly
+                            ? 'You are looking at “${run.name}”, an earlier time through. It is finished, so it can be '
+                                  'read but not changed.'
+                            : '“${run.name}” is unlocked until you close the book: changes go into that time through.',
+                      ),
+                      actions: [
+                        if (study.readOnly) TextButton(onPressed: _unlock, child: const Text('Unlock')),
+                        TextButton(onPressed: study.backToCurrent, child: const Text('Back to the current one')),
+                      ],
                     ),
-                    actions: [TextButton(onPressed: () => showUnplaced(context, study), child: const Text('Show'))],
-                  ),
-                if (run != null && !study.onCurrentRun)
-                  MaterialBanner(
-                    content: Text(
-                      study.readOnly
-                          ? 'You are looking at “${run.name}”, an earlier time through. It is finished, so it can be '
-                                'read but not changed.'
-                          : '“${run.name}” is unlocked until you close the book: changes go into that time through.',
+                  if (compare != null)
+                    MaterialBanner(
+                      content: Text(
+                        side
+                            ? 'Comparing with “${compare.name}”, shown on the right.'
+                            : 'Comparing with “${compare.name}”: its answers are shown in grey under yours.',
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => study.setCompare(null), child: const Text('Stop comparing')),
+                      ],
                     ),
-                    actions: [
-                      if (study.readOnly) TextButton(onPressed: _unlock, child: const Text('Unlock')),
-                      TextButton(onPressed: study.backToCurrent, child: const Text('Back to the current one')),
-                    ],
+                  if (searching) _searchBar(palette),
+                  Expanded(
+                    child: MouseRegion(onHover: _hover, child: viewer),
                   ),
-                if (compare != null)
-                  MaterialBanner(
-                    content: Text(
-                      side
-                          ? 'Comparing with “${compare.name}”, shown on the right.'
-                          : 'Comparing with “${compare.name}”: its answers are shown in grey under yours.',
+                ],
+              );
+              if (!side) return main;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: main),
+                  VerticalDivider(width: 1, color: palette.selection),
+                  Expanded(
+                    child: StudyReader(
+                      key: ValueKey('compare:${compare.id}'),
+                      study: study,
+                      showRun: compare,
+                      follow: pdf,
                     ),
-                    actions: [TextButton(onPressed: () => study.setCompare(null), child: const Text('Stop comparing'))],
                   ),
-                if (searching) _searchBar(palette),
-                Expanded(
-                  child: MouseRegion(onHover: _hover, child: viewer),
-                ),
-              ],
-            );
-            if (!side) return main;
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: main),
-                VerticalDivider(width: 1, color: palette.selection),
-                Expanded(
-                  child: StudyReader(
-                    key: ValueKey('compare:${compare.id}'),
-                    study: study,
-                    showRun: compare,
-                    follow: pdf,
-                  ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
+
+  /// A text field has the keyboard: an answer, the search, or any other field inside the reader.
+  bool get typing {
+    if (answerFocus.hasFocus || searchFocus.hasFocus) return true;
+    final f = FocusManager.instance.primaryFocus;
+    final c = f?.context;
+    return c != null && (c.widget is EditableText || c.findAncestorWidgetOfExactType<EditableText>() != null);
+  }
+
+  static bool _plain(ShortcutActivator k) => k is SingleActivator && !k.control && !k.alt && !k.meta;
 
   Future<void> _unlock() async {
     final ok = await showDialog<bool>(
@@ -1068,6 +1087,30 @@ class StudyReaderState extends State<StudyReader> {
         ],
       ),
     );
+  }
+}
+
+/// A reader key: [run] does it; [plain] (no Ctrl/Alt) keys are not taken while a text field is being typed in.
+class _KeyIntent extends Intent {
+  const _KeyIntent(this.run, this.plain);
+  final VoidCallback run;
+  final bool plain;
+}
+
+class _KeyAction extends Action<_KeyIntent> {
+  _KeyAction(this.typing);
+  final bool Function() typing;
+
+  @override
+  bool isEnabled(_KeyIntent intent) => !(intent.plain && typing());
+
+  @override
+  bool consumesKey(_KeyIntent intent) => isEnabled(intent);
+
+  @override
+  Object? invoke(_KeyIntent intent) {
+    intent.run();
+    return null;
   }
 }
 

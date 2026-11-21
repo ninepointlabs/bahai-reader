@@ -3,16 +3,19 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'carry.dart';
+import 'contents.dart';
 import 'dogear_import.dart';
 import 'editions.dart';
 import 'importer.dart';
 import 'page_data.dart';
+import 'rules.dart' show TextLine;
 import 'study_search.dart';
 import 'study_store.dart';
 
@@ -21,10 +24,13 @@ enum StudyPanel { contents, highlights, bookmarks, answers, notes }
 
 /// An entry of the PDF's own table of contents, flattened with its depth.
 class OutlineEntry {
-  const OutlineEntry(this.title, this.page, this.depth);
+  const OutlineEntry(this.title, this.page, this.depth, [this.y = 0]);
   final String title;
   final int page;
   final int depth;
+
+  /// The top of the heading on its page, in points (0 when not known).
+  final double y;
 }
 
 class StudyController extends ChangeNotifier {
@@ -236,10 +242,67 @@ class StudyController extends ChangeNotifier {
       }
       document = doc;
       outline = _flatten(await doc.loadOutline(), 0);
+      if (outline.isEmpty) {
+        // No contents in the PDF: the one made from its headings (built once, then kept on this device).
+        final kept = _savedContents(b.doc.sha256);
+        if (kept != null) {
+          outline = kept;
+        } else {
+          unawaited(_buildContents(b, doc));
+        }
+      }
     } catch (e) {
       problem = '“${b.name}” could not be opened ($e).';
     }
     notifyListeners();
+  }
+
+  /// Whether a table of contents is being made from the headings (for "Reading the pages…").
+  bool makingContents = false;
+
+  List<OutlineEntry>? _savedContents(String sha) {
+    final raw = store.data.meta('contents.$sha');
+    if (raw == null) return null;
+    try {
+      final j = jsonDecode(raw) as Map;
+      if (j['version'] != contentsVersion) return null;
+      return [
+        for (final e in j['entries'] as List)
+          OutlineEntry(e['title'] as String, e['page'] as int, e['level'] as int, (e['y'] as num).toDouble()),
+      ];
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Reads every page's text (a little at a time) and makes the table of contents from its headings, as Dogear does.
+  Future<void> _buildContents(StudyBook b, PdfDocument doc) async {
+    makingContents = true;
+    notifyListeners();
+    try {
+      final pages = <List<TextLine>>[];
+      for (final p in doc.pages) {
+        if (document != doc) return;
+        pages.add((await PageData.load(p, rules: false)).lines);
+      }
+      final entries = buildContents(pages, [for (var i = 1; i <= pages.length; i++) '$i']);
+      final made = [for (final e in entries) OutlineEntry(e.title, e.page + 1, e.level, e.y)];
+      store.data.setMeta(
+        'contents.${b.doc.sha256}',
+        jsonEncode({
+          'version': contentsVersion,
+          'entries': [
+            for (final e in made) {'title': e.title, 'page': e.page, 'level': e.depth, 'y': e.y},
+          ],
+        }),
+      );
+      if (document == doc) outline = made;
+    } on Object {
+      // A page that can't be read: no contents, as before.
+    } finally {
+      makingContents = false;
+      notifyListeners();
+    }
   }
 
   static List<OutlineEntry> _flatten(List<PdfOutlineNode> nodes, int depth) => [
