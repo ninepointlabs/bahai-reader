@@ -829,13 +829,19 @@ class StudyReaderState extends State<StudyReader> {
         pagePaintCallbacks: [searcher.pageTextMatchPaintCallback],
         onGeneralTap: _onTap,
         calculateInitialPageNumber: (document, controller) =>
-            (view?.page ?? study.page).clamp(1, document.pages.length),
+            (study.jump?.$1 ?? view?.page ?? study.page).clamp(1, document.pages.length),
         onViewerReady: (document, controller) {
           if (_mirror) {
             WidgetsBinding.instance.addPostFrameCallback((_) => _follow());
             return;
           }
           study.page = controller.pageNumber ?? study.page;
+          final jump = study.jump;
+          if (jump != null) {
+            study.jump = null;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _goTo(jump.$1, y: jump.$2));
+            return;
+          }
           final z = view?.zoom;
           if (z != null && z > 0 && (z - controller.currentZoom).abs() > 0.01) {
             controller.setZoom(controller.centerPosition, z, duration: Duration.zero);

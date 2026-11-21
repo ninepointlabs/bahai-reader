@@ -149,6 +149,7 @@ class AppState extends ChangeNotifier {
     try {
       languages = await repository.languages();
       folder = Folder(await repository.foldTable());
+      study?.fold = folder!.fold;
       calendar = BadiCalendar.fromJson(jsonDecode(await repository.calendarTable()));
       if (!languages.any((l) => l.id == settings.language)) {
         // As the GTK app says it: the language chosen there (or here) is not on this computer, or cannot be read.

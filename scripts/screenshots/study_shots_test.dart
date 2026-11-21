@@ -2,6 +2,7 @@
 //   flutter test scripts/screenshots/study_shots_test.dart --update-goldens
 // writes PNGs to scripts/screenshots/out/. Not part of the test suite; needs the fonts in desktop_shots_test.dart.
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:bahai_reader/core/app/app_state.dart';
 import 'package:bahai_reader/core/library/library_repository.dart';
@@ -70,11 +71,22 @@ void main() {
     answer(2, 'We talk about what the passage means and how it applies to our lives, then write our answers.');
     await tester.runAsync(() => study.close());
 
+    final second = (await tester.runAsync(
+      () => study.importBytes(Uint8List.fromList([...File('test/fixtures/worksheet.pdf').readAsBytesSync(), 10]), 'Book 2.pdf'),
+    ))!.$1;
+    study.rename(second, 'Second workbook (sample)');
+    study.setCategories(book, [study.addCategory('Book 1'), study.addCategory('Study circle')]);
+    study.setCategories(second, [study.addCategory('Study circle')]);
     await tester.pumpWidget(BahaiReaderApp(state: s, desktop: true));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Study'));
     await tester.pumpAndSettle();
     await expectLater(find.byType(BahaiReaderApp), matchesGoldenFile('out/study-01-library.png'));
+    await tester.enterText(find.byType(TextField).last, 'who');
+    await tester.pumpAndSettle();
+    await expectLater(find.byType(BahaiReaderApp), matchesGoldenFile('out/study-01b-search.png'));
+    await tester.enterText(find.byType(TextField).last, '');
+    await tester.pumpAndSettle();
     await tester.runAsync(() async {
       await tester.tap(find.text('worksheet').first);
       for (var i = 0; i < 20 && study.document == null; i++) {

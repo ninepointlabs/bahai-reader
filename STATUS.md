@@ -5,6 +5,36 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Study: library and search (Study plan, Phase 3) — 2026-11-20
+
+Branch **`feat/study-library`** from `feat/study-runs` (PR #66, merged as `3dad7d8`), committed locally; not pushed.
+
+**What it does**
+
+- **Categories** (schema 3: `study_category`, `book_category`): a book's ⋮ → *Categories…* ticks categories or makes a
+  new one; chips above the library filter by category or *Uncategorized*; *Manage…* renames (onto an existing name
+  merges, as in Dogear) and deletes (books stay). One category per name on every device (UUIDv5 of the name).
+  Categories go into exports as Obsidian tags (`Ruhi Book 5` → `ruhi-book-5`, Dogear's rule).
+- **Sort**: Recent (last read: when the place was last remembered), Title, Most marked (all times through), Added.
+- **Search** in the library matches names, file names and categories, and lists **Found in your marks**: highlights and
+  their notes, answers and their questions, bookmarks and book notes, in every book and time through, ignoring case,
+  accents and apostrophes (the app's own folding). A result opens its book at its page, in its time through.
+- **Saved → Highlights & notes** (desktop) is app-wide: *Writings & prayers · Study · Everything*, with a search, and
+  *Export to Markdown…* for the writings' highlights (grouped by book, each quoted with its citation, then its note).
+  Phones: Saved & highlights gains a *Study* tab (searchable) and an export button.
+- The store's records now carry `updated_at` in memory (used for Recent).
+
+**Plan deviation**: search scans the records in memory instead of an FTS5 index; instant for thousands of marks, no
+index to keep in step. Revisit if libraries grow very large.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **142 passed, 1 skipped**. New: store tests
+(categories incl. merge on rename and Obsidian tags; sorting; accent-insensitive search), `study_library_test`
+(category chips and Uncategorized, search finding a note, Highlights & notes → Study opening the book at the mark;
+the writings' Markdown export with citation and note). Off-screen renders checked: library with categories, search
+results.
+
+**Not verified**: phones, Windows, a real Linux window by hand.
+
 ## Study: times through (Study plan, Phase 2) — 2026-11-20
 
 Branch **`feat/study-runs`** from `origin/main` `58b033b` (PR #65 merged), committed locally; not pushed.

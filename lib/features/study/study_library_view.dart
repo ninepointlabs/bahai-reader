@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app/theme.dart';
 import '../../core/study/study_controller.dart';
+import '../../core/study/study_search.dart';
 import '../../core/study/study_store.dart';
 import 'study_actions.dart';
 import 'study_panels.dart';
@@ -48,19 +49,27 @@ class _StudyLibraryViewState extends State<StudyLibraryView> {
     return ListenableBuilder(
       listenable: study,
       builder: (context, _) {
-        final books = study.library;
+        final all = study.library;
         final removed = study.removed;
-        final q = filter.trim().toLowerCase();
+        final fold = study.fold ?? (String s) => s.toLowerCase();
+        final q = fold(filter.trim());
+        final cats = study.categories;
+        final filterId = study.categoryFilter;
         final shown = [
-          for (final b in books)
-            if (q.isEmpty || '${b.name} ${b.doc.fileName}'.toLowerCase().contains(q)) b,
+          for (final b in all)
+            if (_inCategory(study, b, filterId) &&
+                (q.isEmpty ||
+                    fold('${b.name} ${b.doc.fileName} ${study.categoriesOf(b).map((c) => c.name).join(' ')}')
+                        .contains(q)))
+              b,
         ];
+        final hits = q.isEmpty ? const <MarkHit>[] : study.search(filter);
         Future<void> open(StudyBook b) async {
           await study.open(b);
           widget.onOpen?.call();
         }
 
-        if (books.isEmpty && removed.isEmpty) return _empty(context, study);
+        if (all.isEmpty && removed.isEmpty) return _empty(context, study);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
@@ -69,14 +78,32 @@ class _StudyLibraryViewState extends State<StudyLibraryView> {
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
-                      hintText: 'Search your books',
+                      hintText: 'Search your books, highlights, notes and answers',
                       prefixIcon: Icon(Icons.search, size: 20),
                       isDense: true,
                     ),
                     onChanged: (v) => setState(() => filter = v),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                PopupMenuButton<StudySort>(
+                  tooltip: 'Sort',
+                  initialValue: study.sort,
+                  onSelected: study.setSort,
+                  itemBuilder: (_) => [for (final (s, label) in _sorts) PopupMenuItem(value: s, child: Text(label))],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sort, size: 20),
+                        const SizedBox(width: 4),
+                        Text(_sorts.firstWhere((e) => e.$1 == study.sort).$2),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 FilledButton.icon(
                   icon: const Icon(Icons.file_open_outlined, size: 18),
                   label: const Text('Import a PDF…'),
@@ -84,13 +111,70 @@ class _StudyLibraryViewState extends State<StudyLibraryView> {
                 ),
               ],
             ),
+            if (cats.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: filterId == null,
+                    onSelected: (_) => study.setCategoryFilter(null),
+                  ),
+                  for (final c in cats)
+                    ChoiceChip(
+                      label: Text(c.name),
+                      selected: filterId == c.id,
+                      onSelected: (_) => study.setCategoryFilter(filterId == c.id ? null : c.id),
+                    ),
+                  ChoiceChip(
+                    label: const Text('Uncategorized'),
+                    selected: filterId == '',
+                    onSelected: (_) => study.setCategoryFilter(filterId == '' ? null : ''),
+                  ),
+                  TextButton(onPressed: () => manageCategories(context, study), child: const Text('Manage…')),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             for (final b in shown) _BookRow(study: study, book: b, onOpen: () => open(b)),
-            if (shown.isEmpty && books.isNotEmpty)
+            if (shown.isEmpty && all.isNotEmpty && hits.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: Text('No books match “${filter.trim()}”.', style: TextStyle(color: p.dim)),
+                child: Text(
+                  q.isEmpty ? 'No books in this category.' : 'Nothing matches “${filter.trim()}”.',
+                  style: TextStyle(color: p.dim),
+                ),
               ),
+            if (hits.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 4),
+                child: Text(
+                  'Found in your marks (${hits.length})',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: p.accentText),
+                ),
+              ),
+              for (final h in hits.take(100))
+                ListTile(
+                  dense: true,
+                  leading: Icon(_kindIcon[h.kind], size: 18),
+                  title: Text(h.text, maxLines: 3, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    [
+                      if (h.detail.isNotEmpty) h.detail,
+                      [h.book.name, h.run.name, if (h.page > 0) 'p. ${h.page}'].join(' · '),
+                    ].join('\n'),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () async {
+                    await study.openAt(h.book, run: h.run, page: h.page, y: h.y);
+                    widget.onOpen?.call();
+                  },
+                ),
+            ],
             if (removed.isNotEmpty) ...[
               const SizedBox(height: 12),
               TextButton.icon(
@@ -123,6 +207,26 @@ class _StudyLibraryViewState extends State<StudyLibraryView> {
         );
       },
     );
+  }
+
+  static const _sorts = [
+    (StudySort.recent, 'Recent'),
+    (StudySort.title, 'Title'),
+    (StudySort.marked, 'Most marked'),
+    (StudySort.added, 'Added'),
+  ];
+
+  static const _kindIcon = {
+    'highlight': Icons.border_color_outlined,
+    'answer': Icons.edit_note,
+    'bookmark': Icons.bookmark_outline,
+    'note': Icons.sticky_note_2_outlined,
+  };
+
+  static bool _inCategory(StudyController study, StudyBook b, String? id) {
+    if (id == null) return true;
+    final cs = study.categoriesOf(b);
+    return id.isEmpty ? cs.isEmpty : cs.any((c) => c.id == id);
   }
 
   Widget _empty(BuildContext context, StudyController study) {
@@ -200,6 +304,7 @@ class _BookRow extends StatelessWidget {
     final sub = [
       if (book.label.isNotEmpty) book.doc.fileName,
       if (book.doc.pageCount > 0) '${book.doc.pageCount} pages',
+      for (final c in study.categoriesOf(book)) '#${c.name}',
     ].join(' · ');
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -223,6 +328,8 @@ class _BookRow extends StatelessWidget {
               case 'rename':
                 final name = await askName(context, 'Name this book', book.label.isEmpty ? book.name : book.label);
                 if (name != null) study.rename(book, name);
+              case 'categories':
+                await chooseCategories(context, study, book);
               case 'remove':
                 await study.remove(book);
                 if (context.mounted) {
@@ -237,6 +344,7 @@ class _BookRow extends StatelessWidget {
           },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'rename', child: Text('Rename…')),
+            PopupMenuItem(value: 'categories', child: Text('Categories…')),
             PopupMenuItem(value: 'remove', child: Text('Remove from Study')),
           ],
         ),
@@ -244,3 +352,112 @@ class _BookRow extends StatelessWidget {
     );
   }
 }
+
+/// Files a book in categories: tick the ones it belongs to, or type a new one.
+Future<void> chooseCategories(BuildContext context, StudyController study, StudyBook book) async {
+  final chosen = {for (final c in study.categoriesOf(book)) c.id};
+  final add = TextEditingController();
+  await showDialog<void>(
+    context: context,
+    builder: (d) => StatefulBuilder(
+      builder: (d, setLocal) {
+        final cats = study.categories;
+        void create() {
+          final name = add.text.trim();
+          if (name.isEmpty) return;
+          final c = study.addCategory(name);
+          setLocal(() {
+            chosen.add(c.id);
+            add.clear();
+          });
+        }
+
+        return AlertDialog(
+          title: Text('Categories for “${book.name}”'),
+          content: SizedBox(
+            width: 420,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final c in cats)
+                  CheckboxListTile(
+                    dense: true,
+                    title: Text(c.name),
+                    value: chosen.contains(c.id),
+                    onChanged: (v) => setLocal(() => v == true ? chosen.add(c.id) : chosen.remove(c.id)),
+                  ),
+                TextField(
+                  controller: add,
+                  autofocus: cats.isEmpty,
+                  decoration: InputDecoration(
+                    hintText: 'New category (e.g. Book 1, Tutor training)',
+                    suffixIcon: IconButton(icon: const Icon(Icons.add), tooltip: 'Add', onPressed: create),
+                  ),
+                  onSubmitted: (_) => create(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (add.text.trim().isNotEmpty) create();
+                study.setCategories(book, [
+                  for (final c in study.categories)
+                    if (chosen.contains(c.id)) c,
+                ]);
+                Navigator.pop(d);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  add.dispose();
+}
+
+/// Renames (onto an existing name merges the two) and deletes categories; deleting keeps the books.
+Future<void> manageCategories(BuildContext context, StudyController study) => showDialog<void>(
+  context: context,
+  builder: (d) => ListenableBuilder(
+    listenable: study,
+    builder: (d, _) => AlertDialog(
+      title: const Text('Categories'),
+      content: SizedBox(
+        width: 420,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            if (study.categories.isEmpty) const Text('No categories yet. Use a book’s ⋮ → Categories… to make one.'),
+            for (final c in study.categories)
+              ListTile(
+                dense: true,
+                title: Text(c.name),
+                trailing: Wrap(
+                  children: [
+                    IconButton(
+                      tooltip: 'Rename (onto another name merges them)',
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      onPressed: () async {
+                        final name = await askName(d, 'Rename category', c.name);
+                        if (name != null) study.renameCategory(c, name);
+                      },
+                    ),
+                    IconButton(
+                      tooltip: 'Delete (its books stay)',
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      onPressed: () => study.deleteCategory(c),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(d), child: const Text('Done'))],
+    ),
+  ),
+);

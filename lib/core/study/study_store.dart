@@ -9,6 +9,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../userdata/ids.dart';
 import '../userdata/userdata_store.dart';
@@ -41,6 +42,11 @@ class DocFile {
     final dot = fileName.lastIndexOf('.');
     return dot > 0 ? fileName.substring(0, dot) : fileName;
   }
+}
+
+class StudyCategory {
+  const StudyCategory(this.id, this.name);
+  final String id, name;
 }
 
 class StudyBook {
@@ -179,8 +185,10 @@ class Answer {
       ),
       context = r['context'] as String? ?? '',
       slotKey = r['slot_key'] as String? ?? '',
-      text = r['text'] as String? ?? '';
+      text = r['text'] as String? ?? '',
+      createdAt = r['created_at'] as int? ?? 0;
   final String id, runId, docId, context, slotKey, text;
+  final int createdAt;
   final AnswerPlace place;
   int get page => place.page;
 }
@@ -349,6 +357,100 @@ class StudyStore {
       }
     });
     return orphan;
+  }
+
+  // ----- categories (schema 3) -----
+
+  /// The categories, by name.
+  List<StudyCategory> get categories =>
+      [for (final r in data.records('study_category')) StudyCategory(r['id'] as String, r['name'] as String)]
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  /// The category of that name (any case), made if there is none. Two devices making the same name make one.
+  StudyCategory category(String name) {
+    final clean = name.trim().split(RegExp(r'\s+')).join(' ');
+    final existing = categories.where((c) => c.name.toLowerCase() == clean.toLowerCase()).firstOrNull;
+    if (existing != null) return existing;
+    final id = uuidV5('category:${clean.toLowerCase()}');
+    data.put('study_category', id, {'name': clean});
+    return StudyCategory(id, clean);
+  }
+
+  List<StudyCategory> categoriesOf(StudyBook b) {
+    final ids = {
+      for (final r in data.records('book_category'))
+        if (r['book_id'] == b.id) r['category_id'],
+    };
+    return [
+      for (final c in categories)
+        if (ids.contains(c.id)) c,
+    ];
+  }
+
+  /// Files a book in exactly these categories.
+  void setCategories(StudyBook b, Iterable<StudyCategory> want) {
+    final ids = {for (final c in want) c.id};
+    data.batch(() {
+      for (final r in data.records('book_category')) {
+        if (r['book_id'] == b.id && !ids.contains(r['category_id'])) data.remove('book_category', r['id'] as String);
+      }
+      for (final id in ids) {
+        data.put('book_category', uuidV5('book_category:${b.id}:$id'), {'book_id': b.id, 'category_id': id});
+      }
+    });
+  }
+
+  /// Renames a category; onto another category's name, the two are merged.
+  void renameCategory(StudyCategory c, String name) {
+    final clean = name.trim().split(RegExp(r'\s+')).join(' ');
+    if (clean.isEmpty || clean == c.name) return;
+    final other = categories.where((x) => x.id != c.id && x.name.toLowerCase() == clean.toLowerCase()).firstOrNull;
+    data.batch(() {
+      if (other == null) {
+        data.put('study_category', c.id, {'name': clean});
+        return;
+      }
+      for (final r in data.records('book_category')) {
+        if (r['category_id'] != c.id) continue;
+        final bookId = r['book_id'] as String;
+        data.remove('book_category', r['id'] as String);
+        data.put('book_category', uuidV5('book_category:$bookId:${other.id}'), {
+          'book_id': bookId,
+          'category_id': other.id,
+        });
+      }
+      data.remove('study_category', c.id);
+    });
+  }
+
+  /// Deletes a category; its books stay in the library.
+  void deleteCategory(StudyCategory c) => data.batch(() {
+    for (final r in data.records('book_category')) {
+      if (r['category_id'] == c.id) data.remove('book_category', r['id'] as String);
+    }
+    data.remove('study_category', c.id);
+  });
+
+  /// When the book was last read (its place was last remembered), or when it was added.
+  int lastRead(StudyBook b) {
+    final runs = {for (final r in runsOf(b)) r.id};
+    var at = b.sort;
+    for (final r in data.records('doc_view')) {
+      if (runs.contains(r['run_id'])) at = math.max(at, r['updated_at'] as int? ?? 0);
+    }
+    return at;
+  }
+
+  /// Every mark made in the book, in all its runs.
+  int markCount(StudyBook b) {
+    final runs = {for (final r in runsOf(b)) r.id};
+    var n = 0;
+    for (final t in ['doc_highlight', 'answer', 'doc_bookmark', 'doc_note']) {
+      for (final r in data.records(t)) {
+        if (runs.contains(r['run_id'])) n++;
+      }
+    }
+    return n;
   }
 
   // ----- runs -----
