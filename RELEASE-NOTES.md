@@ -1,19 +1,24 @@
-Bug-fix release of Bahá’í Reader.
+Bahá’í Reader 1.1 adds **Study**: a place to study PDFs of your own, such as your copies of Ruhi Institute books.
 
-- Fixed: **titles in lists no longer stop in the middle of a word.** Passages are listed by their opening words, shortened to fit; on the phone a title could end mid-word (“…that Thou hast ordained N”). It now ends at a whole word with “…”.
-- Fixed: **buttons and tooltips follow Aa → Interface font.** Before, their labels kept the system’s default font.
-- Fixed: screen readers and the phone’s search say “1 passage”, not “1 passages”.
+The app includes no Ruhi Institute material and is not affiliated with or endorsed by the Ruhi Institute. A PDF you import is copied into the app on your device; it is never uploaded or shared, and the app still uses the network only to download a language when you ask.
 
-Version 1.0 rebuilt Bahá’í Reader with Flutter, so the same reader now runs on **Linux, Android and Windows**.
+- New: **Study** (a sidebar section on the desktop, a tab on phones). Import a PDF (Ctrl+O, or on Android “Open with” / Share), then:
+  - highlight in **five colours** and write notes on highlights;
+  - **type your answers on the workbook’s blank lines** (the app finds the lines on the page; Tab moves to the next blank), or in a box anywhere on the page;
+  - bookmark pages, write notes about the book, search in it, and come back to where you stopped;
+  - keep each **time through** a book separately (“1st time, Nov 2026”, “2nd time…”): a new one starts empty, earlier ones are kept read-only, and you can see your earlier answer beside each question or compare two times side by side;
+  - file books in **categories**, and search every highlight, note and answer you have written;
+  - **export** a time through (or all of them) to Markdown for Obsidian.
+- New: **another edition** of a book you have marked is recognized when you import it, and your marks can be moved to it; anything that cannot be found is listed for you to place.
+- New on Linux: **bring in your Dogear marks** for a book you import.
+- New: **Saved → Highlights & notes** covers the writings, the prayers and Study, with a search and a Markdown export.
+- New: **Settings → Back up or move your notes** exports everything you made to one file and merges such a file from another device; **Sync through a folder** keeps your notes in step between devices through a folder that Syncthing, Dropbox or the like shares (the app never goes online; your sync program carries the files).
+- Changed: highlights come in **five colours** (yellow, green, blue, pink, purple); earlier magenta highlights are now pink and look the same.
+- Changed on phones: Today, Writings, Prayers and Study are in a **bottom bar**.
+- Changed: your highlights, notes and saved passages are now kept in a small database beside the settings file (`userdata.sqlite`). The first start of 1.1 moves them there and keeps a copy of the old settings file (`settings.json.pre-userdata-<date>`); going back to 1.0.1 shows your notes as they were at the move.
+- Android: imported books are never included in Android’s backup; Settings has a switch for whether your notes are.
 
-The texts, how they are cited and the offline promise are unchanged: English is bundled, other languages download only when you ask, and nothing else ever uses the network.
-
-- New: **Android.** Install `bahai-reader-1.0.1.apk` (Android may ask you to allow installs from your browser or file manager). The phone has Today, the prayers and writings, search, highlights, notes and saved passages, the Alláh-u-Abhá counter and reminders that arrive with the app closed.
-- New: **Windows** (64-bit). Run `bahai-reader-1.0.1-windows-x64-setup.exe` to install for your user, or unzip `bahai-reader-1.0.1-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so Windows SmartScreen may warn the first time: choose **More info → Run anyway**. Reminders are not sent on Windows yet.
-- **Upgrading on Linux:** the first time 1.0 starts it brings over your highlights, notes, saved passages, collections, reading places and settings from earlier versions, and reads the languages you already downloaded. The earlier version’s files are only read, never changed or removed, so going back to 0.2.3 keeps everything it had. 1.0 keeps its own settings in `~/.config/bahai-reader-flutter/`.
-- **If you used “Keep reminders running when the window is closed”:** turn it on again in ⋮ → Location & reminders after updating. Your reminder choices are kept; only the login entry needs to be made again.
-- Changed: the Linux packages are now built for x86_64 (`_amd64.deb`, `.x86_64.rpm`, `-x86_64.pkg.tar.zst`) instead of architecture-independent; they need GTK 3, which every desktop has, and no longer need Python. The AppImage and Flatpak keep their names, so AppImage updaters (Gear Lever, AppImageLauncher, `zsync`) find 1.0.
-- Removed: the classic GTK window and the `BAHAI_READER_SHELL` switch. The 0.2.3 release stays available for systems that need it.
+Downloads: `bahai-reader-1.1.0.apk` (Android), `bahai-reader-1.1.0-windows-x64-setup.exe` or `-windows-x64.zip` (Windows; not code-signed yet, so SmartScreen may warn: **More info → Run anyway**), and the Linux packages below.
 
 Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). `add` only starts tracking the repository; `install` installs the package and asks for your password:
 
