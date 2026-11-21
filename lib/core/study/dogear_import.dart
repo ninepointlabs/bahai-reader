@@ -226,6 +226,8 @@ Future<DogearReport> importDogear(
         w: numOf(a['w']),
         pitch: numOf(a['pitch']),
         lines: a['lines'] is int ? a['lines'] as int : 1,
+        // Where the first line starts: after the question, when the blank ends the question's own line.
+        indent: numOf(a['indent']),
         size: numOf(a['size']) > 0 ? numOf(a['size']) : 11,
       );
     } else if (context.isNotEmpty) {
@@ -330,4 +332,34 @@ Future<DogearReport> importDogear(
   if (book.label.isEmpty && d.label.trim().isNotEmpty) store.rename(store.book(book.id)!, d.label);
   store.markDogearDone(d.sha256, book.id);
   return report;
+}
+
+/// Answers brought in from Dogear by 1.1.0 and 1.1.1 lost their indent (where the first line starts when a blank ends
+/// the question's own line), so their first line sat on the question. Puts it back for this book's answers that match
+/// a Dogear answer of the same file (page, place and text); returns how many were fixed. Changes no words.
+int repairDogearIndents(StudyStore store, StudyBook book, DogearDoc d) {
+  if (d.sha256 != book.doc.sha256) return 0;
+  double numOf(Object? v) => v is num ? v.toDouble() : 0;
+  final wanted = [
+    for (final a in d.answers)
+      if (numOf(a['indent']) > 0) a,
+  ];
+  if (wanted.isEmpty) return 0;
+  final fixes = <(String, String, Map<String, Object?>)>[];
+  for (final run in store.runsOf(book)) {
+    for (final mine in store.answers(run.id)) {
+      if (mine.docId != book.docId || mine.place.kind != 'line' || mine.place.indent != 0) continue;
+      final match = wanted.where(
+        (a) =>
+            (a['page'] is int ? a['page'] as int : -1) + 1 == mine.page &&
+            (numOf(a['x']) - mine.place.x).abs() < 0.6 &&
+            (numOf(a['y']) - mine.place.y).abs() < 0.6 &&
+            (a['text'] as String).trim() == mine.text.trim(),
+      );
+      if (match.isEmpty) continue;
+      fixes.add(('answer', mine.id, {'indent': numOf(match.first['indent'])}));
+    }
+  }
+  if (fixes.isNotEmpty) store.updateRecords(fixes);
+  return fixes.length;
 }

@@ -65,6 +65,7 @@ void main() {
           'w': q.w,
           'pitch': 0,
           'lines': 1,
+          'indent': 40,
           'size': 11,
           'text': 'week',
           'context': p1.contextAt(q.x + 5, q.y),
@@ -122,6 +123,7 @@ void main() {
     final week = study.store.answers(run.id).firstWhere((a) => a.text == 'week');
     final reflect = study.store.answers(run.id).firstWhere((a) => a.text == 'reflect');
     expect(week.slotKey, isNot(reflect.slotKey), reason: 'the first and second blank of one question');
+    expect((week.place.indent, reflect.place.indent), (40, 0), reason: "Dogear's indent is kept");
     expect(study.store.bookmarks(run.id).single.page, 2);
     expect(study.store.notes(run.id).single.text, 'Bring the workbook.');
     expect(b.name, 'Book 1 (from Dogear)');
@@ -129,6 +131,23 @@ void main() {
     expect(study.dogearFor(b), isNull, reason: 'not offered again');
     expect(study.dogearFor(b, again: true), isNotNull, reason: 'but can be asked for');
     expect(File('${dogear.path}/${annotation['sha256']}.json').readAsStringSync(), before);
+  });
+
+  test('answers brought in by 1.1.0/1.1.1 without their indent get it back when the book opens', () async {
+    final (book, _) = await study.importBytes(one, 'Workbook_2.1.1_20210325.pdf');
+    await study.bringInDogear(book, study.dogearFor(book)!);
+    final run = study.store.currentRun(study.store.book(book.id)!);
+    final week = study.store.answers(run.id).firstWhere((a) => a.text == 'week');
+    // As the earlier versions stored it.
+    study.store.updateRecords([
+      ('answer', week.id, {'indent': 0.0}),
+    ]);
+    expect(study.store.answers(run.id).firstWhere((a) => a.text == 'week').place.indent, 0);
+    await study.open(study.store.book(book.id)!);
+    final after = {for (final a in study.store.answers(run.id)) a.text: a};
+    expect(after['week']!.place.indent, 40);
+    expect(after['week']!.text, 'week');
+    expect(after['reflect']!.place.indent, 0, reason: 'no indent in Dogear: untouched');
   });
 
   test(

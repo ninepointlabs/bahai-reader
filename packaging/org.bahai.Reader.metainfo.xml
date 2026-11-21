@@ -42,6 +42,9 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.2" date="2026-11-21">
+      <description><p>Answers brought in from Dogear that start after a question on the same line are no longer drawn over the question; answers already brought in are put right when the book is opened.</p></description>
+    </release>
     <release version="1.1.1" date="2026-11-21">
       <description><p>Typing an answer in Study no longer turns the page when you press Space, and keys such as j, k and b now type instead of moving or bookmarking. A PDF without its own table of contents now gets one made from its headings. Imported PDFs now travel through your sync folder unless you turn that off. The question about bringing in Dogear marks after an import can no longer be lost.</p></description>
     </release>

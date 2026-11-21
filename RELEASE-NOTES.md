@@ -1,13 +1,12 @@
-Bug-fix release of Bahá’í Reader, from the first days of Study on a real phone and desktop.
+Bug-fix release of Bahá’í Reader.
 
-- Fixed: **typing an answer no longer loses your place.** Space turned the page, and keys such as j, k, b and 1–5 scrolled, bookmarked or highlighted instead of being typed; while you type an answer, a note or a search they now go to the text.
-- New: **a table of contents for PDFs that don't have one.** Study now makes it from the book's headings, as Dogear does (a printed Contents page, headings set larger than the text, and lines like “Section 2”). It is made once, the first time the book opens, and kept on your device.
-- Changed: **imported PDFs now travel through your sync folder** (in `bahai-reader-books/`), so a book imported on one device opens on the others; the switch in Settings → Sync through a folder turns it off. A new import goes out within seconds, and a book that arrives shows in the library at once.
-- Fixed: the question about **bringing in your Dogear marks** after importing a book can no longer be lost when the book opens. If you skipped it, the book's time-through menu (the clock button) has *Bring in Dogear marks…*.
+- Fixed: **Dogear answers drawn over the question.** When a blank starts at the end of a question's own line, Dogear's answer begins after the question; the import dropped that, so the first line was drawn over the printed words. New imports keep it, and answers already brought in are put right the first time the book is opened on the computer that has Dogear (their words are not changed); the correction reaches your other devices through sync.
+- A long answer on ruled lines now starts after the question and wraps onto the full-width lines below, as in Dogear, and a click anywhere in it opens it.
+- The Study library's note on privacy now says that imported books go into your own sync folder when you sync through one (they are never uploaded anywhere else).
 
-1.1 added Study (your own PDFs, such as your copies of Ruhi Institute books, with highlights, notes, bookmarks and answers on the blank lines; the app includes no Ruhi Institute material and is not affiliated with or endorsed by the Ruhi Institute), five highlight colours, a notes backup, and syncing through a folder that Syncthing, Dropbox or the like keeps in step.
+1.1.1 fixed typing answers (Space no longer turns the page), made a table of contents for PDFs without one, and shared imported PDFs through the sync folder. 1.1 added Study (your own PDFs, such as your copies of Ruhi Institute books, with highlights, notes, bookmarks and answers on the blank lines; the app includes no Ruhi Institute material and is not affiliated with or endorsed by the Ruhi Institute).
 
-Downloads: `bahai-reader-1.1.1.apk` (Android), `bahai-reader-1.1.1-windows-x64-setup.exe` or `-windows-x64.zip` (Windows; not code-signed yet, so SmartScreen may warn: **More info → Run anyway**), and the Linux packages below.
+Downloads: `bahai-reader-1.1.2.apk` (Android), `bahai-reader-1.1.2-windows-x64-setup.exe` or `-windows-x64.zip` (Windows; not code-signed yet, so SmartScreen may warn: **More info → Run anyway**), and the Linux packages below.
 
 Install with [autonomix-cli](https://github.com/ninepointlabs/autonomix-cli). `add` only starts tracking the repository; `install` installs the package and asks for your password:
 
