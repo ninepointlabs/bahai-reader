@@ -15,6 +15,7 @@ import '../settings/collections_dialog.dart';
 import '../settings/languages_dialog.dart';
 import '../settings/settings_screen.dart';
 import '../study/study_actions.dart';
+import '../study/study_incoming.dart';
 import '../study/study_library_view.dart';
 import '../study/study_panels.dart';
 import '../study/study_reader.dart';
@@ -67,6 +68,7 @@ class _DesktopShellState extends State<DesktopShell> {
     super.initState();
     widget.state.addListener(_appChanged);
     _opens = widget.state.openRequests.listen(_openFromNotification);
+    listenForIncomingPdfs(() => context, widget.state.study, model.showStudyReader);
     final id = widget.openId;
     // Where the window was last time (GTK restores the section, the book and the passage); a new install opens on Home.
     if (id == null && !widget.state.loading && widget.state.library != null) model.restore();

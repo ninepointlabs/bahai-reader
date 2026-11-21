@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../calendar/badi.dart';
 import '../calendar/reminders.dart';
 import '../marks/highlight.dart';
+import 'android_backup.dart';
 
 /// This experiment's own settings file. It never reads from or writes to the GTK app's `~/.config/bahai-reader/`
 /// except the GTK import (`gtk_import.dart`), which only reads it.
@@ -393,6 +394,9 @@ class SettingsStore {
       final xdg = Platform.environment['XDG_CONFIG_HOME'];
       final base = xdg != null && xdg.isNotEmpty ? xdg : '${Platform.environment['HOME']}/.config';
       dir = Directory('$base/bahai-reader-flutter');
+    } else if (Platform.isAndroid) {
+      // In or out of Android's backup, as chosen in Settings (android_backup.dart).
+      dir = await userDataFolder(await getApplicationSupportDirectory());
     } else {
       dir = await getApplicationSupportDirectory();
     }

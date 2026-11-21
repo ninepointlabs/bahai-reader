@@ -459,12 +459,7 @@ class StudyReaderState extends State<StudyReader> {
     final r = _answerRect(e.place);
     final size = e.place.size * s;
     final lineHeight = e.place.pitch > 0 ? e.place.pitch * s : null;
-    final style = TextStyle(
-      color: answerInk,
-      fontSize: size,
-      height: lineHeight == null ? 1.2 : lineHeight / size,
-      fontFamily: 'sans-serif',
-    );
+    final style = TextStyle(color: answerInk, fontSize: size, height: lineHeight == null ? 1.2 : lineHeight / size);
     return Positioned(
       left: r.left * s,
       top: r.top * s,
@@ -884,7 +879,8 @@ class _MarksPainter extends CustomPainter {
       }
       if (h.note != null && h.rects.isNotEmpty) {
         final r = h.rects.first;
-        final c = Offset(math.max(6, r.x - 9) * s, (r.y + r.h / 2) * s);
+        // In the page's margin, beside the highlight's first line.
+        final c = Offset(math.min(14, math.max(6, r.x - 12)) * s, (r.y + r.h / 2) * s);
         canvas.drawCircle(c, 3.2 * s, Paint()..color = palette.swatch(h.color));
       }
     }
@@ -960,12 +956,7 @@ class _MarksPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(
-          color: answerInk,
-          fontSize: size,
-          height: lineHeight == null ? 1.15 : lineHeight / size,
-          fontFamily: 'sans-serif',
-        ),
+        style: TextStyle(color: answerInk, fontSize: size, height: lineHeight == null ? 1.15 : lineHeight / size),
       ),
       textDirection: TextDirection.ltr,
     );

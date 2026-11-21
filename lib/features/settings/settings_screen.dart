@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/app/app_state.dart';
+import '../../core/settings/android_backup.dart';
 import '../../core/settings/settings_store.dart';
 import 'languages_dialog.dart';
 
@@ -47,9 +48,13 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const Divider(height: 32),
-          Text('Your highlights and saved passages', style: theme.textTheme.titleMedium),
+          Text('Your highlights, notes and saved passages', style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
-          SelectableText('Stored in ${state.store.file.path}', style: theme.textTheme.bodySmall),
+          SelectableText(
+            'Stored on this device in ${state.store.file.parent.path} (userdata.sqlite and settings.json).',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (Platform.isAndroid) _AndroidBackupSwitch(files: state.store.file.parent),
           if (Platform.isLinux) ...[
             const SizedBox(height: 12),
             Text(
@@ -84,4 +89,37 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Android: whether notes and settings may go into Android's own backup (the person's Google account). Books imported
+/// into Study never do.
+class _AndroidBackupSwitch extends StatefulWidget {
+  const _AndroidBackupSwitch({required this.files});
+
+  /// The folder the settings are in now (`files/` or `files/nobackup/`).
+  final Directory files;
+
+  @override
+  State<_AndroidBackupSwitch> createState() => _AndroidBackupSwitchState();
+}
+
+class _AndroidBackupSwitchState extends State<_AndroidBackupSwitch> {
+  Directory get files =>
+      widget.files.uri.pathSegments.where((s) => s.isNotEmpty).last == noBackupFolder ? widget.files.parent : widget.files;
+  late bool include = notesInBackup(files);
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    contentPadding: EdgeInsets.zero,
+    title: const Text('Include notes in Android backup'),
+    subtitle: const Text(
+      'Android may copy your highlights, notes, answers and settings to your Google account’s backup, so a new phone '
+      'gets them back. Books you import are never included. A change takes effect the next time the app starts.',
+    ),
+    value: include,
+    onChanged: (v) async {
+      await chooseNotesInBackup(files, v);
+      if (mounted) setState(() => include = v);
+    },
+  );
 }

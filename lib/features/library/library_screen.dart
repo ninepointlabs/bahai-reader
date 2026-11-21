@@ -11,6 +11,7 @@ import '../reader/reader_screen.dart';
 import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
 import '../study/study_book_screen.dart';
+import '../study/study_incoming.dart';
 import '../study/study_library_view.dart';
 import '../today/exact_times.dart';
 import '../today/location_dialog.dart';
@@ -58,6 +59,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     _opens = AppScope.read(context).openRequests.listen(_openFromNotification);
+    listenForIncomingPdfs(() => context, AppScope.read(context).study, () {
+      if (!mounted) return;
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      setState(() => tab = 3);
+      _push(context, const StudyBookScreen());
+    });
     AppScope.read(context).remindersStarted.then((_) {
       if (mounted) offerExactTimes(context, atStart: true);
     });
