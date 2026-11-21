@@ -82,7 +82,9 @@ Checksums for every download are in `SHA256SUMS`.
 - **Highlights, notes and saved passages**, anchored the same way as the GTK app (passage id + character offsets + the
   quoted words), and following passages across languages by their `match`. They are kept, with collections, reading
   places and Said/Fasted records, in `userdata.sqlite` beside `settings.json`: one record per mark with a permanent id,
-  change times and deletion markers, so they can be synced between devices later (nothing syncs yet). The first start
+  change times and deletion markers, so they can be synced between devices. Settings → *Back up or move your notes*
+  exports them all to one file and imports-and-merges such a file from another device (the version changed last wins,
+  record by record; nothing goes over the network). The first start
   of a version with this store moves them out of `settings.json` and keeps a copy of the old file as
   `settings.json.pre-userdata-<date>`; `settings.json` keeps its copies as they were at the move, so an older version
   still finds them.

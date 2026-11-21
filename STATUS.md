@@ -5,6 +5,31 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Notes backup and merge (Study plan, Phase 5: sync step A) — 2026-11-20
+
+Branch **`feat/notes-backup`** from `feat/study-editions` (PR #68), committed locally; not pushed.
+
+**What it does**: Settings → *Back up or move your notes*. **Export notes…** writes one JSON file
+(`format: bahai-reader-notes`) with every record of the user-data store, deletion markers included, with their sync
+columns: highlights and notes, saved passages and collections, positions and Continue reading, Said/Fasted, personal
+choices, and all of Study (books' records, runs, marks, categories), but not the PDFs and nothing device-local.
+**Import and merge…** reads such a file from this or another device and, record by record, keeps the version with the
+later hybrid-clock stamp (deletions travel the same way), then reloads the app's marks. A Study book whose PDF is not
+on this device yet says so ("import your copy of the PDF here too"; the same file is recognized by its hash). Desktop:
+save/open dialogs; Android: "Save to" and the system file picker. No network, no account.
+
+**Plan deviation**: no change journal. Every record carries its own hybrid-clock stamp and deletions are kept as
+markers, so merging two complete snapshots (last change wins per record) gives the same result as replaying journals,
+with less to store and nothing to compact. Folder sync (step B) can reuse it: each device writes its export into the
+shared folder and merges the others'.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **155 passed, 1 skipped**. New `notes_backup_test`
+(3): one device's marks (incl. Study) arrive on another and show in the app; merging again changes nothing; changes on
+both, exchanged both ways, leave both identical (edit and deletion each arrive); the same mark changed on both: the
+later wins on both; not a backup / newer version refused; unusable rows and unknown tables skipped.
+
+**Not verified**: a real phone-to-desktop exchange (Android "Save to" and the file picker are untested on a device).
+
 ## Study: other editions and Dogear marks (Study plan, Phase 4; also the plan's Phase 1b) — 2026-11-20
 
 Branch **`feat/study-editions`** from `feat/study-library` (PR #67, merged as `2764cfb`), committed locally; not pushed.

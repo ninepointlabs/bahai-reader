@@ -590,6 +590,19 @@ class StudyController extends ChangeNotifier {
     });
   }
 
+  /// After records changed underneath (a merged backup): an open book that is gone is closed, the rest redrawn.
+  Future<void> refresh() async {
+    final b = book;
+    if (b != null && store.book(b.id) == null) {
+      await close();
+      return;
+    }
+    if (b != null) book = store.book(b.id);
+    final r = run;
+    if (r != null) run = store.run(r.id) ?? (book == null ? null : store.currentRun(book!));
+    notifyListeners();
+  }
+
   void setPanel(StudyPanel p) {
     panel = p;
     notifyListeners();
