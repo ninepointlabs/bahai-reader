@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart' show sqlite3;
 
 import 'core/app/about.dart';
 import 'core/app/app_state.dart';
@@ -26,6 +27,14 @@ Future<void> main(List<String> args) async {
   }
   if (args.length == 1 && args.first == '--version') {
     stdout.writeln('$appName $appVersion');
+    // The user-data store's SQLite ships inside the app; the release checks run --version, so a package without it
+    // fails there instead of quietly keeping marks in settings.json.
+    try {
+      stdout.writeln('SQLite ${sqlite3.version.libVersion}');
+    } catch (e) {
+      stderr.writeln('bahai-reader: SQLite could not be loaded: $e');
+      exit(1);
+    }
     exit(0);
   }
   for (var i = 0; i < args.length; i++) {
