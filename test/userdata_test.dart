@@ -160,6 +160,7 @@ void main() {
     await s.setTheme('dark');
     final book = lib.books.firstWhere((w) => w.title == 'God Passes By');
     s.rememberPosition(book, book.passages.first);
+    await s.save(); // rememberPosition saves without waiting; saves run in order, so this waits for it too
     final now = canonicalJson(s.settings.userDataJson());
     await s.marksReady;
     s.dispose();
