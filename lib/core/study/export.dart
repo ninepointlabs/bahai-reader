@@ -21,6 +21,22 @@ String _quote(String text) {
 
 String _answer(String text) => '**A:** ${[for (final l in text.trim().split('\n')) l.trimRight()].join('  \n')}  ';
 
+/// Categories as Obsidian tags: "Ruhi Book 5" → ruhi-book-5 (Dogear's rule; numbers alone are not tags).
+List<String> obsidianTags(Iterable<String> categories) {
+  final out = <String>[];
+  for (final name in categories) {
+    final tag = name
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}_/-]+', unicode: true), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    if (tag.isNotEmpty && !RegExp(r'^\d+$').hasMatch(tag) && !out.contains(tag)) out.add(tag);
+  }
+  return out;
+}
+
+String _tags(Iterable<String> categories) => '[${['bahai-reader', 'study', ...obsidianTags(categories)].join(', ')}]';
+
 /// "Page 3", or "Page 3 (iii)" when the PDF labels the page differently.
 String pageHeading(int page, String label) =>
     label.isNotEmpty && label != '$page' ? 'Page $page ($label)' : 'Page $page';
@@ -43,6 +59,7 @@ String renderMarkdown({
   required List<DocNote> notes,
   String Function(int page)? pageLabel,
   DateTime? exportedAt,
+  List<String> categories = const [],
 }) {
   final label = pageLabel ?? (_) => '';
   final filled = [
@@ -61,7 +78,7 @@ String renderMarkdown({
     'highlights: ${highlights.length}',
     'bookmarks: ${bookmarks.length}',
     'answers: ${filled.length}',
-    'tags: [bahai-reader, study]',
+    'tags: ${_tags(categories)}',
     '---',
     '',
     '# ${book.name}',
@@ -172,7 +189,12 @@ typedef RunMarks = ({StudyRun run, List<DocHighlight> highlights, List<Answer> a
 
 /// Every run of a book in one file, to see how answers changed: each page's questions with every run's answer under
 /// them (labelled with the run), then the highlights of every run, and each run's book notes.
-String renderAllRunsMarkdown({required StudyBook book, required List<RunMarks> runs, DateTime? exportedAt}) {
+String renderAllRunsMarkdown({
+  required StudyBook book,
+  required List<RunMarks> runs,
+  DateTime? exportedAt,
+  List<String> categories = const [],
+}) {
   final stamp = (exportedAt ?? DateTime.now()).toIso8601String().split('.').first;
   final out = <String>[
     '---',
@@ -182,7 +204,7 @@ String renderAllRunsMarkdown({required StudyBook book, required List<RunMarks> r
     'sha256: ${book.doc.sha256}',
     'generator: bahai-reader',
     'exported: $stamp',
-    'tags: [bahai-reader, study]',
+    'tags: ${_tags(categories)}',
     '---',
     '',
     '# ${book.name}',

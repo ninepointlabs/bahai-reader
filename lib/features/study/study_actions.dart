@@ -72,6 +72,7 @@ Future<void> exportStudyRun(BuildContext context, StudyController study) async {
     bookmarks: study.bookmarks,
     answers: study.answers,
     notes: study.notes,
+    categories: [for (final c in study.categoriesOf(book)) c.name],
   );
   await _saveMarkdown(say, exportFileName(book, run), markdown);
 }
@@ -92,6 +93,7 @@ Future<void> exportAllRuns(BuildContext context, StudyController study) async {
           notes: study.store.notes(r.id),
         ),
     ],
+    categories: [for (final c in study.categoriesOf(book)) c.name],
   );
   await _saveMarkdown(say, allRunsFileName(book), markdown);
 }

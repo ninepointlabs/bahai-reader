@@ -10,6 +10,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'importer.dart';
 import 'page_data.dart';
+import 'study_search.dart';
 import 'study_store.dart';
 
 /// The reader's side panels.
@@ -37,7 +38,71 @@ class StudyController extends ChangeNotifier {
   String get color => readColor?.call() ?? 'yellow';
   set color(String c) => writeColor?.call(c);
 
-  List<StudyBook> get library => store.books;
+  List<StudyBook> get library => sortBooks(store, store.books, sort);
+
+  /// The library's order (Recent, Title, Most marked, Added).
+  StudySort sort = StudySort.recent;
+
+  /// The library shows one category's books (its id), the uncategorized ones (''), or all (null).
+  String? categoryFilter;
+
+  /// Accent- and apostrophe-insensitive folding for searching marks (the app's, once its table is read).
+  String Function(String)? fold;
+
+  void setSort(StudySort s) {
+    sort = s;
+    notifyListeners();
+  }
+
+  void setCategoryFilter(String? id) {
+    categoryFilter = id;
+    notifyListeners();
+  }
+
+  List<StudyCategory> get categories => store.categories;
+  List<StudyCategory> categoriesOf(StudyBook b) => store.categoriesOf(b);
+
+  void setCategories(StudyBook b, Iterable<StudyCategory> cs) {
+    store.setCategories(b, cs);
+    notifyListeners();
+  }
+
+  StudyCategory addCategory(String name) {
+    final c = store.category(name);
+    notifyListeners();
+    return c;
+  }
+
+  void renameCategory(StudyCategory c, String name) {
+    store.renameCategory(c, name);
+    if (!store.categories.any((x) => x.id == categoryFilter)) categoryFilter = null;
+    notifyListeners();
+  }
+
+  void deleteCategory(StudyCategory c) {
+    store.deleteCategory(c);
+    if (categoryFilter == c.id) categoryFilter = null;
+    notifyListeners();
+  }
+
+  /// Marks whose text contains [query], in every book and time through.
+  List<MarkHit> search(String query) => searchMarks(store, query, fold: fold);
+
+  /// A page (and place on it) to show once the reader is ready, instead of the place last reached.
+  (int, double)? jump;
+
+  /// Opens a book at a mark: its run (if not the current one) and its page.
+  Future<void> openAt(StudyBook b, {StudyRun? run, int? page, double y = 0}) async {
+    await open(b);
+    if (run != null && run.id != this.run?.id) viewRun(run);
+    if (page != null && page > 0) {
+      this.page = page;
+      jump = (page, y);
+      goTo?.call(page, y: y);
+      notifyListeners();
+    }
+  }
+
   List<StudyBook> get removed => store.removed;
 
   // ----- the open book -----

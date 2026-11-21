@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/app/app_state.dart';
 import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
+import '../../core/study/study_store.dart';
 
 /// The sidebar's sections, as in the GTK app's libadwaita window.
 enum Section { home, today, prayers, obligatory, writings, study, saved }
@@ -139,6 +140,14 @@ class ShellModel extends ChangeNotifier {
     _show(work, i < 0 ? 0 : i);
     showContent = true;
     notifyListeners();
+  }
+
+  /// A Study mark from Highlights & notes or a search: its book at its place, in its time through.
+  Future<void> openStudyAt(StudyBook book, {StudyRun? run, int? page, double y = 0}) async {
+    final study = app.study;
+    if (study == null) return;
+    await study.openAt(book, run: run, page: page, y: y);
+    showStudyReader();
   }
 
   /// The Study book just opened: the reader, with the book's panels in the sidebar.

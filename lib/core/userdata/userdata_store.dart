@@ -28,12 +28,12 @@ import '../settings/settings_store.dart';
 import 'ids.dart';
 
 /// The store's schema version (`PRAGMA user_version`).
-const userDataSchema = 2;
+const userDataSchema = 3;
 
 /// `userdata_version` in `settings.json` once the marks have moved into the store. Not the store's schema version.
 const movedMarker = 1;
 
-/// Schema 2: the Study section's tables; highlight colour `magenta` became `pink` (five colours).
+/// Schema 3: Study categories. Schema 2: the Study section's tables; highlight colour `magenta` became `pink` (five colours).
 
 /// The columns every synced table has, after `id`.
 const _sync =
@@ -64,6 +64,9 @@ const _tables = <String, List<String>>{
     'slot_key', 'text',
   ],
   'doc_view': ['run_id', 'doc_id', 'page', 'offset', 'zoom'],
+  // Schema 3: categories for Study's library (a book can be in several).
+  'study_category': ['name'],
+  'book_category': ['book_id', 'category_id'],
 };
 
 /// The Study tables, which are read and written record by record ([UserDataStore.put]) rather than from [Settings].
@@ -76,6 +79,8 @@ const studyTables = [
   'doc_note',
   'answer',
   'doc_view',
+  'study_category',
+  'book_category',
 ];
 
 const _schema =
@@ -109,15 +114,17 @@ CREATE TABLE IF NOT EXISTS answer (id TEXT PRIMARY KEY, $_sync, run_id TEXT NOT 
   indent REAL, size REAL, context TEXT, slot_key TEXT, text TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS doc_view (id TEXT PRIMARY KEY, $_sync, run_id TEXT NOT NULL, doc_id TEXT NOT NULL,
   page INTEGER, offset REAL, zoom REAL);
+CREATE TABLE IF NOT EXISTS study_category (id TEXT PRIMARY KEY, $_sync, name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS book_category (id TEXT PRIMARY KEY, $_sync, book_id TEXT NOT NULL, category_id TEXT NOT NULL);
 ''';
 
 /// The personal choices kept as `user_pref` records, by their `settings.json` key.
 const prefKeys = ['prayer', 'long_period', 'keep_records', 'counter_target', 'highlight_color'];
 
 class _Row {
-  _Row(this.values, this.createdAt, {this.deleted = false});
+  _Row(this.values, this.createdAt, {this.deleted = false, int? updatedAt}) : updatedAt = updatedAt ?? createdAt;
   final List<Object?> values;
-  final int createdAt;
+  final int createdAt, updatedAt;
   final bool deleted;
 }
 
@@ -232,7 +239,7 @@ class UserDataStore {
     return [
       for (final MapEntry(key: id, value: row) in _cache[table]!.entries)
         if (!row.deleted)
-          {'id': id, 'created_at': row.createdAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]},
+          {'id': id, 'created_at': row.createdAt, 'updated_at': row.updatedAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]},
     ];
   }
 
@@ -241,7 +248,7 @@ class UserDataStore {
     final row = _cache[table]![id];
     if (row == null || row.deleted) return null;
     final cols = _tables[table]!;
-    return {'id': id, 'created_at': row.createdAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]};
+    return {'id': id, 'created_at': row.createdAt, 'updated_at': row.updatedAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]};
   }
 
   /// Writes a record (all of [table]'s columns, from [values]; missing ones are null) if it changed. A tombstoned
@@ -265,7 +272,7 @@ class UserDataStore {
         deviceId,
         id,
       ]);
-      _cache[table]![id] = _Row(row.values, row.createdAt, deleted: true);
+      _cache[table]![id] = _Row(row.values, row.createdAt, deleted: true, updatedAt: now);
     });
   }
 
@@ -282,7 +289,7 @@ class UserDataStore {
       'VALUES (?, ?, ?, ?, ?, NULL, $marks)',
       [id, created, now, hlc.next(now), deviceId, ...values],
     );
-    rows[id] = _Row(values, created);
+    rows[id] = _Row(values, created, updatedAt: now);
   }
 
   /// When the marks were moved in from `settings.json` (ISO time), or null if they have not been yet.
@@ -294,11 +301,12 @@ class UserDataStore {
     for (final MapEntry(key: table, value: cols) in _tables.entries) {
       final rows = _cache[table] = {};
       final quoted = cols.map((c) => '"$c"').join(', ');
-      for (final r in _db.select('SELECT id, created_at, deleted_at, $quoted FROM $table')) {
+      for (final r in _db.select('SELECT id, created_at, updated_at, deleted_at, $quoted FROM $table')) {
         rows[r['id'] as String] = _Row(
           [for (final c in cols) r[c]],
           r['created_at'] as int,
           deleted: r['deleted_at'] != null,
+          updatedAt: r['updated_at'] as int,
         );
       }
     }
@@ -556,7 +564,7 @@ class UserDataStore {
         deviceId,
         id,
       ]);
-      rows[id] = _Row(old.values, old.createdAt, deleted: true);
+      rows[id] = _Row(old.values, old.createdAt, deleted: true, updatedAt: now);
     }
   }
 

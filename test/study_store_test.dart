@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:bahai_reader/core/study/export.dart';
 import 'package:bahai_reader/core/study/importer.dart';
 import 'package:bahai_reader/core/study/page_data.dart';
+import 'package:bahai_reader/core/study/study_search.dart';
 import 'package:bahai_reader/core/study/study_store.dart';
 import 'package:bahai_reader/core/userdata/ids.dart';
 import 'package:bahai_reader/core/userdata/userdata_store.dart';
@@ -267,6 +268,59 @@ void main() {
       study.deleteRun(study.book(b.id)!, first);
       expect(study.runsOf(study.book(b.id)!).map((r) => r.ordinal), [2]);
       expect(study.answers(first.id), isEmpty);
+    });
+  });
+
+  group('library', () {
+    test('categories: one per name, a book in several, rename merges, delete keeps the books', () {
+      final a = addBook('aa11'), b = addBook('bb22');
+      final one = study.category('  Book   1 ');
+      expect(one.name, 'Book 1');
+      expect(study.category('book 1').id, one.id, reason: 'any case: the same category');
+      expect(one.id, uuidV5('category:book 1'), reason: 'two devices make the same one');
+      final tutor = study.category('Tutor training');
+      study.setCategories(a, [one, tutor]);
+      study.setCategories(b, [tutor]);
+      expect([for (final c in study.categoriesOf(a)) c.name], ['Book 1', 'Tutor training']);
+      study.setCategories(a, [one]);
+      expect([for (final c in study.categoriesOf(a)) c.name], ['Book 1']);
+      // Renaming onto another category's name merges the two.
+      study.renameCategory(one, 'tutor TRAINING');
+      expect([for (final c in study.categories) c.name], ['Tutor training']);
+      expect([for (final c in study.categoriesOf(a)) c.name], ['Tutor training']);
+      study.renameCategory(study.categories.single, 'Ruhi Book 5');
+      expect(study.categoriesOf(b).single.name, 'Ruhi Book 5');
+      study.deleteCategory(study.categories.single);
+      expect([study.categories, study.categoriesOf(a)], everyElement(isEmpty));
+      expect(study.books, hasLength(2));
+      expect(obsidianTags(['Ruhi Book 5', ' Tutor training! ', '2026', 'ruhi book 5']), [
+        'ruhi-book-5',
+        'tutor-training',
+      ]);
+    });
+
+    test('sorting by recent, title, most marked and added; search ignores accents', () {
+      var t = DateTime(2026, 11, 20, 18);
+      study = StudyStore(data, now: () => t);
+      final a = study.addBook(sha256: 'aa11', fileName: 'Zeta.pdf', byteSize: 1, pageCount: 1).$1;
+      t = t.add(const Duration(minutes: 1));
+      final b = study.addBook(sha256: 'bb22', fileName: 'Alpha.pdf', byteSize: 1, pageCount: 1).$1;
+      data.clock = () => DateTime(2026, 11, 21).millisecondsSinceEpoch;
+      study.saveView(study.currentRun(a).id, a.docId, const DocView(page: 1));
+      study.addNote(a, study.currentRun(a).id, 'Bahá’u’lláh’s words on service');
+      List<String> names(StudySort s) => [for (final x in sortBooks(study, study.books, s)) x.name];
+      expect(names(StudySort.recent), ['Zeta', 'Alpha'], reason: 'Zeta was read since Alpha was added');
+      expect(names(StudySort.title), ['Alpha', 'Zeta']);
+      expect(names(StudySort.marked), ['Zeta', 'Alpha']);
+      expect(names(StudySort.added), ['Alpha', 'Zeta']);
+      final p = page(['The group meets every week']);
+      study.addHighlight(study.currentRun(b).id, b.docId, p, 4, 9, color: 'blue', note: 'Who?');
+      String fold(String s) => s.toLowerCase().replaceAll('á', 'a').replaceAll(RegExp("[’']"), '');
+      final hits = searchMarks(study, 'bahaullahs', fold: fold);
+      expect([for (final h in hits) (h.book.name, h.kind)], [('Zeta', 'note')]);
+      expect([for (final h in searchMarks(study, 'WHO', fold: fold)) h.text], ['group']);
+      expect(searchMarks(study, '', fold: fold), isEmpty);
+      expect(searchMarks(study, '', all: true), hasLength(2));
     });
   });
 
