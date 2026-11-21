@@ -27,6 +27,8 @@ import '../search/fold.dart';
 import '../search/search_index.dart';
 import '../settings/gtk_import.dart';
 import '../settings/settings_store.dart';
+import '../study/study_controller.dart';
+import '../study/study_store.dart';
 import '../userdata/userdata_store.dart';
 
 /// The app's shared state: the chosen language's library, settings, highlights and saved passages.
@@ -41,6 +43,9 @@ class AppState extends ChangeNotifier {
   /// Where highlights, notes, saved passages, collections, positions and records are kept (`userdata.sqlite`), or null
   /// if it could not be opened: then they stay in `settings.json`, as before the store existed.
   UserDataStore? userData;
+
+  /// The Study section (imported books and their marks), or null when the user-data store could not be opened.
+  StudyController? study;
 
   /// A message to show once (e.g. a settings file that could not be read).
   String? notice;
@@ -98,7 +103,7 @@ class AppState extends ChangeNotifier {
         settings.importedGtk = hadImported;
         settings
           ..legacy = older
-          ..userdataVersion = userDataSchema;
+          ..userdataVersion = movedMarker;
         data.save(settings);
       } else {
         data.loadInto(settings);
@@ -110,6 +115,16 @@ class AppState extends ChangeNotifier {
       return;
     }
     userData = data;
+    study = StudyController(
+      StudyStore(data),
+      studyBooksFolder(),
+      readColor: () => settings.highlightColor,
+      writeColor: (c) {
+        if (c == settings.highlightColor) return;
+        settings.highlightColor = c;
+        _save(notify: false);
+      },
+    );
     try {
       await store.save(settings);
     } on FileSystemException {
@@ -602,6 +617,7 @@ class AppState extends ChangeNotifier {
     _clicks?.cancel();
     _lifecycle?.dispose();
     _openRequests.close();
+    study?.dispose();
     userData?.close();
     super.dispose();
   }
@@ -880,6 +896,13 @@ class AppState extends ChangeNotifier {
   }
 
   bool _saveFailed = false;
+
+  /// Where the app keeps its own copies of books imported into Study: beside the downloaded libraries
+  /// (Linux: `$XDG_DATA_HOME/bahai-reader-flutter/books`), else beside the settings.
+  Directory studyBooksFolder() {
+    final own = repository.folders.own;
+    return Directory('${own != null ? own.parent.path : store.file.parent.path}/books');
+  }
 
   /// Stores everything now: the marks in the user-data store, the rest in `settings.json`. For changes made to
   /// [settings] directly; the methods above save by themselves.

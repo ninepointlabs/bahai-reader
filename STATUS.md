@@ -5,6 +5,63 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Study, v1 (Study plan, Phase 1) — 2026-11-20
+
+Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section` (Tim's decisions: section named Study, PDF only, phone
+bottom bar, ship with the "not affiliated" notice, past runs locked with Unlock, notes switch for Android backup, five
+colours app-wide). Branch **`feat/study-v1`** from `origin/main` `aebe90c`, committed locally; not pushed, no PR.
+
+**What it does**
+
+- **Study** section: desktop sidebar row between Writings and Saved; on phones, Today · Writings · Prayers · Study in a
+  bottom bar (was top tabs). Library of imported books (newest first, search by name, rename, remove → Removed → put
+  back or delete for good), each showing its run and marks. Import: file dialog (Ctrl+O), and on Android "Open with" /
+  Share. The PDF is copied to `books/<sha256>.pdf` beside the downloaded libraries; the original is only read.
+- **Reader** (pdfrx 2.12.0, PDFium chromium/8125): text selection with a colour bar (5 colours, note, copy); highlights
+  (keys 1–5, a, Ctrl+H) store page, boxes, the structured text's offsets, the quote and 32 characters either side;
+  notes on highlights (dot in the margin); bookmarks (b, Ctrl+D; folded corner; named after the PDF's contents entry);
+  **answers** typed on the page's blank lines, found in the rendered page by Dogear's detector ported to Dart (ruled
+  lines under a question are one answer that wraps; Tab/Shift+Tab/Enter move on; Ctrl+=/− size), or in a box placed by
+  long-press/right-click on empty paper (Dogear can't); book notes (Ctrl+N); search in the book (Ctrl+F, /); go to page
+  (Ctrl+G); j/k, J/K, g/G, +/−/0; remembers page and zoom per run. Panels: Contents (the PDF's outline), Highlights,
+  Bookmarks, Answers, Notes (sidebar on desktop, a sheet on phones; Ctrl+1…5). Export a run to Markdown (Ctrl+E;
+  Dogear's format plus the run; save dialog, Android "Save to").
+- **Runs**: every mark belongs to a run; the first ("1st time, Nov 2026") is made at import. Locked runs are refused by
+  the store and shown read-only with a banner. Starting new runs, switching and comparing are Phase 2.
+- **Five colours app-wide**: yellow, green, blue, pink, purple. `magenta` reads as pink (Omarchy's magenta still colours
+  it); schema-1 stores are updated; `settings.json`'s frozen copy keeps raw values for 1.0.x.
+- **Android**: `books/` and `nobackup/` excluded from cloud backup and device transfer (`res/xml/*_rules.xml`);
+  Settings → *Include notes in Android backup* (default on = today's behaviour; off moves `settings.json` and
+  `userdata.sqlite` to `files/nobackup/` at the next start). Still **no INTERNET permission** (aapt on the release APK).
+- **Notices**: DATA-NOTICE "Study section and Ruhi books" and "Bundled software"; About gains Study and Open source rows
+  (license page with PDFium's 19 license texts from that release, in `assets/licenses/pdfium/`, and SQLite); the
+  library shows the privacy line and "not affiliated with or endorsed by the Ruhi Institute".
+
+**Tests (real results)**
+
+- `flutter analyze`: No issues found. `flutter test`: **135 passed, 1 skipped** (the existing whole-library fixture).
+- New: `study_rules_test` (27, Dogear's rule tests ported, all pass), `study_pdf_test` (detector and questions on a real
+  PDF: `test/fixtures/worksheet.pdf`, our own sample made by `scripts/fixtures/make-worksheet.sh`), `study_store_test`
+  (9: books/runs, highlights incl. overlap and cross-line, answers and slot keys, bookmarks/notes/place, locked run
+  refused, delete for good, schema 1→2 magenta→pink, import by hash, export format and never overwriting a foreign
+  file), `study_desktop_test`, `study_phone_test`, `android_backup_test` (3).
+- Off-screen renders (`scripts/screenshots/study_shots_test.dart`, PNGs in `scripts/screenshots/out/`, not committed):
+  highlights, note dot, bookmark corner and answers sitting on their lines (wrapping across ruled lines) look right.
+- `flutter build linux --release` → `--version` prints SQLite 3.54.1; `lib/libpdfium.so` needs GLIBC ≤ 2.16.
+- `flutter build apk --release` builds (90 MB fat APK: PDFium adds ~4–7 MB per ABI); permissions unchanged.
+- Schema 1 → 2 on the scratch copy of your real data (from Phase 0): both highlights kept, Study tables added.
+
+**Not done / not verified**
+
+- **Not run on an Android phone or on Windows**, and not used by hand in a real Linux window (only off-screen renders and
+  widget tests). Touch selection, the soft keyboard over answers, "Open with"/Share, Save to and the backup switch are
+  untested on a device.
+- Not in v1: drag-and-drop import (desktop_drop left out), moving/resizing an answer box by dragging (the store
+  supports it), Back (Alt+←/Backspace) after a jump, PDF page labels in headings, Unlock of a locked run (no way to lock
+  one yet; Phase 2), store-listing wording (the store branch is unmerged; wording is in the plan §10).
+- A test-only limit: under widget-test fake time the viewer's queued renders block PDFium, so tests read page data
+  before showing the viewer.
+
 ## User-data layer (Study plan, Phase 0) — 2026-11-20
 
 Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section`. Branch **`feat/userdata-layer`** (from `origin/main`

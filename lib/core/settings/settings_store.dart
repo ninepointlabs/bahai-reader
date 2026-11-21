@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../calendar/badi.dart';
 import '../calendar/reminders.dart';
 import '../marks/highlight.dart';
+import 'android_backup.dart';
 
 /// This experiment's own settings file. It never reads from or writes to the GTK app's `~/.config/bahai-reader/`
 /// except the GTK import (`gtk_import.dart`), which only reads it.
@@ -258,7 +259,7 @@ class Settings {
       theme: themes.contains(j['theme']) ? j['theme'] as String : 'system',
       language: j['language'] is int ? j['language'] as int : 1,
       textSize: size is num && size.isFinite ? size.toDouble().clamp(15, 36) : 22,
-      highlightColor: highlightColors.contains(j['highlight_color']) ? j['highlight_color'] as String : 'yellow',
+      highlightColor: cleanHighlightColor(j['highlight_color']) ?? 'yellow',
       highlights: cleanHighlights(j['highlights']),
       saved: savedList,
       positions: positions is Map
@@ -331,7 +332,7 @@ class Settings {
   static const chromeFonts = ['System', 'Monospace'];
 
   /// The sections a window can open on (GTK `SHELL_SECTIONS`; `hidden` is the Hidden Words, a book in Writings here).
-  static const sections = ['home', 'today', 'prayers', 'obligatory', 'hidden', 'writings', 'saved'];
+  static const sections = ['home', 'today', 'prayers', 'obligatory', 'hidden', 'writings', 'study', 'saved'];
 }
 
 /// A number setting clamped to its range (GTK `LIMITS`), or null if it is not a number.
@@ -393,6 +394,9 @@ class SettingsStore {
       final xdg = Platform.environment['XDG_CONFIG_HOME'];
       final base = xdg != null && xdg.isNotEmpty ? xdg : '${Platform.environment['HOME']}/.config';
       dir = Directory('$base/bahai-reader-flutter');
+    } else if (Platform.isAndroid) {
+      // In or out of Android's backup, as chosen in Settings (android_backup.dart).
+      dir = await userDataFolder(await getApplicationSupportDirectory());
     } else {
       dir = await getApplicationSupportDirectory();
     }

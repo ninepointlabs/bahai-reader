@@ -16,8 +16,8 @@ import org.json.JSONObject
 import java.util.TimeZone
 
 /**
- * The reader, plus the `bahai_reader/reminders` channel (lib/core/platform/notifier.dart, AndroidNotifier) and the
- * `bahai_reader/location` channel (lib/core/platform/locator.dart).
+ * The reader, plus the `bahai_reader/reminders` channel (lib/core/platform/notifier.dart, AndroidNotifier), the
+ * `bahai_reader/location` channel (lib/core/platform/locator.dart) and the `bahai_reader/files` channel (StudyFiles.kt).
  */
 class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
@@ -84,6 +84,28 @@ class MainActivity : FlutterActivity() {
         }
         Reminders.onPending = { Handler(Looper.getMainLooper()).post { channel?.invokeMethod("pending", null) } }
         queueOpen(intent)
+        val files = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "bahai_reader/files")
+        files.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "takeIncoming" -> result.success(StudyFiles.takeIncoming())
+                "save" -> StudyFiles.save(
+                    this,
+                    call.argument<String>("name") ?: "export.md",
+                    call.argument<String>("mime") ?: "text/markdown",
+                    call.argument<String>("text") ?: "",
+                    result,
+                )
+                else -> result.notImplemented()
+            }
+        }
+        StudyFiles.onIncoming = { Handler(Looper.getMainLooper()).post { files.invokeMethod("incoming", null) } }
+        StudyFiles.take(this, intent)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == StudyFiles.SAVE_REQUEST) StudyFiles.saved(this, resultCode, data)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -112,6 +134,7 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         queueOpen(intent)
+        StudyFiles.take(this, intent)
     }
 
     /** A tap on a reminder: what it opens is queued for the app (it asks at start, and is told while running). */
@@ -123,6 +146,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         Reminders.onPending = null
+        StudyFiles.onIncoming = null
         channel = null
         super.onDestroy()
     }

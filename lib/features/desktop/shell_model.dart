@@ -5,10 +5,10 @@ import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
 
 /// The sidebar's sections, as in the GTK app's libadwaita window.
-enum Section { home, today, prayers, obligatory, writings, saved }
+enum Section { home, today, prayers, obligatory, writings, study, saved }
 
 /// What the content pane shows.
-enum Pane { home, today, library, prayers, reading, highlights, counter }
+enum Pane { home, today, library, prayers, reading, highlights, counter, study, studyReader }
 
 /// The sidebar row each section belongs to: Today is part of Home, the obligatory prayers of Prayers (GTK `NAV_OF`).
 Section navOf(Section s) => switch (s) {
@@ -20,8 +20,17 @@ Section navOf(Section s) => switch (s) {
 /// Where the desktop window is: the sidebar section, the book open in it, the passage on show and its group.
 /// Kept apart from [AppState], which holds what is saved; this is only the window's state.
 class ShellModel extends ChangeNotifier {
-  ShellModel(this.app);
+  ShellModel(this.app) {
+    app.study?.addListener(_studyChanged);
+  }
   final AppState app;
+
+  /// The open Study book changed (opened, closed, renamed): the titles and the sidebar follow.
+  void _studyChanged() {
+    final open = app.study?.book != null;
+    if (section == Section.study && pane == Pane.studyReader && !open) pane = Pane.study;
+    notifyListeners();
+  }
 
   Section section = Section.home;
   Pane pane = Pane.home;
@@ -65,13 +74,17 @@ class ShellModel extends ChangeNotifier {
   }
 
   /// The sidebar shows one book (or the obligatory prayers), with a Back button.
-  bool get inBook => (section == Section.writings && book != null) || section == Section.obligatory;
+  bool get inBook =>
+      (section == Section.writings && book != null) ||
+      section == Section.obligatory ||
+      (section == Section.study && pane == Pane.studyReader && app.study?.book != null);
 
   /// The sidebar's "Search this section…" field, so Ctrl+F can put the cursor there.
   final filterFocus = FocusNode();
 
   @override
   void dispose() {
+    app.study?.removeListener(_studyChanged);
     filterFocus.dispose();
     super.dispose();
   }
@@ -102,6 +115,10 @@ class ShellModel extends ChangeNotifier {
         pane = Pane.prayers;
       case Section.saved:
         openSaved();
+      case Section.study:
+        // Back to the book that was open, else the library.
+        pane = app.study?.book != null ? Pane.studyReader : Pane.study;
+        showContent = true;
     }
     if (pane != Pane.reading) _remember();
     notifyListeners();
@@ -124,7 +141,23 @@ class ShellModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The Study book just opened: the reader, with the book's panels in the sidebar.
+  void showStudyReader() {
+    section = Section.study;
+    pane = Pane.studyReader;
+    showContent = true;
+    _remember();
+    notifyListeners();
+  }
+
   void leaveBook() {
+    if (section == Section.study) {
+      app.study?.close();
+      pane = Pane.study;
+      showContent = true;
+      notifyListeners();
+      return;
+    }
     navigate(section == Section.obligatory ? Section.prayers : Section.writings);
     showContent = false;
     notifyListeners();
@@ -268,6 +301,8 @@ class ShellModel extends ChangeNotifier {
         }
       case 'saved':
         navigate(Section.saved);
+      case 'study':
+        navigate(Section.study);
       default:
         navigate(Section.home);
     }

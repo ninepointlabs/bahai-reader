@@ -86,6 +86,12 @@ Checksums for every download are in `SHA256SUMS`.
   of a version with this store moves them out of `settings.json` and keeps a copy of the old file as
   `settings.json.pre-userdata-<date>`; `settings.json` keeps its copies as they were at the move, so an older version
   still finds them.
+- **Study**: import PDFs of your own (such as your copies of Ruhi Institute books; the app includes none) and study them:
+  highlights in five colours with notes, bookmarks, your answers typed on the workbook's blank lines (found in the page
+  image, as in Dogear) or in a box anywhere on the page, notes about the book, search in the book, and the place you
+  stopped. Each time through a book is a *run* ("1st time, Nov 2026") that owns its marks. Export a run to Markdown for
+  Obsidian. Imported files are copied into the app on this device and never uploaded. Not affiliated with or endorsed
+  by the Ruhi Institute.
 - **Light, Dark and Sepia** palettes from the GTK app; by default it follows the live Omarchy theme where there is one,
   else the system's light or dark.
 - **Desktop layout like the GTK app** (Linux, Windows, macOS): a sidebar with Home, Prayers, Writings and Saved and the
@@ -159,7 +165,10 @@ lib/
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
     userdata/   userdata_store.dart (marks and personal choices in SQLite, sync-ready records, the move from
-                settings.json), ids.dart (UUIDv7, UUIDv5, hybrid logical clock)
+                settings.json; schema 2 adds Study's tables), ids.dart (UUIDv7, UUIDv5, hybrid logical clock)
+    study/      study_store.dart (books, runs and their marks), study_controller.dart (the open book), rules.dart
+                (answer lines found in a page image: Dogear's rules.py), page_data.dart (a PDF page's text and lines),
+                importer.dart, export.dart (Markdown)
   features/
     desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
                 Highlights & notes (shell_model.dart holds where the window is)
@@ -167,6 +176,7 @@ lib/
                 phone_today.dart opens them as pages on phones
     library/  reader/  search/  marks/    the touch layout (phones, tablets)
     settings/  about/                     shared by both
+    study/      Study's library, PDF reader (pdfrx), panels, import/export; used by both layouts
 packaging/                     desktop file, icons, AppStream metainfo, nFPM, AppRun, Flatpak manifest, Windows installer
 scripts/build-*.sh             Linux packages, AppImage and Flatpak from the release bundle
 scripts/screenshots/           the website's desktop screenshots, rendered off screen (see the file's header)

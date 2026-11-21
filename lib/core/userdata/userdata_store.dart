@@ -28,7 +28,12 @@ import '../settings/settings_store.dart';
 import 'ids.dart';
 
 /// The store's schema version (`PRAGMA user_version`).
-const userDataSchema = 1;
+const userDataSchema = 2;
+
+/// `userdata_version` in `settings.json` once the marks have moved into the store. Not the store's schema version.
+const movedMarker = 1;
+
+/// Schema 2: the Study section's tables; highlight colour `magenta` became `pink` (five colours).
 
 /// The columns every synced table has, after `id`.
 const _sync =
@@ -44,7 +49,34 @@ const _tables = <String, List<String>>{
   'recent_book': ['work_key', 'opened_at'],
   'day_record': ['kind', 'key', 'sort'],
   'user_pref': ['key', 'value'],
+  // ----- Study (schema 2). Books are files identified by SHA-256; a "run" is one time through a book, and owns every
+  // mark made in it. Positions are PDF points from the page's top-left corner; pages are 1-based.
+  'doc_file': ['sha256', 'file_name', 'title', 'page_count', 'byte_size', 'pdf_doc_id'],
+  'study_book': ['label', 'doc_id', 'current_run_id', 'sort', 'removed_at'],
+  'study_run': ['book_id', 'ordinal', 'name', 'started_at', 'finished_at', 'locked'],
+  'doc_highlight': [
+    'run_id', 'doc_id', 'page', 'rects', 'char_start', 'char_end', 'quote', 'prefix', 'suffix', 'color', 'note', //
+  ],
+  'doc_bookmark': ['run_id', 'doc_id', 'page', 'y', 'name'],
+  'doc_note': ['book_id', 'run_id', 'text'],
+  'answer': [
+    'run_id', 'doc_id', 'page', 'kind', 'x', 'y', 'w', 'h', 'pitch', 'lines', 'indent', 'size', 'context', //
+    'slot_key', 'text',
+  ],
+  'doc_view': ['run_id', 'doc_id', 'page', 'offset', 'zoom'],
 };
+
+/// The Study tables, which are read and written record by record ([UserDataStore.put]) rather than from [Settings].
+const studyTables = [
+  'doc_file',
+  'study_book',
+  'study_run',
+  'doc_highlight',
+  'doc_bookmark',
+  'doc_note',
+  'answer',
+  'doc_view',
+];
 
 const _schema =
     '''
@@ -59,6 +91,24 @@ CREATE TABLE IF NOT EXISTS recent_book (id TEXT PRIMARY KEY, $_sync, work_key TE
 CREATE TABLE IF NOT EXISTS day_record (id TEXT PRIMARY KEY, $_sync, kind TEXT NOT NULL, key TEXT NOT NULL, sort INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS user_pref (id TEXT PRIMARY KEY, $_sync, key TEXT NOT NULL, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS local_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS doc_file (id TEXT PRIMARY KEY, $_sync, sha256 TEXT NOT NULL, file_name TEXT, title TEXT,
+  page_count INTEGER, byte_size INTEGER, pdf_doc_id TEXT);
+CREATE TABLE IF NOT EXISTS study_book (id TEXT PRIMARY KEY, $_sync, label TEXT, doc_id TEXT NOT NULL,
+  current_run_id TEXT, sort INTEGER, removed_at INTEGER);
+CREATE TABLE IF NOT EXISTS study_run (id TEXT PRIMARY KEY, $_sync, book_id TEXT NOT NULL, ordinal INTEGER NOT NULL,
+  name TEXT NOT NULL, started_at INTEGER, finished_at INTEGER, locked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS doc_highlight (id TEXT PRIMARY KEY, $_sync, run_id TEXT NOT NULL, doc_id TEXT NOT NULL,
+  page INTEGER NOT NULL, rects TEXT NOT NULL, char_start INTEGER, char_end INTEGER, quote TEXT, prefix TEXT,
+  suffix TEXT, color TEXT NOT NULL, note TEXT);
+CREATE TABLE IF NOT EXISTS doc_bookmark (id TEXT PRIMARY KEY, $_sync, run_id TEXT NOT NULL, doc_id TEXT NOT NULL,
+  page INTEGER NOT NULL, y REAL, name TEXT);
+CREATE TABLE IF NOT EXISTS doc_note (id TEXT PRIMARY KEY, $_sync, book_id TEXT NOT NULL, run_id TEXT NOT NULL,
+  text TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS answer (id TEXT PRIMARY KEY, $_sync, run_id TEXT NOT NULL, doc_id TEXT NOT NULL,
+  page INTEGER NOT NULL, kind TEXT NOT NULL, x REAL, y REAL, w REAL, h REAL, pitch REAL, lines INTEGER,
+  indent REAL, size REAL, context TEXT, slot_key TEXT, text TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS doc_view (id TEXT PRIMARY KEY, $_sync, run_id TEXT NOT NULL, doc_id TEXT NOT NULL,
+  page INTEGER, offset REAL, zoom REAL);
 ''';
 
 /// The personal choices kept as `user_pref` records, by their `settings.json` key.
@@ -112,7 +162,6 @@ class UserDataStore {
         throw UserDataProblem('it was written by a newer version of the app (schema $version)');
       }
       db.execute(_schema);
-      db.execute('PRAGMA user_version = $userDataSchema');
       String? meta(String k) =>
           db.select('SELECT value FROM local_meta WHERE key = ?', [k]).firstOrNull?['value'] as String?;
       var device = meta('device_id');
@@ -124,6 +173,8 @@ class UserDataStore {
       final last = meta('hlc');
       if (last != null) clock.observe(last);
       final store = UserDataStore._(file, db, clock);
+      if (version == 1) store._fiveColours();
+      db.execute('PRAGMA user_version = $userDataSchema');
       store._fill();
       return store;
     } catch (e) {
@@ -134,6 +185,105 @@ class UserDataStore {
   }
 
   void close() => _db.close();
+
+  /// Schema 1 → 2: the fourth highlight colour, `magenta`, is called `pink` now that there are five.
+  void _fiveColours() {
+    final now = clock();
+    final stamp = hlc.next(now);
+    _db.execute('BEGIN IMMEDIATE');
+    try {
+      _db.execute(
+        "UPDATE passage_highlight SET color = 'pink', updated_at = ?, hlc = ?, device_id = ? WHERE color = 'magenta'",
+        [now, stamp, deviceId],
+      );
+      _db.execute(
+        "UPDATE user_pref SET value = '\"pink\"', updated_at = ?, hlc = ?, device_id = ? "
+        "WHERE key = 'highlight_color' AND value = '\"magenta\"'",
+        [now, stamp, deviceId],
+      );
+      _db.execute('INSERT OR REPLACE INTO local_meta (key, value) VALUES (?, ?)', ['hlc', hlc.stamp]);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  // ----- records, one at a time (the Study tables) -----
+
+  bool _inTransaction = false;
+
+  /// Runs [body] in one transaction: every [put] and [remove] in it is stored together or not at all.
+  T batch<T>(T Function() body) {
+    if (_inTransaction) return body();
+    late T result;
+    _inTransaction = true;
+    try {
+      _transaction(() => result = body());
+    } finally {
+      _inTransaction = false;
+    }
+    return result;
+  }
+
+  /// The live records of [table], each with its `id`, `created_at` and `updated_at`.
+  List<Map<String, Object?>> records(String table) {
+    final cols = _tables[table]!;
+    return [
+      for (final MapEntry(key: id, value: row) in _cache[table]!.entries)
+        if (!row.deleted)
+          {'id': id, 'created_at': row.createdAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]},
+    ];
+  }
+
+  /// One live record, or null.
+  Map<String, Object?>? record(String table, String id) {
+    final row = _cache[table]![id];
+    if (row == null || row.deleted) return null;
+    final cols = _tables[table]!;
+    return {'id': id, 'created_at': row.createdAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]};
+  }
+
+  /// Writes a record (all of [table]'s columns, from [values]; missing ones are null) if it changed. A tombstoned
+  /// record with the same id comes back.
+  void put(String table, String id, Map<String, Object?> values) {
+    final cols = _tables[table]!;
+    final list = [for (final c in cols) values[c]];
+    batch(() => _put(table, id, list, clock()));
+  }
+
+  /// Makes a record a tombstone.
+  void remove(String table, String id) {
+    final row = _cache[table]![id];
+    if (row == null || row.deleted) return;
+    batch(() {
+      final now = clock();
+      _db.execute('UPDATE $table SET deleted_at = ?, updated_at = ?, hlc = ?, device_id = ? WHERE id = ?', [
+        now,
+        now,
+        hlc.next(now),
+        deviceId,
+        id,
+      ]);
+      _cache[table]![id] = _Row(row.values, row.createdAt, deleted: true);
+    });
+  }
+
+  void _put(String table, String id, List<Object?> values, int now) {
+    final rows = _cache[table]!;
+    final old = rows[id];
+    if (old != null && !old.deleted && _same(old.values, values)) return;
+    final cols = _tables[table]!;
+    final quoted = cols.map((c) => '"$c"').join(', ');
+    final marks = List.filled(cols.length, '?').join(', ');
+    final created = old?.createdAt ?? now;
+    _db.execute(
+      'INSERT OR REPLACE INTO $table (id, created_at, updated_at, hlc, device_id, deleted_at, $quoted) '
+      'VALUES (?, ?, ?, ?, ?, NULL, $marks)',
+      [id, created, now, hlc.next(now), deviceId, ...values],
+    );
+    rows[id] = _Row(values, created);
+  }
 
   /// When the marks were moved in from `settings.json` (ISO time), or null if they have not been yet.
   String? get migratedAt =>
@@ -394,19 +544,8 @@ class UserDataStore {
   /// tombstones.
   void _sync(String table, Map<String, List<Object?>> want, int now) {
     final rows = _cache[table]!;
-    final cols = _tables[table]!;
-    final quoted = cols.map((c) => '"$c"').join(', ');
-    final marks = List.filled(cols.length, '?').join(', ');
     for (final MapEntry(key: id, value: values) in want.entries) {
-      final old = rows[id];
-      if (old != null && !old.deleted && _same(old.values, values)) continue;
-      final created = old?.createdAt ?? now;
-      _db.execute(
-        'INSERT OR REPLACE INTO $table (id, created_at, updated_at, hlc, device_id, deleted_at, $quoted) '
-        'VALUES (?, ?, ?, ?, ?, NULL, $marks)',
-        [id, created, now, hlc.next(now), deviceId, ...values],
-      );
-      rows[id] = _Row(values, created);
+      _put(table, id, values, now);
     }
     for (final MapEntry(key: id, value: old) in rows.entries.toList()) {
       if (old.deleted || want.containsKey(id)) continue;
@@ -438,7 +577,20 @@ class UserDataStore {
   Future<void> migrate(Settings settings, File settingsFile) async {
     if (migratedAt != null) return;
     final before = Settings.fromJson(settings.userDataJson()).userDataJson();
+    // What the file itself says, kept unchanged in it (an older version reads it as it wrote it: `magenta`, say).
+    var frozen = before;
     if (await settingsFile.exists()) {
+      try {
+        final raw = jsonDecode(await settingsFile.readAsString());
+        if (raw is Map && raw['userdata_version'] == null) {
+          frozen = {
+            for (final k in Settings.userDataKeys)
+              if (raw[k] != null) k: raw[k] as Object,
+          };
+        }
+      } on FormatException {
+        // an unreadable file was set aside by SettingsStore.load(); keep the cleaned values
+      }
       final day = DateTime.now().toIso8601String().substring(0, 10);
       var copy = File('${settingsFile.path}.pre-userdata-$day');
       for (var n = 1; await copy.exists(); n++) {
@@ -471,12 +623,15 @@ class UserDataStore {
       throw UserDataProblem('the marks could not be stored ($e)');
     }
     settings
-      ..legacy = Map.of(before)
-      ..userdataVersion = userDataSchema;
+      ..legacy = Map.of(frozen)
+      ..userdataVersion = movedMarker;
   }
 
   /// For tests and checks: counts of live records by table.
-  Map<String, int> counts() => {for (final t in _tables.keys) t: _live(t).length};
+  Map<String, int> counts() => {
+    for (final t in _tables.keys)
+      if (!studyTables.contains(t)) t: _live(t).length,
+  };
 
   /// For tests and checks: one record's sync columns.
   Map<String, Object?>? syncInfo(String table, String id) {
