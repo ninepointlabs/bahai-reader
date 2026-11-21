@@ -63,9 +63,9 @@ Future<void> importStudyBytes(
           _say(
             say,
             plan.unplaced == 0
-                ? 'All ${plan.placed} marks of “${book.name}” were found in this edition.'
-                : '${plan.placed} marks were found in this edition; ${plan.unplaced} could not be, and are listed '
-                      'under “Not placed yet” in the book.',
+                ? 'All ${_marks(plan.placed)} of “${book.name}” were found in this edition.'
+                : '${_marks(plan.placed)} found in this edition; ${plan.unplaced} could not be, and '
+                      '${plan.unplaced == 1 ? 'is' : 'are'} listed under “Not placed yet” in the book.',
           );
         }
       } else {
@@ -78,12 +78,15 @@ Future<void> importStudyBytes(
     }
     await study.open(book);
     opened?.call();
+    if (context.mounted) await offerDogear(context, study, book);
   } on ImportProblem catch (e) {
     _say(say, e.message);
   } on FileSystemException catch (e) {
     _say(say, 'The book could not be stored (${e.osError?.message ?? e.message}).');
   }
 }
+
+String _marks(int n) => '$n mark${n == 1 ? '' : 's'}';
 
 enum _Edition { move, separate, different }
 
@@ -206,4 +209,52 @@ Future<void> _saveMarkdown(ScaffoldMessengerState say, String name, String markd
   } on FileSystemException catch (e) {
     _say(say, 'The export could not be saved (${e.osError?.message ?? e.message}).');
   }
+}
+
+/// Linux: if Dogear has marks for this book (the same file or another edition), offers to bring them in. [asked]: from
+/// the menu, offered even if they were brought in or skipped before.
+Future<void> offerDogear(BuildContext context, StudyController study, StudyBook book, {bool asked = false}) async {
+  final d = study.dogearFor(book, again: asked);
+  if (d == null) {
+    if (asked) _say(ScaffoldMessenger.of(context), 'Dogear has no marks for this book.');
+    return;
+  }
+  final say = ScaffoldMessenger.of(context);
+  final empty =
+      study.store.counts(study.store.currentRun(book).id) == (highlights: 0, notes: 0, answers: 0, bookmarks: 0);
+  final same = d.sha256 == book.doc.sha256;
+  final choice = await showDialog<String>(
+    context: context,
+    builder: (dlg) => AlertDialog(
+      title: const Text('Bring in your Dogear marks?'),
+      content: SizedBox(
+        width: 480,
+        child: Text(
+          'Dogear has ${d.summary} for ${same ? 'this book' : 'another edition of it (“${d.fileName}”)'}.\n\n'
+          '${empty ? 'They become this first time through.' : 'They come in as a time through of their own, “From Dogear”, listed before the others; nothing here is changed.'}'
+          '${same ? '' : ' Marks that cannot be found in this edition are listed so you can place them.'} '
+          'Dogear’s own files are only read.',
+        ),
+      ),
+      actions: [
+        if (!asked) TextButton(onPressed: () => Navigator.pop(dlg, 'never'), child: const Text('Don’t ask again')),
+        TextButton(onPressed: () => Navigator.pop(dlg), child: const Text('Not now')),
+        FilledButton(onPressed: () => Navigator.pop(dlg, 'yes'), child: const Text('Bring them in')),
+      ],
+    ),
+  );
+  if (choice == 'never') return study.skipDogear(book, d);
+  if (choice != 'yes' || !context.mounted) return;
+  final report = await _withProgress(context, (progress) {
+    progress('Bringing in Dogear’s marks…');
+    return study.bringInDogear(book, d);
+  });
+  if (report == null) return;
+  _say(
+    say,
+    report.unplaced == 0
+        ? 'Brought in ${report.placed} marks from Dogear into “${report.runName}”.'
+        : 'Brought in ${report.placed} marks from Dogear into “${report.runName}”; ${report.unplaced} could not be '
+              'found in this edition and are listed under “Not placed yet”.',
+  );
 }

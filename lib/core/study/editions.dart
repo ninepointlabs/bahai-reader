@@ -165,18 +165,68 @@ String _foldContext(String s) => Folded(s).folded.replaceAll(RegExp(r'[^\p{L}\p{
 /// Where an answer's blank is in [pages]: the answer line whose printed question matches [context] (ignoring case,
 /// spacing and punctuation), the [ordinal]-th blank of it, nearest to [hintPage]. Returns (page number, index into
 /// that page's rules), or null. Pages need their answer lines ([PageData.rules]).
-(int, int)? findSlot(List<PageData> pages, String context, {int ordinal = 0, int hintPage = 1}) {
+(int, int)? findSlot(
+  List<PageData> pages,
+  String context, {
+  int ordinal = 0,
+  int hintPage = 1,
+  double? hintY,
+  bool loose = false,
+}) {
+  final exact = _findSlotExact(pages, context, ordinal: ordinal, hintPage: hintPage, hintY: hintY);
+  if (exact != null || !loose) return exact;
+  return _findSlotLoose(pages, context, hintPage: hintPage, hintY: hintY);
+}
+
+Set<String> _words(String s) => {
+  for (final w in _foldContext(s).split(' '))
+    if (w.length > 2) w,
+};
+
+/// When the question text differs a little (another program's reading of the page joined the lines of a list
+/// differently): the line within two pages of [hintPage] whose question shares most words with [context] (at least
+/// 80% of the shorter one's, and 4 words), the nearest to [hintPage] and then to [hintY].
+(int, int)? _findSlotLoose(List<PageData> pages, String context, {int hintPage = 1, double? hintY}) {
+  final want = _words(context);
+  if (want.length < 4) return null;
+  (int, int)? best;
+  var bestScore = 0.0;
+  var bestDistance = double.infinity;
+  for (final p in pages) {
+    if ((p.number - hintPage).abs() > 2) continue;
+    for (var i = 0; i < p.rules.length; i++) {
+      final r = p.rules[i];
+      final have = _words(p.contextAt(r.x + 5, r.y));
+      final shared = want.intersection(have).length;
+      if (shared < 4 || have.isEmpty) continue;
+      final score = shared / math.min(want.length, have.length);
+      if (score < 0.8) continue;
+      final double distance = (p.number - hintPage).abs() * 10000.0 + (hintY == null ? 0.0 : (r.y - hintY).abs());
+      // Over the threshold, the nearest wins: a list's items share most of their words.
+      if (distance < bestDistance || (distance == bestDistance && score > bestScore)) {
+        best = (p.number, i);
+        bestScore = score;
+        bestDistance = distance;
+      }
+    }
+  }
+  return best;
+}
+
+/// [ordinal] < 0: any blank of the question, the nearest to [hintPage] and [hintY] (for marks counted another way, such
+/// as Dogear's, one per answer rather than one per ruled line).
+(int, int)? _findSlotExact(List<PageData> pages, String context, {int ordinal = 0, int hintPage = 1, double? hintY}) {
   final want = _foldContext(context);
   if (want.isEmpty) return null;
   (int, int)? best;
-  var bestDistance = 1 << 30;
+  var bestDistance = double.infinity;
   for (final p in pages) {
     var n = 0;
     for (var i = 0; i < p.rules.length; i++) {
       final r = p.rules[i];
       if (_foldContext(p.contextAt(r.x + 5, r.y)) != want) continue;
-      if (n++ != ordinal) continue;
-      final distance = (p.number - hintPage).abs();
+      if (ordinal >= 0 && n++ != ordinal) continue;
+      final double distance = (p.number - hintPage).abs() * 10000.0 + (hintY == null ? 0.0 : (r.y - hintY).abs());
       if (distance < bestDistance) {
         best = (p.number, i);
         bestDistance = distance;

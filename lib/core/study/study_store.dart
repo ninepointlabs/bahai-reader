@@ -520,6 +520,32 @@ class StudyStore {
     ],
   );
 
+  /// A run made from marks brought in from elsewhere (Dogear): not the current one; [ordinal] 0 lists it first.
+  StudyRun addRun(StudyBook b, {required String name, int ordinal = 0, bool locked = true}) {
+    final now = _now();
+    final id = uuidV7(now);
+    data.put('study_run', id, {
+      'book_id': b.id,
+      'ordinal': ordinal,
+      'name': name,
+      'started_at': now.millisecondsSinceEpoch,
+      'finished_at': locked ? now.millisecondsSinceEpoch : null,
+      'locked': locked ? 1 : 0,
+    });
+    return run(id)!;
+  }
+
+  /// Writes marks brought in from elsewhere, each with a new id, in one transaction (the run may be locked: this is
+  /// the app filling it, not a change to it).
+  void addRecords(List<(String, Map<String, Object?>)> records) => data.batch(() {
+    for (final (table, values) in records) {
+      data.put(table, uuidV7(_now()), values);
+    }
+  });
+
+  bool dogearDone(String dogearSha, String bookId) => declined('dogear:$dogearSha', bookId);
+  void markDogearDone(String dogearSha, String bookId) => decline('dogear:$dogearSha', bookId);
+
   /// Puts an unplaced mark aside for good (the person will mark it again themselves).
   void dropUnplaced(String table, String id) => data.remove(table, id);
 

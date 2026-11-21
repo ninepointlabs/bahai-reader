@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'carry.dart';
+import 'dogear_import.dart';
 import 'editions.dart';
 import 'importer.dart';
 import 'page_data.dart';
@@ -354,6 +355,49 @@ class StudyController extends ChangeNotifier {
         'pdf_doc_id': c.file.pdfDocId,
       }, plan.updates);
       return plan;
+    } finally {
+      await doc.dispose();
+      notifyListeners();
+      if (wasOpen) {
+        final again = store.book(b.id);
+        if (again != null) await open(again);
+      }
+    }
+  }
+
+  // ----- Dogear -----
+
+  /// Where Dogear keeps its library (Linux only); tests point it elsewhere.
+  Directory? Function() dogearFolder = () => Platform.isLinux ? dogearLibrary() : null;
+
+  /// Dogear's marks for [b] (the same file, or another edition of it), unless already brought in (or [again]).
+  DogearDoc? dogearFor(StudyBook b, {bool again = false}) {
+    final dir = dogearFolder();
+    if (dir == null) return null;
+    final d = findDogear(readDogear(dir), b);
+    if (d == null || (!again && store.dogearDone(d.sha256, b.id))) return null;
+    return d;
+  }
+
+  /// "Not now"/"never": Dogear's marks for [b] are not offered again after an import.
+  void skipDogear(StudyBook b, DogearDoc d) => store.markDogearDone(d.sha256, b.id);
+
+  /// Brings Dogear's marks for [b] in (see `dogear_import.dart`).
+  Future<DogearReport> bringInDogear(StudyBook b, DogearDoc d) async {
+    final wasOpen = book?.id == b.id;
+    if (wasOpen) await close(notify: false);
+    final doc = await PdfDocument.openFile(fileOf(b).path);
+    try {
+      final pages = [for (final p in doc.pages) await PageData.load(p, rules: false)];
+      final outline = [for (final e in _flatten(await doc.loadOutline(), 0)) (e.title, e.page)];
+      return await importDogear(
+        store,
+        b,
+        d,
+        pages: pages,
+        outline: outline,
+        withRules: (n) => PageData.load(doc.pages[n - 1]),
+      );
     } finally {
       await doc.dispose();
       notifyListeners();

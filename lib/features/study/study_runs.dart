@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -132,6 +134,11 @@ class RunMenuButton extends StatelessWidget {
         ],
         if (shown.id != current.id)
           PopupMenuItem(value: () => deleteRunDialog(context, study, shown), child: Text('Delete “${shown.name}”…')),
+        if (Platform.isLinux)
+          PopupMenuItem(
+            value: () => offerDogear(context, study, book, asked: true),
+            child: const Text('Bring in Dogear marks…'),
+          ),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
