@@ -898,6 +898,21 @@ class AppState extends ChangeNotifier {
 
   bool _saveFailed = false;
 
+  /// Everything you made, as a notes backup (see [UserDataStore.exportAll]); null without the user-data store.
+  Map<String, Object?>? exportNotes() => userData?.exportAll();
+
+  /// Merges a notes backup (from this or another device) into this one; what changed last wins, record by record.
+  Future<MergeReport> mergeNotes(Map<String, Object?> bundle) async {
+    final data = userData;
+    if (data == null) throw UserDataProblem('the notes store is not open');
+    final report = data.merge(bundle);
+    data.loadInto(settings);
+    _followCache.clear();
+    study?.refresh();
+    await _save();
+    return report;
+  }
+
   /// Where the app keeps its own copies of books imported into Study: beside the downloaded libraries
   /// (Linux: `$XDG_DATA_HOME/bahai-reader-flutter/books`), else beside the settings.
   Directory studyBooksFolder() {

@@ -132,6 +132,15 @@ class _Row {
   final bool deleted;
 }
 
+/// What a notes backup file says it is.
+const notesFormat = 'bahai-reader-notes';
+
+/// What merging a backup did.
+class MergeReport {
+  int added = 0, updated = 0, deletedElsewhere = 0, kept = 0;
+  int get changed => added + updated + deletedElsewhere;
+}
+
 /// The store could not be used; the app keeps its marks in `settings.json` as before.
 class UserDataProblem implements Exception {
   UserDataProblem(this.message);
@@ -243,7 +252,12 @@ class UserDataStore {
     return [
       for (final MapEntry(key: id, value: row) in _cache[table]!.entries)
         if (!row.deleted)
-          {'id': id, 'created_at': row.createdAt, 'updated_at': row.updatedAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]},
+          {
+            'id': id,
+            'created_at': row.createdAt,
+            'updated_at': row.updatedAt,
+            for (var i = 0; i < cols.length; i++) cols[i]: row.values[i],
+          },
     ];
   }
 
@@ -252,7 +266,12 @@ class UserDataStore {
     final row = _cache[table]![id];
     if (row == null || row.deleted) return null;
     final cols = _tables[table]!;
-    return {'id': id, 'created_at': row.createdAt, 'updated_at': row.updatedAt, for (var i = 0; i < cols.length; i++) cols[i]: row.values[i]};
+    return {
+      'id': id,
+      'created_at': row.createdAt,
+      'updated_at': row.updatedAt,
+      for (var i = 0; i < cols.length; i++) cols[i]: row.values[i],
+    };
   }
 
   /// Writes a record (all of [table]'s columns, from [values]; missing ones are null) if it changed. A tombstoned
@@ -637,6 +656,77 @@ class UserDataStore {
     settings
       ..legacy = Map.of(frozen)
       ..userdataVersion = movedMarker;
+  }
+
+  // ----- backup and merge (sync step A) -----
+
+  /// Every record (deletion markers included) with its sync columns, as a JSON-ready map: the notes backup file, and
+  /// what another device merges. Device-local things (this device's id, paths) are not in it.
+  Map<String, Object?> exportAll() => {
+    'format': notesFormat,
+    'version': 1,
+    'schema': userDataSchema,
+    'exported': DateTime.now().toUtc().toIso8601String(),
+    'device': deviceId,
+    'tables': {
+      for (final t in _tables.keys) t: [for (final r in _db.select('SELECT * FROM $t ORDER BY id')) Map.of(r)],
+    },
+  };
+
+  /// Merges a backup (or another device's export) into this store: for each record, the version changed last (by its
+  /// hybrid-clock stamp) is kept, deletions included; nothing else is touched. Tables and columns this version does
+  /// not know are left out. Throws [UserDataProblem] for something that is not a notes backup, or one from a newer
+  /// version of the app.
+  MergeReport merge(Map<String, Object?> bundle) {
+    if (bundle['format'] != notesFormat) throw UserDataProblem('this is not a Bahá’í Reader notes backup');
+    final schema = bundle['schema'];
+    if (schema is! int || schema > userDataSchema) {
+      throw UserDataProblem('it was made by a newer version of the app; update this one first');
+    }
+    final tables = bundle['tables'];
+    if (tables is! Map) throw UserDataProblem('the backup has no records');
+    final report = MergeReport();
+    _transaction(() {
+      for (final MapEntry(key: table, value: cols) in _tables.entries) {
+        final rows = tables[table];
+        if (rows is! List) continue;
+        final local = {for (final r in _db.select('SELECT id, hlc FROM $table')) r['id'] as String: r['hlc'] as String};
+        final quoted = cols.map((c) => '"$c"').join(', ');
+        final marks = List.filled(cols.length, '?').join(', ');
+        for (final row in rows) {
+          if (row is! Map) continue;
+          final id = row['id'], stamp = row['hlc'], created = row['created_at'], updated = row['updated_at'];
+          if (id is! String || stamp is! String || created is! int || updated is! int) continue;
+          final mine = local[id];
+          if (mine != null && stamp.compareTo(mine) <= 0) {
+            report.kept++;
+            continue;
+          }
+          final deleted = row['deleted_at'] is int ? row['deleted_at'] as int : null;
+          _db.execute(
+            'INSERT OR REPLACE INTO $table (id, created_at, updated_at, hlc, device_id, deleted_at, $quoted) '
+            'VALUES (?, ?, ?, ?, ?, ?, $marks)',
+            [
+              id,
+              created,
+              updated,
+              stamp,
+              row['device_id'] is String ? row['device_id'] : '',
+              deleted,
+              for (final c in cols) row[c],
+            ],
+          );
+          hlc.observe(stamp);
+          if (mine == null) {
+            deleted == null ? report.added++ : report.deletedElsewhere++;
+          } else {
+            deleted == null ? report.updated++ : report.deletedElsewhere++;
+          }
+        }
+      }
+    });
+    _fill();
+    return report;
   }
 
   /// For tests and checks: counts of live records by table.
