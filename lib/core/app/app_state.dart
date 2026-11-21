@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import 'theme.dart';
 
@@ -28,6 +29,8 @@ import '../search/search_index.dart';
 import '../settings/gtk_import.dart';
 import '../settings/settings_store.dart';
 import '../study/study_controller.dart';
+import '../sync/android_tree_folder.dart';
+import '../sync/folder_sync.dart';
 import '../study/study_store.dart';
 import '../userdata/userdata_store.dart';
 
@@ -75,6 +78,8 @@ class AppState extends ChangeNotifier {
     final gtk = gtkSettings ?? (Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST') ? gtkSettingsFile() : null);
     if (gtk != null && settings.gtkImport == null) await state._firstRunImport(gtk, fresh: fresh);
     await state._start();
+    state._startFolderSync();
+    if (state._folderSync != null) unawaited(state.syncNow());
     return state;
   }
 
@@ -618,6 +623,9 @@ class AppState extends ChangeNotifier {
     _clicks?.cancel();
     _lifecycle?.dispose();
     _openRequests.close();
+    _syncTimer?.cancel();
+    _syncSoon?.cancel();
+    _syncLifecycle?.dispose();
     study?.dispose();
     userData?.close();
     super.dispose();
@@ -898,6 +906,86 @@ class AppState extends ChangeNotifier {
 
   bool _saveFailed = false;
 
+  // ----- folder sync (sync step B) -----
+
+  FolderSync? _folderSync;
+  Timer? _syncTimer, _syncSoon;
+  AppLifecycleListener? _syncLifecycle;
+  bool _syncing = false;
+
+  /// What the last sync did and when, or what went wrong; for Settings.
+  SyncResult? lastSync;
+  DateTime? lastSyncAt;
+  String? syncProblem;
+
+  /// Makes the folder for [path]: a directory, or (Android) a folder chosen in the system picker.
+  SyncFolder Function(String path) syncFolderFor = (path) =>
+      path.startsWith('content://') ? AndroidTreeFolder(path) : DirectoryFolder(Directory(path));
+
+  /// Starts (or stops, with null) syncing through [folder]; [books] also shares imported PDFs.
+  Future<void> setSyncFolder(String? folder, {bool? books}) async {
+    settings.syncFolder = folder;
+    if (books != null) settings.syncBooks = books;
+    await _save();
+    _startFolderSync();
+    if (folder != null) await syncNow();
+  }
+
+  void _startFolderSync() {
+    _syncTimer?.cancel();
+    _syncSoon?.cancel();
+    _syncLifecycle?.dispose();
+    _syncLifecycle = null;
+    final path = settings.syncFolder, data = userData;
+    if (path == null || data == null) {
+      _folderSync = null;
+      return;
+    }
+    _folderSync = FolderSync(
+      folder: syncFolderFor(path),
+      data: data,
+      books: studyBooksFolder(),
+      shareBooks: settings.syncBooks,
+      onMerged: () async {
+        data.loadInto(settings);
+        _followCache.clear();
+        await study?.refresh();
+        notifyListeners();
+        await _remindersChanged(); // the prayer chosen or a "Said" mark may have come from the other device
+      },
+    );
+    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) => syncNow());
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _syncLifecycle = AppLifecycleListener(onResume: syncNow, onPause: syncNow);
+    }
+  }
+
+  /// Syncs now: takes in the other devices' changes and writes this device's. Never runs twice at once.
+  Future<void> syncNow() async {
+    final sync = _folderSync;
+    if (sync == null || _syncing) return;
+    _syncing = true;
+    try {
+      lastSync = await sync.sync();
+      lastSyncAt = DateTime.now();
+      syncProblem = lastSync!.problems.isEmpty ? null : lastSync!.problems.join(' ');
+    } on FileSystemException catch (e) {
+      syncProblem = 'The sync folder could not be used (${e.osError?.message ?? e.message}).';
+    } on PlatformException catch (e) {
+      syncProblem = 'The sync folder could not be used (${e.message ?? e.code}).';
+    } finally {
+      _syncing = false;
+      notifyListeners();
+    }
+  }
+
+  /// A change was stored: write it to the sync folder a few seconds later (several changes go out together).
+  void _syncAfterChange() {
+    if (_folderSync == null) return;
+    _syncSoon?.cancel();
+    _syncSoon = Timer(const Duration(seconds: 5), syncNow);
+  }
+
   /// Everything you made, as a notes backup (see [UserDataStore.exportAll]); null without the user-data store.
   Map<String, Object?>? exportNotes() => userData?.exportAll();
 
@@ -927,6 +1015,7 @@ class AppState extends ChangeNotifier {
   /// Saves the settings. If they cannot be stored, reading still works; it says so once (GTK `save()`).
   Future<void> _save({bool notify = true}) async {
     if (notify) notifyListeners();
+    _syncAfterChange();
     try {
       userData?.save(settings);
     } on Object catch (e) {

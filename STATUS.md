@@ -5,6 +5,31 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Folder sync (Study plan, Phase 6: sync step B) — 2026-11-20
+
+Branch **`feat/folder-sync`** from `feat/notes-backup` (PR #69), committed locally; not pushed.
+
+**What it does**: Settings → *Sync through a folder*. Choose a folder that Syncthing, Dropbox, Nextcloud, OneDrive or
+iCloud Drive keeps the same on each device (desktop: a folder dialog; Android: the system folder picker, which gives
+the app lasting access to that one folder, with no storage permission; SyncTree.kt). Each device writes only its own
+`bahai-reader-notes-<device id>.json` (Phase 5's export, written to a hidden temporary file and renamed) and merges the
+other devices' files when they change (Phase 5's merge: the later change wins per record, deletions included), so the
+sync program never has two devices writing one file; its conflict copies are merged like any other file. A file still
+arriving (unreadable) is tried again next time. Syncs at start, a few seconds after a change, every minute, and when
+the app comes back to the front or goes to the back. Merged-in changes reload the app's marks and recompute reminders.
+**Also share imported Study PDFs** (off by default) copies books into `bahai-reader-books/<sha256>.pdf` and takes in
+missing ones, checking each against its hash. The status line shows when it last synced and how many other devices
+wrote to the folder. Bahá’í Reader still never goes online; Android still has no INTERNET permission.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **158 passed, 1 skipped**. New `folder_sync_test`
+(3): two devices and one shared directory (a highlight and then a deletion and a save each way; only their own files;
+nothing re-read or rewritten when nothing changed; no temporary files left); a half-written file reported and merged
+once complete, a Syncthing-style conflict copy merged; PDFs shared byte-identical with books on, not copied with books
+off (the marks still arrive). Debug APK builds with SyncTree.kt.
+
+**Not verified**: with a real sync program (Syncthing, Dropbox…) between a real phone and this computer; the Android
+folder picker and SAF reads/writes have not run on a device.
+
 ## Notes backup and merge (Study plan, Phase 5: sync step A) — 2026-11-20
 
 Branch **`feat/notes-backup`** from `feat/study-editions` (PR #68), committed locally; not pushed.

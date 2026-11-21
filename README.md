@@ -84,7 +84,10 @@ Checksums for every download are in `SHA256SUMS`.
   places and Said/Fasted records, in `userdata.sqlite` beside `settings.json`: one record per mark with a permanent id,
   change times and deletion markers, so they can be synced between devices. Settings → *Back up or move your notes*
   exports them all to one file and imports-and-merges such a file from another device (the version changed last wins,
-  record by record; nothing goes over the network). The first start
+  record by record; nothing goes over the network). *Sync through a folder* does the same continuously through a folder
+  that Syncthing, Dropbox, Nextcloud, OneDrive or iCloud Drive keeps in step: each device writes its own
+  `bahai-reader-notes-<device>.json` there and merges the others' (optionally also sharing Study PDFs in
+  `bahai-reader-books/`). On Android the folder is picked in the system picker; no storage or network permission. The first start
   of a version with this store moves them out of `settings.json` and keeps a copy of the old file as
   `settings.json.pre-userdata-<date>`; `settings.json` keeps its copies as they were at the move, so an older version
   still finds them.

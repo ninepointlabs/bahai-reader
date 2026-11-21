@@ -48,6 +48,8 @@ class Settings {
     this.section,
     this.book,
     this.gtkImport,
+    this.syncFolder,
+    this.syncBooks = false,
     this.userdataVersion,
     Map<String, Object?>? legacy,
   }) : legacy = legacy ?? {},
@@ -141,6 +143,13 @@ class Settings {
   /// When the first-run import from the GTK app was done, and what it found ({"at", "status"}); null until then.
   Map<String, String>? gtkImport;
 
+  /// The folder synced between devices by another program (Syncthing, Dropbox…) that this device syncs its notes
+  /// through: a path, or on Android a `content://` folder chosen in the system picker. This device's own choice.
+  String? syncFolder;
+
+  /// Also share imported Study PDFs through [syncFolder].
+  bool syncBooks;
+
   /// Set once highlights, notes, saved passages, collections, positions, Said/Fasted records and the personal choices
   /// in [userDataKeys] live in the user-data store (`userdata.sqlite`, see `lib/core/userdata/`); null before that.
   int? userdataVersion;
@@ -231,6 +240,8 @@ class Settings {
     'section': ?section,
     'book': ?book,
     'gtk_import': ?gtkImport,
+    'sync_folder': ?syncFolder,
+    if (syncBooks) 'sync_books': true,
   };
 
   /// Drops or replaces values of the wrong type, keeping everything usable (like GTK `clean_settings()`).
@@ -320,6 +331,8 @@ class Settings {
                 if (j.containsKey(k)) k: j[k],
             }
           : null,
+      syncFolder: j['sync_folder'] is String && (j['sync_folder'] as String).isNotEmpty ? j['sync_folder'] as String : null,
+      syncBooks: j['sync_books'] == true,
       gtkImport: j['gtk_import'] is Map
           ? {
               for (final e in (j['gtk_import'] as Map).entries)

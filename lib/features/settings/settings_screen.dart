@@ -6,6 +6,7 @@ import '../../core/app/app_state.dart';
 import '../../core/settings/android_backup.dart';
 import '../../core/settings/settings_store.dart';
 import 'languages_dialog.dart';
+import 'folder_sync_section.dart';
 import 'notes_backup.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -58,6 +59,8 @@ class SettingsScreen extends StatelessWidget {
           if (Platform.isAndroid) _AndroidBackupSwitch(files: state.store.file.parent),
           const SizedBox(height: 16),
           const NotesBackupSection(),
+          const SizedBox(height: 16),
+          const FolderSyncSection(),
           if (Platform.isLinux) ...[
             const SizedBox(height: 12),
             Text(
