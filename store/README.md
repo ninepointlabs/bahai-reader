@@ -14,7 +14,8 @@ graphics will be made separately.
 Privacy policy URL for both stores: https://bahaireader.org/privacy (from `docs/privacy.html`, live once this is merged
 and GitHub Pages has published it).
 
-Everything here was checked against the code on `main` as of 17 November 2026. If the app changes what it does
+Everything here was checked against the code on `main` as of 17 November 2026, and again after merging `main`
+(1.1.2: Study, notes export/import, folder sync, the Android backup switch) on 24 November 2026. If the app changes what it does
 (for example, Android gains language downloads and the INTERNET permission), the privacy page and these answers must
 change with it, before the store build that ships the change.
 

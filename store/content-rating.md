@@ -16,7 +16,7 @@ communication, not entertainment.
 | Controlled substances (drugs, alcohol, tobacco) | No depiction or encouragement | The Kitáb-i-Aqdas and other texts forbid alcohol and drugs; that is a reference that discourages use, not a depiction. If asked about "references", answer per the question's own definition. |
 | Gambling (real or simulated) | No | |
 | Discrimination / hate | No | |
-| Users can interact or exchange content with each other | No | No accounts, chat, comments, sharing feeds or user-generated content visible to others. Notes stay on the device. |
+| Users can interact or exchange content with each other | No | No accounts, chat, comments, sharing feeds or user-generated content visible to others. Notes stay on the device unless the person exports them or syncs them between their own devices through a folder they choose; nothing is shown to anyone else. |
 | Shares the user's location with other users | No | Location is used on the device only, and the Android app has no network access. |
 | Digital purchases | No | Free, no in-app purchases. |
 | Unrestricted internet access (e.g. a web browser) | No | The Windows and Linux apps only fetch language packs from bahaiprayers.net when asked. The Android app has no network access. |

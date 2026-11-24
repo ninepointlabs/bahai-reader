@@ -17,7 +17,10 @@ Bahá’í prayers and writings to read offline. No account, no ads, no tracking
 ## Full description (max 4000)
 
 Written for what the Android app does today: English only (other languages cannot be downloaded on Android yet), no
-network access, reminders available. Do not mention the 112 prayer languages or downloads here until Android has them.
+network access, reminders available, Study (imported PDFs), notes export/import and folder sync through the system
+pickers, and the *Include notes in Android backup* switch. Do not mention the 112 prayer languages or downloads here
+until Android has them. Do not mention Dogear import (Linux only). The Study wording and the Ruhi Institute notice
+follow the website and the Study plan (§10); keep the notice whenever Ruhi is named.
 
 <!-- full:start -->
 Bahá’í Reader is a quiet place to read the Bahá’í prayers and writings on your phone, with everything ready offline.
@@ -31,9 +34,17 @@ English texts are the official ones from the Bahá’í Reference Library (bahai
 
 READ YOUR WAY
 • Search every prayer and writing at once, or just one book. Accents, case and apostrophes do not get in the way.
-• Highlight a line in one of four colours and add a note.
+• Highlight a line in one of five colours and add a note.
 • Save passages to return to, and pick up where you left off.
 • Choose light, dark or sepia, and a comfortable text size.
+
+STUDY
+• Import a PDF of your own, such as your copy of a Ruhi Institute book, and study it the way you would on paper.
+• Type your answers right on the blank lines, highlight in five colours, write notes and bookmark pages.
+• Each time through a book is kept, so you can see every answer you have given to a question.
+• File books in categories, search every highlight, note and answer, and export a book to Markdown.
+• A new edition of a book? Your marks move to it.
+The app includes no Ruhi Institute material and is not affiliated with or endorsed by the Ruhi Institute. A PDF you import is copied into the app on your device. The app never uploads it; it leaves your device only if you sync through a folder.
 
 TODAY
 • The Badí‘ date, the next Feast and Holy Day, and their readings.
@@ -41,10 +52,16 @@ TODAY
 • An Alláh-u-Abhá counter.
 • Optional reminders for your obligatory prayer, Feasts, Holy Days and the Fast.
 
+YOUR NOTES, ON EACH DEVICE
+• Export everything you have marked to one file and merge it on another device.
+• Or choose a folder that Syncthing, Dropbox or the like keeps in step, and your devices share your highlights, notes and answers.
+• Export highlights and notes to Markdown.
+• Choose whether Android’s own backup includes your notes.
+
 YOURS, ON YOUR PHONE
 • No account, no ads, no analytics, no tracking.
 • The app does not use the internet at all.
-• Your highlights, notes, saved passages and settings stay on your phone.
+• Your highlights, notes, answers, books and settings stay on your phone, unless you export or sync them, or let Android back up your notes.
 • Location is optional and approximate, used only on your phone to work out the sun’s times. You can type a city instead.
 
 Bahá’í Reader is free, and its code is open. It is an independent community project and not an official publication of a Bahá’í institution.
@@ -52,7 +69,7 @@ Bahá’í Reader is free, and its code is open. It is an independent community 
 Privacy: https://bahaireader.org/privacy
 <!-- full:end -->
 
-Character counts on 17 November 2026: short 77, full 1717. Keep the short
+Character counts on 24 November 2026: short 77, full 2839. Keep the short
 description at 80 or fewer and the full one at 4000 or fewer if you edit.
 
 ## Other listing fields
@@ -71,4 +88,4 @@ description at 80 or fewer and the full one at 4000 or fewer if you edit.
   stay opted in for 14 days) before production access is granted. Check the current rule in Play Console when the
   account is made.
 - Release notes per release can come from `RELEASE-NOTES.md` (500 characters per language in Play).
-- `versionCode` comes from the `+101` in `pubspec.yaml`. Every upload needs a higher one.
+- `versionCode` comes from the build number after `+` in `pubspec.yaml` (`+112` for 1.1.2). Every upload needs a higher one.

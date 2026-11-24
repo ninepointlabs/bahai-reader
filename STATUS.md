@@ -335,6 +335,28 @@ Auto Backup, user-chosen export files, and the sync folder (the help page's "tra
 rule). Note: *Share imported Study PDFs too* is **on** by default in the code (`sync_books`, settings_store.dart), not
 off as the Folder sync entry above says; the privacy page follows the code.
 
+**Store listing drafts checked against 1.1.2 (2026-11-24)**, for Tim's review before merging:
+- `store/google-play.md`: full description gains STUDY (Tim's §10 wording, with the Ruhi Institute notice) and YOUR
+  NOTES, ON EACH DEVICE (export/merge, folder sync, Markdown export, the Android backup choice); four → five colours;
+  "stay on your phone" now names export, sync and Android backup; versionCode note fixed (+112). Short description
+  unchanged (still true). 77 / 2839 characters.
+- `store/microsoft-store.md`: same STUDY and notes sections (no Android backup); sidebar now lists Study; five
+  colours; three new product features (11 of 20); certification note and an IP note for user-supplied PDFs.
+- `store/content-rating.md`: "notes stay on the device" now allows for export and sync between the person's own devices.
+- `store/README.md`: re-check date.
+- Not mentioned anywhere in the listings: Dogear import (Linux only).
+
+**Open questions for Tim**
+1. *Share imported Study PDFs too* is **on** by default in the code (left as is). Because of it, the listings say the
+   app never uploads a PDF and that it leaves the device only if the person syncs through a folder, rather than
+   "never uploaded or shared". The website (`docs/index.html`, Study section) still says "never uploaded or shared";
+   not changed here (outside this brief), and it is only exact if sharing PDFs is off by default.
+2. The listings now advertise Study, export and folder sync on Android and Windows, but Study has never been run on a
+   real Android phone or on Windows, and folder sync has not been tried with a real sync program (see the Study and
+   Folder sync entries above). Worth a device check before the first store submission.
+3. Search terms (Microsoft, up to 7) are unchanged; "Ruhi" was left out on purpose (the plan uses the name only
+   descriptively). Add it if you want.
+
 ## Promotion, Phase 1: feature parity (2026-11-16)
 
 Brief: `designer-briefs/bahai-reader-flutter-promotion.md`. Branch **`parity/phase-1`**, PR: https://github.com/ninepointlabs/bahai-reader-flutter/pull/1 (not merged).
