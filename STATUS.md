@@ -17,7 +17,7 @@ other devices' files when they change (Phase 5's merge: the later change wins pe
 sync program never has two devices writing one file; its conflict copies are merged like any other file. A file still
 arriving (unreadable) is tried again next time. Syncs at start, a few seconds after a change, every minute, and when
 the app comes back to the front or goes to the back. Merged-in changes reload the app's marks and recompute reminders.
-**Also share imported Study PDFs** (off by default) copies books into `bahai-reader-books/<sha256>.pdf` and takes in
+**Also share imported Study PDFs** (built off by default; **on** by default since 1.1.1, `sync_books`, confirmed by Tim 2026-11-24) copies books into `bahai-reader-books/<sha256>.pdf` and takes in
 missing ones, checking each against its hash. The status line shows when it last synced and how many other devices
 wrote to the folder. Bahá’í Reader still never goes online; Android still has no INTERNET permission.
 
@@ -332,8 +332,7 @@ files; the app's random device id is in the file names; Study PDFs shared unless
 The old "there is no sync or backup service" line is now "no Bahá’í Reader account, sync service or backup service".
 `store/google-play-data-safety.md` keeps the answer **No** and lists three things to confirm in Play Console first:
 Auto Backup, user-chosen export files, and the sync folder (the help page's "transfer to another app on the device"
-rule). Note: *Share imported Study PDFs too* is **on** by default in the code (`sync_books`, settings_store.dart), not
-off as the Folder sync entry above says; the privacy page follows the code.
+rule). *Share imported Study PDFs too* is **on** by default (`sync_books`, settings_store.dart); the privacy page says so.
 
 **Store listing drafts checked against 1.1.2 (2026-11-24)**, for Tim's review before merging:
 - `store/google-play.md`: full description gains STUDY (Tim's §10 wording, with the Ruhi Institute notice) and YOUR
@@ -346,16 +345,14 @@ off as the Folder sync entry above says; the privacy page follows the code.
 - `store/README.md`: re-check date.
 - Not mentioned anywhere in the listings: Dogear import (Linux only).
 
-**Open questions for Tim**
-1. *Share imported Study PDFs too* is **on** by default in the code (left as is). Because of it, the listings say the
-   app never uploads a PDF and that it leaves the device only if the person syncs through a folder, rather than
-   "never uploaded or shared". The website (`docs/index.html`, Study section) still says "never uploaded or shared";
-   not changed here (outside this brief), and it is only exact if sharing PDFs is off by default.
-2. The listings now advertise Study, export and folder sync on Android and Windows, but Study has never been run on a
-   real Android phone or on Windows, and folder sync has not been tried with a real sync program (see the Study and
-   Folder sync entries above). Worth a device check before the first store submission.
-3. Search terms (Microsoft, up to 7) are unchanged; "Ruhi" was left out on purpose (the plan uses the name only
-   descriptively). Add it if you want.
+**Tim's decisions (2026-11-24), settled**
+1. *Share imported Study PDFs too* stays **on** by default; no app change. The privacy page and listings already say
+   so (a PDF leaves the device only if the person syncs through a folder). The website's Study section
+   (`docs/index.html`) still says "never uploaded or shared"; not changed on this branch.
+2. Study, export and folder sync stay in both listings. Study has still not been run on a real Android phone or on
+   Windows, nor folder sync with a real sync program; a device check before the first submission is still advised.
+3. "Ruhi" added to the Microsoft Store search terms (replacing "prayer book", which "prayers" already covers; the
+   Store allows 7 terms).
 
 ## Promotion, Phase 1: feature parity (2026-11-16)
 

@@ -119,4 +119,7 @@ Privacy: https://bahaireader.org/privacy
 
 ## Search terms (up to 7)
 
-Bahá’í, Baha'i, prayers, Hidden Words, Aqdas, prayer book, writings
+Bahá’í, Baha'i, prayers, Hidden Words, Aqdas, Ruhi, writings
+
+7 terms, 8 words, none over 30 characters (Partner Center: up to 7 terms, 30 characters each, 21 words in all).
+"Ruhi" added by Tim's decision (2026-11-24), in place of "prayer book", which "prayers" already covers.
