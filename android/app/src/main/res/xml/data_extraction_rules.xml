@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and later: what Android may copy to the person's cloud backup and to a new phone.
+     books/ (PDFs imported into Study) is never copied: they are the person's own copies of copyrighted books and
+     stay on this device. nobackup/ holds the notes and settings when "Include notes in Android backup" is off. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="books/"/>
+        <exclude domain="file" path="nobackup/"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="books/"/>
+        <exclude domain="file" path="nobackup/"/>
+    </device-transfer>
+</data-extraction-rules>

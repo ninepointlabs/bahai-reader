@@ -11,7 +11,7 @@ It is unsigned on purpose; the Store signs packages it publishes.
    - `Package/Identity/Name` → `identity_name`
    - `Package/Identity/Publisher` (starts with `CN=`) → `publisher`
    - `Package/Properties/PublisherDisplayName` → `publisher_display_name`
-3. Keep `msix_version` as the app version with a `.0` revision (`1.0.1.0` for 1.0.1). CI fails if it does not match
+3. Keep `msix_version` as the app version with a `.0` revision (`1.1.2.0` for 1.1.2). CI fails if it does not match
    `version` in `pubspec.yaml`. The Store requires the revision (fourth number) to be 0.
 4. The next CI run's `windows-msix-store-draft` artifact is then the package to upload in a submission.
 

@@ -31,7 +31,7 @@ class Palette {
   /// Omarchy's own darker background, used for the sidebar when it keeps the text readable.
   final Color? sidebarHint;
 
-  /// Omarchy's yellow/green/blue/magenta, used for highlights when the theme has them.
+  /// Omarchy's yellow, green, blue and magenta (for pink), used for highlights when the theme has them.
   final Map<String, Color> highlightBase;
 
   static const dark = Palette(
@@ -74,8 +74,13 @@ class Palette {
     'yellow': Color(0xFFD0A215),
     'green': Color(0xFF879A39),
     'blue': Color(0xFF3F7FC4),
-    'magenta': Color(0xFFCE5D97),
+    'pink': Color(0xFFCE5D97),
+    'purple': Color(0xFF8E6BC9),
   };
+
+  /// Which Omarchy colour each highlight colour takes. Pink takes magenta, as the fourth colour did before there were
+  /// five, so highlights made then keep their look; Omarchy has no purple.
+  static const omarchyHighlightKeys = {'yellow': 'yellow', 'green': 'green', 'blue': 'blue', 'pink': 'magenta'};
 
   @override
   bool operator ==(Object other) =>
@@ -150,7 +155,10 @@ Palette? parseOmarchyColors(String source) {
     accent: values['accent'] ?? base.accent,
     selection: values['selection'] ?? base.selection,
     sidebarHint: values['dark_background'],
-    highlightBase: {for (final n in Palette.highlightDefaults.keys) if (values[n] != null) n: values[n]!},
+    highlightBase: {
+      for (final MapEntry(key: n, value: k) in Palette.omarchyHighlightKeys.entries)
+        if (values[k] != null) n: values[k]!,
+    },
   );
 }
 

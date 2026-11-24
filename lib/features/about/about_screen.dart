@@ -32,8 +32,11 @@ String privacy(AppState state) {
       'downloaded language never use the network. The app connects only when you choose Download & use, Update '
       'downloaded content or Check available languages: it then asks bahaiprayers.net over HTTPS for that language’s '
       'texts or the language list. The request carries only the collection and the language number; like any web '
-      'request, the site sees your IP address.${own == null ? '' : ' Downloads are saved in ${short(own)}.'} Settings and '
-      'saved passages stay in ${short(state.store.file.path)} and are never sent anywhere. A location you enter (or, on a '
+      'request, the site sees your IP address.${own == null ? '' : ' Downloads are saved in ${short(own)}.'} Settings, '
+      'highlights, notes and saved passages stay in ${short(state.store.file.parent.path)} and are never sent anywhere; '
+      'if you choose a sync folder in Settings, they are also copied there for your own sync program to carry. '
+      'Books imported into Study are copied to ${short(state.studyBooksFolder().path)}, read only on this device and never '
+      'uploaded or shared. A location you enter (or, on a '
       'phone, ask it to find) is only used on this device to work out the sun’s times, and is never sent anywhere. '
       'Reminders are worked out and sent on this device, and your “Said today” and “Fasted today” records stay here too; '
       'you can turn them off or clear them in Location & reminders.';
@@ -160,8 +163,33 @@ class _AboutScreenState extends State<AboutScreen> {
                       ],
                     ),
                   ),
+                  row(
+                    'Study',
+                    text(
+                      'Opens PDFs you import yourself, such as your own copies of Ruhi Institute books. The app includes '
+                      'no Ruhi Institute material and is not affiliated with or endorsed by the Ruhi Institute.',
+                    ),
+                  ),
                   row('Privacy', text(privacy(state))),
                   row('Built with', text('Flutter, Dart ${Platform.version.split(' ').first}')),
+                  row(
+                    'Open source',
+                    Wrap(
+                      spacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text('PDFium, SQLite and the Dart packages the app is built from'),
+                        TextButton(
+                          onPressed: () => showLicensePage(
+                            context: context,
+                            applicationName: appName,
+                            applicationVersion: appVersion,
+                          ),
+                          child: const Text('Their licenses'),
+                        ),
+                      ],
+                    ),
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton(

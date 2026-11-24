@@ -8,6 +8,8 @@ import '../../core/calendar/today.dart';
 import '../../core/library/labels.dart';
 import '../../core/library/library.dart';
 import '../../core/library/passage.dart';
+import '../study/study_actions.dart';
+import '../study/study_panels.dart';
 import 'shell_model.dart';
 import 'widgets.dart';
 
@@ -25,6 +27,7 @@ class Sidebar extends StatelessWidget {
     (Section.home, 'Home', Icons.home_outlined),
     (Section.prayers, 'Prayers', Icons.local_florist_outlined),
     (Section.writings, 'Writings', Icons.menu_book_outlined),
+    (Section.study, 'Study', Icons.school_outlined),
     (Section.saved, 'Saved', Icons.star_rounded),
   ];
 
@@ -43,7 +46,9 @@ class Sidebar extends StatelessWidget {
       Section.prayers: library == null ? '' : '${library.passages.where((x) => x.isPrayer).length}',
       Section.writings: library == null ? '' : '${library.books.length} books',
       Section.saved: state.settings.saved.isEmpty ? '' : '${state.settings.saved.length}',
+      Section.study: (state.study?.library.length ?? 0) == 0 ? '' : '${state.study!.library.length}',
     };
+    final studyBook = model.section == Section.study && inBook ? state.study?.book : null;
     final showContents = model.section != Section.home;
     final nav = navOf(model.section);
     return ColoredBox(
@@ -54,7 +59,9 @@ class Sidebar extends StatelessWidget {
           start: [
             if (inBook) HeaderButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Back', onPressed: model.leaveBook),
           ],
-          title: book != null
+          title: studyBook != null
+              ? WindowTitle(title: studyBook.name, subtitle: state.study?.run?.name ?? '')
+              : book != null
               ? WindowTitle(title: book.title, subtitle: '${authorOf(book)} · ${book.summary}')
               : inBook
                   ? WindowTitle(title: 'Obligatory prayers', subtitle: obligatory.summary)
@@ -79,7 +86,10 @@ class Sidebar extends StatelessWidget {
                 ),
             ]),
           ),
-        if (showContents) Expanded(child: _Contents(model: model, onAction: onAction)),
+        if (model.section == Section.study)
+          Expanded(child: _StudySide(model: model))
+        else if (showContents)
+          Expanded(child: _Contents(model: model, onAction: onAction)),
       ]),
     );
   }
@@ -355,7 +365,7 @@ class _ContentsState extends State<_Contents> {
               ]),
             ));
           }
-        case Section.home:
+        case Section.home || Section.study:
           break;
       }
     }
@@ -435,4 +445,46 @@ class _Branch extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Study in the sidebar: the open book's panels (contents, highlights, bookmarks, answers, notes), or the books.
+class _StudySide extends StatelessWidget {
+  const _StudySide({required this.model});
+  final ShellModel model;
+
+  @override
+  Widget build(BuildContext context) {
+    final study = AppScope.of(context).study;
+    if (study == null) return const SizedBox.shrink();
+    if (model.inBook && study.book != null) return StudyPanels(study: study);
+    return ListenableBuilder(
+      listenable: study,
+      builder: (context, _) => ListView(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        children: [
+          SideRow(
+            tooltip: 'Copy a PDF of your own into Study (Ctrl+O)',
+            onTap: () => importStudyPdf(context, study, opened: model.showStudyReader),
+            child: const Row(children: [Expanded(child: Text('Import a PDF…')), Icon(Icons.file_open_outlined, size: 18)]),
+          ),
+          const SizedBox(height: 6),
+          for (final b in study.library)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: SideRow(
+                tooltip: b.name,
+                onTap: () async {
+                  await study.open(b);
+                  model.showStudyReader();
+                },
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(b.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(study.store.currentRun(b).name, style: dimStyle(context)),
+                ]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

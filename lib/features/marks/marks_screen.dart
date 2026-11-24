@@ -7,6 +7,9 @@ import '../../core/marks/highlight.dart';
 import '../../core/settings/settings_store.dart';
 import '../reader/reader_screen.dart';
 import '../settings/collections_dialog.dart';
+import '../study/study_book_screen.dart';
+import '../study/study_marks_list.dart';
+import 'marks_actions.dart';
 
 /// Saved passages, and highlights & notes. Entries made in another language open the matching passage of this one;
 /// entries with no counterpart here are listed but cannot be opened.
@@ -16,19 +19,31 @@ class MarksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
+    final study = state.study;
     return DefaultTabController(
-      length: 2,
+      length: study == null ? 2 : 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Saved & highlights'),
+          actions: [
+            IconButton(
+              tooltip: 'Export highlights and notes to Markdown',
+              icon: const Icon(Icons.ios_share),
+              onPressed: state.highlights.isEmpty
+                  ? null
+                  : () => exportHighlights(context, state, state.highlights.reversed.toList()),
+            ),
+          ],
           bottom: TabBar(
+            isScrollable: study != null,
             tabs: [
               Tab(text: 'Saved (${state.settings.saved.length})'),
               Tab(text: 'Highlights & notes (${state.highlights.length})'),
+              if (study != null) const Tab(text: 'Study'),
             ],
           ),
         ),
-        body: TabBarView(children: [_SavedList(), _HighlightList()]),
+        body: TabBarView(children: [_SavedList(), _HighlightList(), if (study != null) const _StudyMarks()]),
       ),
     );
   }
@@ -162,6 +177,50 @@ class _HighlightList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Everything written in Study, searchable; each opens its book at its place.
+class _StudyMarks extends StatefulWidget {
+  const _StudyMarks();
+
+  @override
+  State<_StudyMarks> createState() => _StudyMarksState();
+}
+
+class _StudyMarksState extends State<_StudyMarks> {
+  String query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final study = AppScope.of(context).study!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: TextField(
+            decoration: const InputDecoration(
+              hintText: 'Search highlights, notes and answers',
+              prefixIcon: Icon(Icons.search, size: 20),
+              isDense: true,
+            ),
+            onChanged: (v) => setState(() => query = v),
+          ),
+        ),
+        Expanded(
+          child: StudyMarksList(
+            study: study,
+            query: query,
+            onOpen: (h) async {
+              final nav = Navigator.of(context);
+              await study.openAt(h.book, run: h.run, page: h.page, y: h.y);
+              nav.push(MaterialPageRoute(builder: (_) => const StudyBookScreen()));
+            },
+          ),
+        ),
+      ],
     );
   }
 }

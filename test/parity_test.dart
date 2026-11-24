@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/stored.dart';
 import 'helpers/temp.dart';
 
 import 'app_test.dart' show settle;
@@ -100,8 +101,7 @@ void main() {
       await s.toggleSaved(a);
       expect(s.settings.collections.single.items, isEmpty);
       // Stored as the GTK app stores them.
-      final saved = jsonDecode(store().file.readAsStringSync()) as Map;
-      expect(saved['collections'], [
+      expect(storedMarks(store().file)['collections'], [
         {'name': 'Evening', 'items': []},
       ]);
     },

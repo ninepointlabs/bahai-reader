@@ -29,19 +29,19 @@ download folder:
 
 ```sh
 # Debian 12+ / Ubuntu 24.04+
-sudo apt install ./bahai-reader_1.0.1-1_amd64.deb
+sudo apt install ./bahai-reader_1.1.2-1_amd64.deb
 # Fedora 43+ / compatible modern RPM systems
-sudo dnf install ./bahai-reader-1.0.1-1.x86_64.rpm
+sudo dnf install ./bahai-reader-1.1.2-1.x86_64.rpm
 # Arch / Omarchy
-sudo pacman -U ./bahai-reader-1.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./bahai-reader-1.1.2-1-x86_64.pkg.tar.zst
 ```
 
 **AppImage** (x86_64, uses the system's GTK 3):
 
 ```sh
-chmod +x bahai-reader-1.0.1-x86_64.AppImage
-./bahai-reader-1.0.1-x86_64.AppImage
-./bahai-reader-1.0.1-x86_64.AppImage --install-desktop-entry   # add it to the application menu
+chmod +x bahai-reader-1.1.2-x86_64.AppImage
+./bahai-reader-1.1.2-x86_64.AppImage
+./bahai-reader-1.1.2-x86_64.AppImage --install-desktop-entry   # add it to the application menu
 ```
 
 [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or
@@ -50,7 +50,7 @@ chmod +x bahai-reader-1.0.1-x86_64.AppImage
 **Flatpak bundle** (any distribution with Flatpak; a direct download, not a Flathub listing):
 
 ```sh
-flatpak install --user ./bahai-reader-1.0.1-x86_64.flatpak
+flatpak install --user ./bahai-reader-1.1.2-x86_64.flatpak
 flatpak run org.bahai.Reader
 ```
 
@@ -59,13 +59,13 @@ app is open.
 
 ### Android
 
-Download `bahai-reader-1.0.1.apk` from the release on your phone and open it. Android asks you to allow installs from
+Download `bahai-reader-1.1.2.apk` from the release on your phone and open it. Android asks you to allow installs from
 your browser or file manager the first time. Later versions install over it and keep your data.
 
 ### Windows
 
-Run `bahai-reader-1.0.1-windows-x64-setup.exe` (installs for your user, no administrator rights), or unzip
-`bahai-reader-1.0.1-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so SmartScreen may
+Run `bahai-reader-1.1.2-windows-x64-setup.exe` (installs for your user, no administrator rights), or unzip
+`bahai-reader-1.1.2-windows-x64.zip` and run `bahai-reader.exe`. They are not code-signed yet, so SmartScreen may
 warn the first time: choose **More info → Run anyway**. Reminders are not sent on Windows yet.
 
 Checksums for every download are in `SHA256SUMS`.
@@ -79,8 +79,24 @@ Checksums for every download are in `SHA256SUMS`.
   libraries, and read offline after that.
 - **Search**: the whole current-language library, ignoring case, accents, apostrophes and hyphens
   (“Bahaullah” finds “Bahá’u’lláh”).
-- **Highlights, notes and saved passages**, stored the same way as the GTK app (passage id + character offsets + the
-  quoted words), and following passages across languages by their `match`.
+- **Highlights, notes and saved passages**, anchored the same way as the GTK app (passage id + character offsets + the
+  quoted words), and following passages across languages by their `match`. They are kept, with collections, reading
+  places and Said/Fasted records, in `userdata.sqlite` beside `settings.json`: one record per mark with a permanent id,
+  change times and deletion markers, so they can be synced between devices. Settings → *Back up or move your notes*
+  exports them all to one file and imports-and-merges such a file from another device (the version changed last wins,
+  record by record; nothing goes over the network). *Sync through a folder* does the same continuously through a folder
+  that Syncthing, Dropbox, Nextcloud, OneDrive or iCloud Drive keeps in step: each device writes its own
+  `bahai-reader-notes-<device>.json` there and merges the others' (optionally also sharing Study PDFs in
+  `bahai-reader-books/`). On Android the folder is picked in the system picker; no storage or network permission. The first start
+  of a version with this store moves them out of `settings.json` and keeps a copy of the old file as
+  `settings.json.pre-userdata-<date>`; `settings.json` keeps its copies as they were at the move, so an older version
+  still finds them.
+- **Study**: import PDFs of your own (such as your copies of Ruhi Institute books; the app includes none) and study them:
+  highlights in five colours with notes, bookmarks, your answers typed on the workbook's blank lines (found in the page
+  image, as in Dogear) or in a box anywhere on the page, notes about the book, search in the book, and the place you
+  stopped. Each time through a book is a *run* ("1st time, Nov 2026") that owns its marks. Export a run to Markdown for
+  Obsidian. Imported files are copied into the app on this device and never uploaded. Not affiliated with or endorsed
+  by the Ruhi Institute.
 - **Light, Dark and Sepia** palettes from the GTK app; by default it follows the live Omarchy theme where there is one,
   else the system's light or dark.
 - **Desktop layout like the GTK app** (Linux, Windows, macOS): a sidebar with Home, Prayers, Writings and Saved and the
@@ -153,6 +169,11 @@ lib/
     marks/      highlight.dart  anchoring, overlap, notes, cross-language follow (port of GTK marks.py)
     search/     fold.dart, search_index.dart (port of GTK search.py)
     settings/   settings_store.dart (own file; read-only GTK import)
+    userdata/   userdata_store.dart (marks and personal choices in SQLite, sync-ready records, the move from
+                settings.json; schema 2 adds Study's tables), ids.dart (UUIDv7, UUIDv5, hybrid logical clock)
+    study/      study_store.dart (books, runs and their marks), study_controller.dart (the open book), rules.dart
+                (answer lines found in a page image: Dogear's rules.py), page_data.dart (a PDF page's text and lines),
+                importer.dart, export.dart (Markdown)
   features/
     desktop/    the GTK-style desktop window: shell, sidebar, home/library, reading view, search dialog,
                 Highlights & notes (shell_model.dart holds where the window is)
@@ -160,6 +181,7 @@ lib/
                 phone_today.dart opens them as pages on phones
     library/  reader/  search/  marks/    the touch layout (phones, tablets)
     settings/  about/                     shared by both
+    study/      Study's library, PDF reader (pdfrx), panels, import/export; used by both layouts
 packaging/                     desktop file, icons, AppStream metainfo, nFPM, AppRun, Flatpak manifest, Windows installer
 scripts/build-*.sh             Linux packages, AppImage and Flatpak from the release bundle
 scripts/screenshots/           the website's desktop screenshots, rendered off screen (see the file's header)

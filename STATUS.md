@@ -5,6 +5,285 @@ user-local install; nothing was reinstalled and no sudo was used).
 
 The released app is still the GTK Bahá’í Reader: https://github.com/ninepointlabs/bahai-reader · https://bahaireader.org
 
+## Folder sync (Study plan, Phase 6: sync step B) — 2026-11-20
+
+Branch **`feat/folder-sync`** from `feat/notes-backup` (PR #69), committed locally; not pushed.
+
+**What it does**: Settings → *Sync through a folder*. Choose a folder that Syncthing, Dropbox, Nextcloud, OneDrive or
+iCloud Drive keeps the same on each device (desktop: a folder dialog; Android: the system folder picker, which gives
+the app lasting access to that one folder, with no storage permission; SyncTree.kt). Each device writes only its own
+`bahai-reader-notes-<device id>.json` (Phase 5's export, written to a hidden temporary file and renamed) and merges the
+other devices' files when they change (Phase 5's merge: the later change wins per record, deletions included), so the
+sync program never has two devices writing one file; its conflict copies are merged like any other file. A file still
+arriving (unreadable) is tried again next time. Syncs at start, a few seconds after a change, every minute, and when
+the app comes back to the front or goes to the back. Merged-in changes reload the app's marks and recompute reminders.
+**Also share imported Study PDFs** (off by default) copies books into `bahai-reader-books/<sha256>.pdf` and takes in
+missing ones, checking each against its hash. The status line shows when it last synced and how many other devices
+wrote to the folder. Bahá’í Reader still never goes online; Android still has no INTERNET permission.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **158 passed, 1 skipped**. New `folder_sync_test`
+(3): two devices and one shared directory (a highlight and then a deletion and a save each way; only their own files;
+nothing re-read or rewritten when nothing changed; no temporary files left); a half-written file reported and merged
+once complete, a Syncthing-style conflict copy merged; PDFs shared byte-identical with books on, not copied with books
+off (the marks still arrive). Debug APK builds with SyncTree.kt.
+
+**Not verified**: with a real sync program (Syncthing, Dropbox…) between a real phone and this computer; the Android
+folder picker and SAF reads/writes have not run on a device.
+
+## Notes backup and merge (Study plan, Phase 5: sync step A) — 2026-11-20
+
+Branch **`feat/notes-backup`** from `feat/study-editions` (PR #68), committed locally; not pushed.
+
+**What it does**: Settings → *Back up or move your notes*. **Export notes…** writes one JSON file
+(`format: bahai-reader-notes`) with every record of the user-data store, deletion markers included, with their sync
+columns: highlights and notes, saved passages and collections, positions and Continue reading, Said/Fasted, personal
+choices, and all of Study (books' records, runs, marks, categories), but not the PDFs and nothing device-local.
+**Import and merge…** reads such a file from this or another device and, record by record, keeps the version with the
+later hybrid-clock stamp (deletions travel the same way), then reloads the app's marks. A Study book whose PDF is not
+on this device yet says so ("import your copy of the PDF here too"; the same file is recognized by its hash). Desktop:
+save/open dialogs; Android: "Save to" and the system file picker. No network, no account.
+
+**Plan deviation**: no change journal. Every record carries its own hybrid-clock stamp and deletions are kept as
+markers, so merging two complete snapshots (last change wins per record) gives the same result as replaying journals,
+with less to store and nothing to compact. Folder sync (step B) can reuse it: each device writes its export into the
+shared folder and merges the others'.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **155 passed, 1 skipped**. New `notes_backup_test`
+(3): one device's marks (incl. Study) arrive on another and show in the app; merging again changes nothing; changes on
+both, exchanged both ways, leave both identical (edit and deletion each arrive); the same mark changed on both: the
+later wins on both; not a backup / newer version refused; unusable rows and unknown tables skipped.
+
+**Not verified**: a real phone-to-desktop exchange (Android "Save to" and the file picker are untested on a device).
+
+## Study: other editions and Dogear marks (Study plan, Phase 4; also the plan's Phase 1b) — 2026-11-20
+
+Branch **`feat/study-editions`** from `feat/study-library` (PR #67, merged as `2764cfb`), committed locally; not pushed.
+Phase 1b (bringing in Dogear marks) was in the plan for Phase 1 but was not built then; it is built here.
+
+**What it does**
+
+- **Another edition on import**: a PDF that looks like another copy or edition of a book with marks (Dogear's rules:
+  same PDF id, or the same title/file name apart from version numbers and dates with page counts within ~5%) asks:
+  *Move my marks* / *Keep it separate* / *Not the same book* (remembered, schema 4 `study_decline`).
+- **Moving a book to an edition** moves every time through's marks: highlights found by their words and the 32
+  characters either side; answers on lines by their printed question and which blank (same engine both sides, so
+  exact); answer boxes keep their page and place; bookmarks by their contents entry, else the same page; the place
+  reached. Marks keep their ids. What is not found keeps its old file, is not drawn, and is listed under **Not placed
+  yet** (banner in the book): copy a highlight's words, *Place…* an answer by tapping its line, or remove. The old
+  edition's copy is kept.
+- **Dogear marks** (Linux): after an import, and from the run menu (*Bring in Dogear marks…*), if Dogear has marks for
+  the same file or another edition. Into the first time through if it is still empty, else a finished time through
+  "From Dogear" listed before the others (nothing else changes). Same file: Dogear's own boxes and lines. Another
+  edition: found as above (questions matched loosely nearby, since Dogear's PDF engine reads lines of a list a little
+  differently). Label and categories come too. Dogear's files are only read (checked in the test).
+
+**Real data** (a read-only copy of your Dogear workbook in the scratchpad, 170 pages, 11 highlights, 100 answers; not
+committed): same file → 111 of 111 brought in, 100 of 100 answers on the exact line (0.7 s). The same book treated as
+another edition (text search path) → 110 of 111 placed, 98 answers on the right line, 1 on a neighbouring line in a
+list of tick boxes, 1 left to place (its question is longer than the 300 characters kept); 6–24 s.
+
+**Bugs fixed while building**: an edited answer that had been moved (or brought in) now updates its record instead of
+making a second one; importing a file whose id-from-hash belongs to a book that moved to another edition makes a book
+of its own instead of returning the moved one.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **152 passed, 1 skipped**. New: `study_editions_test`
+(Dogear's name and copy tests; a highlight and answer blanks found in `test/fixtures/worksheet-2.pdf`, a revised
+edition where everything moved down), `study_carry_test` (every run moved, ids kept, slot keys kept, bookmark by its
+contents entry, the unfound answer listed and placed by hand, "not the same book"), `study_dogear_test` (same file and
+another edition; "From Dogear" run; Dogear's file unchanged), `study_edition_ui_test` (the question, Move my marks, the
+message, the unplaced answer).
+
+**Not verified**: a real second edition of a Ruhi book (none on this machine; the fixtures and the simulated edition
+stand in); phones, Windows, a real Linux window by hand.
+
+## Study: library and search (Study plan, Phase 3) — 2026-11-20
+
+Branch **`feat/study-library`** from `feat/study-runs` (PR #66, merged as `3dad7d8`), committed locally; not pushed.
+
+**What it does**
+
+- **Categories** (schema 3: `study_category`, `book_category`): a book's ⋮ → *Categories…* ticks categories or makes a
+  new one; chips above the library filter by category or *Uncategorized*; *Manage…* renames (onto an existing name
+  merges, as in Dogear) and deletes (books stay). One category per name on every device (UUIDv5 of the name).
+  Categories go into exports as Obsidian tags (`Ruhi Book 5` → `ruhi-book-5`, Dogear's rule).
+- **Sort**: Recent (last read: when the place was last remembered), Title, Most marked (all times through), Added.
+- **Search** in the library matches names, file names and categories, and lists **Found in your marks**: highlights and
+  their notes, answers and their questions, bookmarks and book notes, in every book and time through, ignoring case,
+  accents and apostrophes (the app's own folding). A result opens its book at its page, in its time through.
+- **Saved → Highlights & notes** (desktop) is app-wide: *Writings & prayers · Study · Everything*, with a search, and
+  *Export to Markdown…* for the writings' highlights (grouped by book, each quoted with its citation, then its note).
+  Phones: Saved & highlights gains a *Study* tab (searchable) and an export button.
+- The store's records now carry `updated_at` in memory (used for Recent).
+
+**Plan deviation**: search scans the records in memory instead of an FTS5 index; instant for thousands of marks, no
+index to keep in step. Revisit if libraries grow very large.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **142 passed, 1 skipped**. New: store tests
+(categories incl. merge on rename and Obsidian tags; sorting; accent-insensitive search), `study_library_test`
+(category chips and Uncategorized, search finding a note, Highlights & notes → Study opening the book at the mark;
+the writings' Markdown export with citation and note). Off-screen renders checked: library with categories, search
+results.
+
+**Not verified**: phones, Windows, a real Linux window by hand.
+
+## Study: times through (Study plan, Phase 2) — 2026-11-20
+
+Branch **`feat/study-runs`** from `origin/main` `58b033b` (PR #65 merged), committed locally; not pushed.
+
+**What it does**
+
+- **Run menu** in the reader's header (desktop: clock button with the run's name; phones: an icon in the app bar): every
+  time through with its dates (✓ on show, lock when finished), *Start a new time through…* (Ctrl+Shift+N), rename,
+  *Compare with…*, *Export all times through…* (Ctrl+Shift+E), delete an earlier one.
+- **New time through**: a dialog with the name prefilled ("2nd time, Nov 2026", editable) says what happens; the new run
+  starts with no marks; every earlier run is finished and locked in the same transaction; nothing in them changes.
+- **Earlier runs**: shown read-only with a banner (*Unlock* / *Back to the current one*). Unlock asks once and lasts until
+  the book is closed; the run stays locked in the store (`StudyStore.unlocked` is per session).
+- **Answer history**: a small ↺n mark beside an answer (or an empty blank) that was answered in other times through;
+  click it for that question's answers in every run, oldest first, with *Use in this run*. The Answers panel has
+  *This time / Every time*: every question in reading order with each run's answer under it.
+- **Compare** (Ctrl+Shift+V or the menu): in a reader at least 1000 px wide, a second pane shows the other run's pages and
+  marks, read-only, scrolling with yours; narrower (and on phones), its answers are drawn in grey under your lines.
+- **Export all runs**: `<book> — all runs.md`, each question with every run's labelled answer, then highlights labelled
+  by run, and each run's book notes.
+- Library rows say "… · 2 times through".
+
+**Bug fixed (from Phase 1)**: the reader passed the controller's PDF to pdfrx as `PdfDocumentRefDirect(doc)`, whose
+`autoDispose` defaults to true, so the viewer disposed a document the controller still owned (and closing a book
+disposed it twice). Found when the compare pane made it hang; now `autoDispose: false`.
+
+**Tests (real results)**: `flutter analyze` clean; `flutter test` **138 passed, 1 skipped**. New: two store tests
+(runs: new run empty and the old one untouched, locked, session unlock, rename, third run; history, questions in
+reading order, all-runs export, delete an earlier run but not the current) and `study_runs_test` (desktop: library
+row, Every time answers, earlier run banner and unlock, side-by-side compare opening and closing). Off-screen renders
+checked by eye: side-by-side compare, grey answers in a narrow window, history marks clear of the text.
+
+**Not verified**: not on a phone or Windows, nor by hand in a real Linux window. Not in Phase 2: carrying a run to a new
+edition (Phase 4).
+
+## Study, v1 (Study plan, Phase 1) — 2026-11-20
+
+Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section` (Tim's decisions: section named Study, PDF only, phone
+bottom bar, ship with the "not affiliated" notice, past runs locked with Unlock, notes switch for Android backup, five
+colours app-wide). Branch **`feat/study-v1`** from `origin/main` `aebe90c`, committed locally; not pushed, no PR.
+
+**What it does**
+
+- **Study** section: desktop sidebar row between Writings and Saved; on phones, Today · Writings · Prayers · Study in a
+  bottom bar (was top tabs). Library of imported books (newest first, search by name, rename, remove → Removed → put
+  back or delete for good), each showing its run and marks. Import: file dialog (Ctrl+O), and on Android "Open with" /
+  Share. The PDF is copied to `books/<sha256>.pdf` beside the downloaded libraries; the original is only read.
+- **Reader** (pdfrx 2.12.0, PDFium chromium/8125): text selection with a colour bar (5 colours, note, copy); highlights
+  (keys 1–5, a, Ctrl+H) store page, boxes, the structured text's offsets, the quote and 32 characters either side;
+  notes on highlights (dot in the margin); bookmarks (b, Ctrl+D; folded corner; named after the PDF's contents entry);
+  **answers** typed on the page's blank lines, found in the rendered page by Dogear's detector ported to Dart (ruled
+  lines under a question are one answer that wraps; Tab/Shift+Tab/Enter move on; Ctrl+=/− size), or in a box placed by
+  long-press/right-click on empty paper (Dogear can't); book notes (Ctrl+N); search in the book (Ctrl+F, /); go to page
+  (Ctrl+G); j/k, J/K, g/G, +/−/0; remembers page and zoom per run. Panels: Contents (the PDF's outline), Highlights,
+  Bookmarks, Answers, Notes (sidebar on desktop, a sheet on phones; Ctrl+1…5). Export a run to Markdown (Ctrl+E;
+  Dogear's format plus the run; save dialog, Android "Save to").
+- **Runs**: every mark belongs to a run; the first ("1st time, Nov 2026") is made at import. Locked runs are refused by
+  the store and shown read-only with a banner. Starting new runs, switching and comparing are Phase 2.
+- **Five colours app-wide**: yellow, green, blue, pink, purple. `magenta` reads as pink (Omarchy's magenta still colours
+  it); schema-1 stores are updated; `settings.json`'s frozen copy keeps raw values for 1.0.x.
+- **Android**: `books/` and `nobackup/` excluded from cloud backup and device transfer (`res/xml/*_rules.xml`);
+  Settings → *Include notes in Android backup* (default on = today's behaviour; off moves `settings.json` and
+  `userdata.sqlite` to `files/nobackup/` at the next start). Still **no INTERNET permission** (aapt on the release APK).
+- **Notices**: DATA-NOTICE "Study section and Ruhi books" and "Bundled software"; About gains Study and Open source rows
+  (license page with PDFium's 19 license texts from that release, in `assets/licenses/pdfium/`, and SQLite); the
+  library shows the privacy line and "not affiliated with or endorsed by the Ruhi Institute".
+
+**Tests (real results)**
+
+- `flutter analyze`: No issues found. `flutter test`: **135 passed, 1 skipped** (the existing whole-library fixture).
+- New: `study_rules_test` (27, Dogear's rule tests ported, all pass), `study_pdf_test` (detector and questions on a real
+  PDF: `test/fixtures/worksheet.pdf`, our own sample made by `scripts/fixtures/make-worksheet.sh`), `study_store_test`
+  (9: books/runs, highlights incl. overlap and cross-line, answers and slot keys, bookmarks/notes/place, locked run
+  refused, delete for good, schema 1→2 magenta→pink, import by hash, export format and never overwriting a foreign
+  file), `study_desktop_test`, `study_phone_test`, `android_backup_test` (3).
+- Off-screen renders (`scripts/screenshots/study_shots_test.dart`, PNGs in `scripts/screenshots/out/`, not committed):
+  highlights, note dot, bookmark corner and answers sitting on their lines (wrapping across ruled lines) look right.
+- `flutter build linux --release` → `--version` prints SQLite 3.54.1; `lib/libpdfium.so` needs GLIBC ≤ 2.16.
+- `flutter build apk --release` builds (90 MB fat APK: PDFium adds ~4–7 MB per ABI); permissions unchanged.
+- Schema 1 → 2 on the scratch copy of your real data (from Phase 0): both highlights kept, Study tables added.
+
+**Not done / not verified**
+
+- **Not run on an Android phone or on Windows**, and not used by hand in a real Linux window (only off-screen renders and
+  widget tests). Touch selection, the soft keyboard over answers, "Open with"/Share, Save to and the backup switch are
+  untested on a device.
+- Not in v1: drag-and-drop import (desktop_drop left out), moving/resizing an answer box by dragging (the store
+  supports it), Back (Alt+←/Backspace) after a jump, PDF page labels in headings, Unlock of a locked run (no way to lock
+  one yet; Phase 2), store-listing wording (the store branch is unmerged; wording is in the plan §10).
+- A test-only limit: under widget-test fake time the viewer's queued renders block PDFium, so tests read page data
+  before showing the viewer.
+
+## User-data layer (Study plan, Phase 0) — 2026-11-20
+
+Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section`. Branch **`feat/userdata-layer`** (from `origin/main`
+`07de00f`), committed locally; not pushed, no PR, no version bump, no release.
+
+**What changed**
+
+- New `lib/core/userdata/`: `userdata_store.dart` keeps highlights (with notes), saved passages, collections, reading
+  positions, Continue reading, Said/Fasted records and five personal choices (prayer, Long prayer period, keep records,
+  counter target, highlight colour) in `userdata.sqlite` beside `settings.json`. Every record has a permanent id
+  (UUIDv7, or UUIDv5 of its meaning for saved passages, positions, records, collections, prefs), `created_at`,
+  `updated_at`, a hybrid-logical-clock stamp, the device id, and a `deleted_at` tombstone. A save writes only the
+  records that changed, in one transaction. `ids.dart`: UUIDv7, UUIDv5, HLC.
+- The app still works on its in-memory `Settings`, so no screen changed; `AppState._save()` writes the store, then
+  `settings.json`. GTK import is unchanged and is stored through the same path (it used to call `store.save` directly).
+- **The move**: first start copies `settings.json` to `settings.json.pre-userdata-<date>`, writes the marks, reads them
+  back and compares before committing; then `settings.json` gets `"userdata_version": 1` and keeps the moved keys
+  frozen as they were. If the store can't be opened (or is from a newer schema), the marks stay in `settings.json` as
+  before, a notice says so, and the next start tries again. If an older version rewrites `settings.json` after the
+  move, its marks are merged in at the next start (GTK-import rules, nothing dropped).
+- Dependencies: `sqlite3` 3.8.0 (MIT; pinned; bundles a hash-checked SQLite 3.54.1 with FTS5 through Dart build
+  hooks: `lib/libsqlite3.so` in the Linux bundle, `libsqlite3.so` per ABI in the APK, a DLL on Windows) and `crypto`
+  (BSD-3, for UUIDv5).
+- `--version` prints a second line, `SQLite 3.54.1`, and exits 1 if SQLite can't load, so the existing release checks
+  (AppImage, Flatpak, the four distro installs) fail on a package without it.
+
+**Tests (real results)**
+
+- `flutter analyze`: **No issues found!**
+- `flutter test`: **93 passed, 1 skipped** (the skipped one is the existing whole-English-library check). New
+  `test/userdata_test.dart` (11): UUIDv5 RFC vector, UUIDv7 layout, HLC order; first start moves every mark unchanged
+  (same order, shapes, counts), byte-identical backup, frozen keys and device settings unchanged, sync columns set;
+  changes after the move survive restarts while `settings.json` copies stay frozen; deletion = tombstone, unchanged
+  save writes nothing, re-saving revives the same record; two devices make the same saved-passage id with different
+  device ids; marks written by an older version after the move are merged; store can't open → marks kept in
+  `settings.json`, moved on the next start; newer-schema store left alone; fresh install. `gtk_import_test` and
+  `parity_test` now check the store instead of `settings.json` for marks.
+- `flutter build linux --release`: built; bundle has `lib/libsqlite3.so` (needs GLIBC ≤ 2.34, fine for Ubuntu 22.04 /
+  Debian 12); `--version` → `Bahá’í Reader 1.0.1` / `SQLite 3.54.1`, exit 0.
+- **On a copy of the real `~/.config/bahai-reader-flutter/settings.json`** (scratch `XDG_CONFIG_HOME`, `--background`):
+  2 highlights, 15 positions, 6 recent books and 3 prefs moved, same order and values; backup byte-identical; moved
+  keys and every device setting in `settings.json` unchanged; a second start changed nothing (same DB dump, same
+  file, no second backup). The real file's SHA-256, size and mtime were unchanged.
+- `flutter build apk --debug`: `libsqlite3.so` for arm64-v8a, armeabi-v7a, x86_64.
+
+**Not verified**
+
+- Not run on Android or Windows (no phone/emulator attached; no Windows machine). Windows CI runs `flutter test`,
+  which exercises SQLite there; the release workflow wasn't run.
+- Flatpak/AppImage/distro packages not built here; they copy the whole bundle, so `libsqlite3.so` should be included,
+  and `--version` in CI now checks it.
+- The real-data trial ran with your `keep_running` on and real reminder switches, hidden, for 30 s + 10 s; it may have
+  shown a reminder notification if one was due.
+
+**Differences from the plan (decided while building)**
+
+- `userdata.sqlite` sits **beside `settings.json`** (Linux `~/.config/bahai-reader-flutter/`), not in
+  `$XDG_DATA_HOME`: tests and the later Android backup switch move/inject both together, and `settings.json` already
+  held these marks in that folder.
+- Continue reading is `recent_book` rows with an `opened_at` order stamp, not an append-only `history_event` log.
+- Study tables are not created yet; they come with Phase 1 as schema 2. `magenta` stays `magenta` until then.
+- **Downgrading** to 1.0.x shows marks as they were at the move; marks made in 1.0.x are merged back on the next
+  upgrade. Draft release-note line: "Your highlights, notes and saved passages now live in a small database beside the
+  settings file, ready for syncing between devices later. Nothing changes on screen; a copy of the old settings file
+  is kept."
+
 ## Store builds: Google Play and Microsoft Store prep (2026-11-17)
 
 Branch `store/play-and-microsoft-builds`. Nothing uploaded to any store; no accounts made.
@@ -21,13 +300,24 @@ Branch `store/play-and-microsoft-builds`. Nothing uploaded to any store; no acco
   build has no network access (commit 9043fc1; PARITY.md "Phones: hidden"). Adding the permission would change
   nothing a user can do, and would make the privacy and Data safety answers less simple. If phone downloads are
   wanted later, that is a feature change: the permission, `canDownload`, the privacy page and Data safety change together.
-- **MSIX**: `msix` 3.18.0 dev dependency; `msix_config` with `store: true`, `msix_version: 1.0.1.0`,
+- **MSIX**: `msix` 3.18.0 dev dependency; `msix_config` with `store: true`, `msix_version: 1.1.2.0`,
   `internetClient`, and TODO placeholders for `identity_name`, `publisher`, `publisher_display_name`. The Windows job
   builds it after the zip and Inno installer (both unchanged) and uploads `windows-msix-store-draft`; the release job
   leaves it out. Locally `msix:create` passes config validation and stops only at the missing Windows build (Linux).
 - **Privacy page**: `docs/privacy.html` (→ https://bahaireader.org/privacy after merge), linked from both footers,
   in `sitemap.xml`. Written from the code, per platform.
 - **Store drafts**: `store/` (Play listing, Data safety, Microsoft listing and identity steps, IARC answers).
+
+**Merged `origin/main` into this branch (2026-11-24)**, merge not rebase. Conflicts: this file (both kept), `docs/sitemap.xml`
+(main's home lastmod plus the privacy URL), `pubspec.lock` (main's, then `flutter pub get` added only msix and its
+dependencies). `msix_version` moved to `1.1.2.0` to match `version: 1.1.2+112` (release CI checks this), also in
+`store/microsoft-store.md`. After the merge: `flutter analyze` clean; `flutter test` 167 passed, 1 skipped.
+
+**Needs a decision before submitting (not changed in the merge)**: `docs/privacy.html` and the store drafts were written
+before Study, notes export/import, folder sync and the Android backup switch landed on main. The privacy page still
+says "there is no sync or backup service" and does not mention imported Study PDFs, the notes export file, sync through
+a user-chosen folder, or the *Include notes in Android backup* switch. Still true: no app server, no INTERNET permission on
+Android. The wording (and whether Data safety answers change) is Tim's call.
 
 ## Promotion, Phase 1: feature parity (2026-11-16)
 

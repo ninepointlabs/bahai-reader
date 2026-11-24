@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart' show sqlite3;
 
 import 'core/app/about.dart';
 import 'core/app/app_state.dart';
@@ -26,6 +28,14 @@ Future<void> main(List<String> args) async {
   }
   if (args.length == 1 && args.first == '--version') {
     stdout.writeln('$appName $appVersion');
+    // The user-data store's SQLite ships inside the app; the release checks run --version, so a package without it
+    // fails there instead of quietly keeping marks in settings.json.
+    try {
+      stdout.writeln('SQLite ${sqlite3.version.libVersion}');
+    } catch (e) {
+      stderr.writeln('bahai-reader: SQLite could not be loaded: $e');
+      exit(1);
+    }
     exit(0);
   }
   for (var i = 0; i < args.length; i++) {
@@ -36,6 +46,7 @@ Future<void> main(List<String> args) async {
     if (args[i] == '--open') i++;
   }
   WidgetsFlutterBinding.ensureInitialized();
+  registerNativeLicenses();
   final folders = PackFolders.standard(appSupport: Platform.isLinux ? null : await getApplicationSupportDirectory());
   final state = await AppState.create(repository: LibraryRepository(folders: folders));
   // A login entry left behind after "Keep reminders running" was turned off elsewhere: nothing to do.
@@ -88,4 +99,43 @@ class BahaiReaderApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// PDFium (pdfrx's PDF engine, a native library from github.com/bblanchon/pdfium-binaries, chromium/8125) and the
+/// libraries built into it are not Dart packages, so their licenses are added to the license page here.
+/// assets/licenses/pdfium/ holds the texts shipped with that release.
+void registerNativeLicenses() {
+  const files = [
+    'abseil.txt',
+    'agg23.txt',
+    'dragonbox-Apache2-LLVM.txt',
+    'dragonbox-Boost.txt',
+    'fast_float.txt',
+    'freetype.txt',
+    'harfbuzz.txt',
+    'highway.txt',
+    'icu.txt',
+    'lcms.txt',
+    'libjpeg_turbo.ijg',
+    'libjpeg_turbo.md',
+    'libopenjpeg.txt',
+    'libpng.txt',
+    'llvm-libc.txt',
+    'pdfium-binaries.txt',
+    'pdfium.txt',
+    'simdutf.txt',
+    'zlib.txt',
+  ];
+  LicenseRegistry.addLicense(() async* {
+    for (final f in files) {
+      final name = f.substring(0, f.lastIndexOf('.'));
+      final package = switch (name) {
+        'pdfium' => 'PDFium',
+        'pdfium-binaries' => 'PDFium (pdfium-binaries build)',
+        _ => 'PDFium: $name',
+      };
+      yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString('assets/licenses/pdfium/$f'));
+    }
+    yield const LicenseEntryWithLineBreaks(['SQLite'], 'SQLite is in the public domain (https://sqlite.org/copyright.html).');
+  });
 }

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import 'theme.dart';
 
@@ -27,15 +28,27 @@ import '../search/fold.dart';
 import '../search/search_index.dart';
 import '../settings/gtk_import.dart';
 import '../settings/settings_store.dart';
+import '../study/study_controller.dart';
+import '../sync/android_tree_folder.dart';
+import '../sync/folder_sync.dart';
+import '../study/study_store.dart';
+import '../userdata/userdata_store.dart';
 
 /// The app's shared state: the chosen language's library, settings, highlights and saved passages.
 /// Features read it through [AppScope] and change it through its methods, which save as they go.
 class AppState extends ChangeNotifier {
-  AppState({required this.repository, required this.store, required this.settings, this.notice});
+  AppState({required this.repository, required this.store, required this.settings, this.notice, this.userData});
 
   final LibraryRepository repository;
   final SettingsStore store;
   final Settings settings;
+
+  /// Where highlights, notes, saved passages, collections, positions and records are kept (`userdata.sqlite`), or null
+  /// if it could not be opened: then they stay in `settings.json`, as before the store existed.
+  UserDataStore? userData;
+
+  /// The Study section (imported books and their marks), or null when the user-data store could not be opened.
+  StudyController? study;
 
   /// A message to show once (e.g. a settings file that could not be read).
   String? notice;
@@ -60,11 +73,70 @@ class AppState extends ChangeNotifier {
     final fresh = await s.isNew();
     final (settings, notice) = await s.load();
     final state = AppState(repository: repository ?? LibraryRepository(), store: s, settings: settings, notice: notice);
+    await state._openUserData();
     // Tests never read the real GTK file unless they pass one.
     final gtk = gtkSettings ?? (Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST') ? gtkSettingsFile() : null);
     if (gtk != null && settings.gtkImport == null) await state._firstRunImport(gtk, fresh: fresh);
     await state._start();
+    state._startFolderSync();
+    if (state._folderSync != null) unawaited(state.syncNow());
     return state;
+  }
+
+  /// Opens the user-data store and brings the marks in line with it:
+  /// * first start with the store: the marks in `settings.json` move in (see [UserDataStore.migrate]);
+  /// * later starts: the stored marks replace what `settings.json` holds (its copies are frozen);
+  /// * `settings.json` written by an older version after the move (it has lost `userdata_version`): marks made there
+  ///   are merged in like a GTK import, so nothing made in either version is lost.
+  /// If the store cannot be used, the marks stay in `settings.json` and it says so once; the next start tries again.
+  Future<void> _openUserData() async {
+    final UserDataStore data;
+    try {
+      data = UserDataStore.open(store.file);
+    } on UserDataProblem catch (e) {
+      _addNotice('Your highlights, notes and saved passages are kept in the settings file this time, because $e.');
+      return;
+    }
+    try {
+      if (data.migratedAt == null) {
+        await data.migrate(settings, store.file);
+      } else if (settings.userdataVersion == null) {
+        final older = settings.userDataJson();
+        final hadImported = settings.importedGtk;
+        data.loadInto(settings);
+        mergeGtk(settings, older, fresh: false);
+        settings.importedGtk = hadImported;
+        settings
+          ..legacy = older
+          ..userdataVersion = movedMarker;
+        data.save(settings);
+      } else {
+        data.loadInto(settings);
+      }
+    } on Object catch (e) {
+      data.close();
+      _addNotice('Your highlights, notes and saved passages are kept in the settings file this time, because '
+          '${e is UserDataProblem ? e : 'the store could not be used ($e)'}.');
+      return;
+    }
+    userData = data;
+    study = StudyController(
+      StudyStore(data),
+      studyBooksFolder(),
+      readColor: () => settings.highlightColor,
+      writeColor: (c) {
+        if (c == settings.highlightColor) return;
+        settings.highlightColor = c;
+        _save(notify: false);
+      },
+    );
+    // A book imported (or any Study change) goes to the sync folder a few seconds later.
+    study!.addListener(_syncAfterChange);
+    try {
+      await store.save(settings);
+    } on FileSystemException {
+      // _save() reports it at the next change
+    }
   }
 
   /// What the first-run import did, for tests and the settings page.
@@ -77,13 +149,14 @@ class AppState extends ChangeNotifier {
     if (result.done) settings.gtkImport = {'at': DateTime.now().toIso8601String(), 'status': result.status};
     final message = result.message;
     if (message != null) _addNotice(message);
-    await store.save(settings);
+    await _save(notify: false);
   }
 
   Future<void> _start() async {
     try {
       languages = await repository.languages();
       folder = Folder(await repository.foldTable());
+      study?.fold = folder!.fold;
       calendar = BadiCalendar.fromJson(jsonDecode(await repository.calendarTable()));
       if (!languages.any((l) => l.id == settings.language)) {
         // As the GTK app says it: the language chosen there (or here) is not on this computer, or cannot be read.
@@ -552,6 +625,11 @@ class AppState extends ChangeNotifier {
     _clicks?.cancel();
     _lifecycle?.dispose();
     _openRequests.close();
+    _syncTimer?.cancel();
+    _syncSoon?.cancel();
+    _syncLifecycle?.dispose();
+    study?.dispose();
+    userData?.close();
     super.dispose();
   }
 
@@ -830,9 +908,127 @@ class AppState extends ChangeNotifier {
 
   bool _saveFailed = false;
 
+  // ----- folder sync (sync step B) -----
+
+  FolderSync? _folderSync;
+  Timer? _syncTimer, _syncSoon;
+  AppLifecycleListener? _syncLifecycle;
+  bool _syncing = false;
+
+  /// What the last sync did and when, or what went wrong; for Settings.
+  SyncResult? lastSync;
+  DateTime? lastSyncAt;
+  String? syncProblem;
+
+  /// Makes the folder for [path]: a directory, or (Android) a folder chosen in the system picker.
+  SyncFolder Function(String path) syncFolderFor = (path) =>
+      path.startsWith('content://') ? AndroidTreeFolder(path) : DirectoryFolder(Directory(path));
+
+  /// Starts (or stops, with null) syncing through [folder]; [books] also shares imported PDFs.
+  Future<void> setSyncFolder(String? folder, {bool? books}) async {
+    settings.syncFolder = folder;
+    if (books != null) settings.syncBooks = books;
+    await _save();
+    _startFolderSync();
+    if (folder != null) await syncNow();
+  }
+
+  void _startFolderSync() {
+    _syncTimer?.cancel();
+    _syncSoon?.cancel();
+    _syncLifecycle?.dispose();
+    _syncLifecycle = null;
+    final path = settings.syncFolder, data = userData;
+    if (path == null || data == null) {
+      _folderSync = null;
+      return;
+    }
+    _folderSync = FolderSync(
+      folder: syncFolderFor(path),
+      data: data,
+      books: studyBooksFolder(),
+      shareBooks: settings.syncBooks,
+      onMerged: () async {
+        data.loadInto(settings);
+        _followCache.clear();
+        await study?.refresh();
+        notifyListeners();
+        await _remindersChanged(); // the prayer chosen or a "Said" mark may have come from the other device
+      },
+    );
+    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) => syncNow());
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _syncLifecycle = AppLifecycleListener(onResume: syncNow, onPause: syncNow);
+    }
+  }
+
+  /// Syncs now: takes in the other devices' changes and writes this device's. Never runs twice at once.
+  Future<void> syncNow() async {
+    final sync = _folderSync;
+    if (sync == null || _syncing) return;
+    _syncing = true;
+    try {
+      lastSync = await sync.sync();
+      // Books that arrived from another device: the library (and an open book that was missing) shows them.
+      if (lastSync!.booksIn > 0) await study?.refresh();
+      lastSyncAt = DateTime.now();
+      syncProblem = lastSync!.problems.isEmpty ? null : lastSync!.problems.join(' ');
+    } on FileSystemException catch (e) {
+      syncProblem = 'The sync folder could not be used (${e.osError?.message ?? e.message}).';
+    } on PlatformException catch (e) {
+      syncProblem = 'The sync folder could not be used (${e.message ?? e.code}).';
+    } finally {
+      _syncing = false;
+      notifyListeners();
+    }
+  }
+
+  /// A change was stored: write it to the sync folder a few seconds later (several changes go out together).
+  void _syncAfterChange() {
+    if (_folderSync == null) return;
+    _syncSoon?.cancel();
+    _syncSoon = Timer(const Duration(seconds: 5), syncNow);
+  }
+
+  /// Everything you made, as a notes backup (see [UserDataStore.exportAll]); null without the user-data store.
+  Map<String, Object?>? exportNotes() => userData?.exportAll();
+
+  /// Merges a notes backup (from this or another device) into this one; what changed last wins, record by record.
+  Future<MergeReport> mergeNotes(Map<String, Object?> bundle) async {
+    final data = userData;
+    if (data == null) throw UserDataProblem('the notes store is not open');
+    final report = data.merge(bundle);
+    data.loadInto(settings);
+    _followCache.clear();
+    study?.refresh();
+    await _save();
+    return report;
+  }
+
+  /// Where the app keeps its own copies of books imported into Study: beside the downloaded libraries
+  /// (Linux: `$XDG_DATA_HOME/bahai-reader-flutter/books`), else beside the settings.
+  Directory studyBooksFolder() {
+    final own = repository.folders.own;
+    return Directory('${own != null ? own.parent.path : store.file.parent.path}/books');
+  }
+
+  /// Stores everything now: the marks in the user-data store, the rest in `settings.json`. For changes made to
+  /// [settings] directly; the methods above save by themselves.
+  Future<void> save() => _save();
+
   /// Saves the settings. If they cannot be stored, reading still works; it says so once (GTK `save()`).
   Future<void> _save({bool notify = true}) async {
     if (notify) notifyListeners();
+    _syncAfterChange();
+    try {
+      userData?.save(settings);
+    } on Object catch (e) {
+      if (!_saveFailed) {
+        _saveFailed = true;
+        _addNotice('Highlights, notes and saved passages cannot be stored ($e). Changes last until you close the app.');
+        notifyListeners();
+      }
+    }
     try {
       await store.save(settings);
     } on FileSystemException catch (e) {

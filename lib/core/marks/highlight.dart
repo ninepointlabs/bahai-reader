@@ -4,7 +4,11 @@
 /// themselves so it can find its place again if the text changes. Marks are never written into the texts.
 library;
 
-const highlightColors = ['yellow', 'green', 'blue', 'magenta'];
+const highlightColors = ['yellow', 'green', 'blue', 'pink', 'purple'];
+
+/// A stored colour name as it is used now: `magenta` (the fourth colour before there were five) is `pink`.
+String? cleanHighlightColor(Object? name) =>
+    name == 'magenta' ? 'pink' : (highlightColors.contains(name) ? name as String : null);
 
 /// Characters kept in one note.
 const noteLimit = 5000;
@@ -18,6 +22,7 @@ class Highlight {
     required this.color,
     this.created,
     this.note,
+    this.uid,
   });
 
   final String id;
@@ -28,6 +33,13 @@ class Highlight {
   final String? created;
   final String? note;
 
+  /// The record's own id in the user-data store (a UUID), or null until it is first stored. Not part of the GTK shape
+  /// ([toJson]) and not part of equality: two records with the same place, words, colour and note are the same mark.
+  final String? uid;
+
+  Highlight withUid(String uid) =>
+      Highlight(id: id, start: start, end: end, words: words, color: color, created: created, note: note, uid: uid);
+
   Highlight copyWith({int? start, int? end, String? color, String? note, bool clearNote = false}) => Highlight(
         id: id,
         start: start ?? this.start,
@@ -36,6 +48,7 @@ class Highlight {
         color: color ?? this.color,
         created: created,
         note: clearNote ? null : (note ?? this.note),
+        uid: uid,
       );
 
   /// The same keys and shape as a GTK `settings.json` highlight record.
@@ -52,19 +65,21 @@ class Highlight {
   /// A well-formed record, or null (GTK `clean_highlights()` for one record).
   static Highlight? tryParse(Object? r) {
     if (r is! Map) return null;
-    final id = r['id'], start = r['start'], end = r['end'], words = r['words'], color = r['color'];
+    final id = r['id'], start = r['start'], end = r['end'], words = r['words'], color = cleanHighlightColor(r['color']);
     if (id is! String || start is! int || end is! int || !(0 <= start && start < end)) return null;
-    if (!highlightColors.contains(color) || words is! String || words.isEmpty) return null;
+    if (color == null || words is! String || words.isEmpty) return null;
     final note = r['note'];
     final created = r['created'];
+    final uid = r['uid'];
     return Highlight(
       id: id,
       start: start,
       end: end,
       words: words,
-      color: color as String,
+      color: color,
       note: note is String && note.trim().isNotEmpty ? _limit(note) : null,
       created: created is String ? created : null,
+      uid: uid is String && uid.isNotEmpty ? uid : null,
     );
   }
 
@@ -114,7 +129,7 @@ Highlight? makeHighlight(String id, String text, int start, int end,
     start: start,
     end: end,
     words: text.substring(start, end),
-    color: highlightColors.contains(color) ? color : highlightColors.first,
+    color: cleanHighlightColor(color) ?? highlightColors.first,
     created: today ?? _today(),
     note: trimmed != null && trimmed.isNotEmpty ? _limit(trimmed) : null,
   );

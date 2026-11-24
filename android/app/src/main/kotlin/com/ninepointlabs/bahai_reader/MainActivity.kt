@@ -16,8 +16,8 @@ import org.json.JSONObject
 import java.util.TimeZone
 
 /**
- * The reader, plus the `bahai_reader/reminders` channel (lib/core/platform/notifier.dart, AndroidNotifier) and the
- * `bahai_reader/location` channel (lib/core/platform/locator.dart).
+ * The reader, plus the `bahai_reader/reminders` channel (lib/core/platform/notifier.dart, AndroidNotifier), the
+ * `bahai_reader/location` channel (lib/core/platform/locator.dart) and the `bahai_reader/files` channel (StudyFiles.kt).
  */
 class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
@@ -84,6 +84,48 @@ class MainActivity : FlutterActivity() {
         }
         Reminders.onPending = { Handler(Looper.getMainLooper()).post { channel?.invokeMethod("pending", null) } }
         queueOpen(intent)
+        val files = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "bahai_reader/files")
+        files.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "takeIncoming" -> result.success(StudyFiles.takeIncoming())
+                "save" -> StudyFiles.save(
+                    this,
+                    call.argument<String>("name") ?: "export.md",
+                    call.argument<String>("mime") ?: "text/markdown",
+                    call.argument<String>("text") ?: "",
+                    result,
+                )
+                else -> result.notImplemented()
+            }
+        }
+        StudyFiles.onIncoming = { Handler(Looper.getMainLooper()).post { files.invokeMethod("incoming", null) } }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "bahai_reader/folder").setMethodCallHandler { call, result ->
+            val uri = call.argument<String>("uri")
+            val sub = call.argument<String>("sub")
+            // Folder work off the main thread; answers back on it.
+            fun io(work: () -> Any?) = Thread {
+                val out = try { Result.success(work()) } catch (e: Exception) { Result.failure(e) }
+                Handler(Looper.getMainLooper()).post {
+                    out.fold({ result.success(it) }, { result.error("folder", it.message ?: it.javaClass.simpleName, null) })
+                }
+            }.start()
+            when (call.method) {
+                "pick" -> SyncTree.pick(this, result)
+                "name" -> result.success(SyncTree.name(this, uri!!))
+                "list" -> io { SyncTree.list(this, uri!!, sub) }
+                "read" -> io { SyncTree.read(this, uri!!, call.argument<String>("name")!!, sub) }
+                "write" -> io { SyncTree.write(this, uri!!, call.argument<String>("name")!!, sub, call.argument<ByteArray>("bytes")!!); null }
+                else -> result.notImplemented()
+            }
+        }
+        StudyFiles.take(this, intent)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == StudyFiles.SAVE_REQUEST) StudyFiles.saved(this, resultCode, data)
+        if (requestCode == SyncTree.PICK_REQUEST) SyncTree.picked(this, resultCode, data)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -112,6 +154,7 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         queueOpen(intent)
+        StudyFiles.take(this, intent)
     }
 
     /** A tap on a reminder: what it opens is queued for the app (it asks at start, and is told while running). */
@@ -123,6 +166,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         Reminders.onPending = null
+        StudyFiles.onIncoming = null
         channel = null
         super.onDestroy()
     }

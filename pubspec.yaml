@@ -1,16 +1,20 @@
 name: bahai_reader
 description: "Flutter port of Bahá’í Reader. Offline; the network is used only to download a language when asked."
 publish_to: 'none'
-version: 1.0.1+101
+version: 1.1.2+112
 
 environment:
   sdk: ^3.13.7
 
 dependencies:
+  crypto: ^3.0.6
   dbus: ^0.8.0
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
   path_provider: ^2.1.5
+  pdfrx: 2.12.0
+  sqlite3: 3.8.0
   timezone: ^0.11.2
 
 dev_dependencies:
@@ -24,6 +28,7 @@ flutter:
   assets:
     - assets/library/
     - assets/calendar/
+    - assets/licenses/pdfium/
     - DATA-NOTICE.md
     - LICENSE
 
@@ -40,7 +45,7 @@ msix_config:
   publisher: CN=TODO-PartnerCenter-Publisher
   # TODO(Partner Center): Package/Properties/PublisherDisplayName
   publisher_display_name: TODO-PartnerCenter-PublisherDisplayName
-  msix_version: 1.0.1.0
+  msix_version: 1.1.2.0
   store: true
   logo_path: packaging/icons/hicolor/512x512/apps/org.bahai.Reader.png
   languages: en-us

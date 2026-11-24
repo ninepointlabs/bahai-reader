@@ -12,7 +12,7 @@ const licenseName = 'MIT License';
 const copyright = '© 2026 Nine Point Labs';
 
 /// The app's version; keep it equal to `version:` in pubspec.yaml (test/about_test.dart checks).
-const appVersion = '1.0.1';
+const appVersion = '1.1.2';
 
 String _short(String path) {
   final home = Platform.environment['HOME'];

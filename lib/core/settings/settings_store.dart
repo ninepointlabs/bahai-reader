@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../calendar/badi.dart';
 import '../calendar/reminders.dart';
 import '../marks/highlight.dart';
+import 'android_backup.dart';
 
 /// This experiment's own settings file. It never reads from or writes to the GTK app's `~/.config/bahai-reader/`
 /// except the GTK import (`gtk_import.dart`), which only reads it.
@@ -47,7 +48,12 @@ class Settings {
     this.section,
     this.book,
     this.gtkImport,
-  }) : collections = collections ?? [],
+    this.syncFolder,
+    this.syncBooks = true,
+    this.userdataVersion,
+    Map<String, Object?>? legacy,
+  }) : legacy = legacy ?? {},
+       collections = collections ?? [],
        expanded = expanded ?? {},
        reminders = reminders ?? {},
        remindersSent = remindersSent ?? [],
@@ -137,6 +143,46 @@ class Settings {
   /// When the first-run import from the GTK app was done, and what it found ({"at", "status"}); null until then.
   Map<String, String>? gtkImport;
 
+  /// The folder synced between devices by another program (Syncthing, Dropbox…) that this device syncs its notes
+  /// through: a path, or on Android a `content://` folder chosen in the system picker. This device's own choice.
+  String? syncFolder;
+
+  /// Also share imported Study PDFs through [syncFolder] (on unless turned off), so every device has the books.
+  bool syncBooks;
+
+  /// Set once highlights, notes, saved passages, collections, positions, Said/Fasted records and the personal choices
+  /// in [userDataKeys] live in the user-data store (`userdata.sqlite`, see `lib/core/userdata/`); null before that.
+  int? userdataVersion;
+
+  /// The [userDataKeys] values exactly as they were in this file when they moved to the user-data store. They are
+  /// written back unchanged, never updated, so an older version of the app opened on this file still finds the marks
+  /// as they were at the move.
+  Map<String, Object?> legacy;
+
+  /// Keys whose values live in the user-data store once [userdataVersion] is set: what a person made, and the
+  /// personal choices that should follow them to another device. Everything else here belongs to this device.
+  static const userDataKeys = [
+    'highlights',
+    'saved',
+    'collections',
+    'positions',
+    'recent',
+    'records',
+    'prayer',
+    'long_period',
+    'keep_records',
+    'counter_target',
+    'highlight_color',
+  ];
+
+  /// The [userDataKeys] part of [toJson] as if nothing had moved yet: what the user-data store holds.
+  Map<String, Object> userDataJson() {
+    final all = _toJson();
+    return {
+      for (final k in userDataKeys) k: ?all[k],
+    };
+  }
+
   int get spacingOrDefault => spacing ?? 8;
   int get marginOrDefault => margin ?? 80;
 
@@ -149,7 +195,19 @@ class Settings {
   static const themes = ['system', 'light', 'dark', 'sepia'];
   static const recentBooks = 6;
 
-  Map<String, Object> toJson() => {
+  /// This file's contents. Once [userdataVersion] is set, the [userDataKeys] are the frozen [legacy] values.
+  Map<String, Object> toJson() {
+    final all = _toJson();
+    if (userdataVersion == null) return all;
+    return {
+      for (final e in all.entries)
+        if (!userDataKeys.contains(e.key)) e.key: e.value,
+      for (final e in legacy.entries) e.key: ?e.value,
+      'userdata_version': userdataVersion!,
+    };
+  }
+
+  Map<String, Object> _toJson() => {
     'theme': theme,
     'language': language,
     'size': textSize,
@@ -182,6 +240,8 @@ class Settings {
     'section': ?section,
     'book': ?book,
     'gtk_import': ?gtkImport,
+    'sync_folder': ?syncFolder,
+    if (!syncBooks) 'sync_books': false,
   };
 
   /// Drops or replaces values of the wrong type, keeping everything usable (like GTK `clean_settings()`).
@@ -210,7 +270,7 @@ class Settings {
       theme: themes.contains(j['theme']) ? j['theme'] as String : 'system',
       language: j['language'] is int ? j['language'] as int : 1,
       textSize: size is num && size.isFinite ? size.toDouble().clamp(15, 36) : 22,
-      highlightColor: highlightColors.contains(j['highlight_color']) ? j['highlight_color'] as String : 'yellow',
+      highlightColor: cleanHighlightColor(j['highlight_color']) ?? 'yellow',
       highlights: cleanHighlights(j['highlights']),
       saved: savedList,
       positions: positions is Map
@@ -264,6 +324,15 @@ class Settings {
       last: j['last'] is String ? j['last'] as String : null,
       section: sections.contains(j['section']) ? j['section'] as String : null,
       book: j['book'] is String ? j['book'] as String : null,
+      userdataVersion: j['userdata_version'] is int ? j['userdata_version'] as int : null,
+      legacy: j['userdata_version'] is int
+          ? {
+              for (final k in userDataKeys)
+                if (j.containsKey(k)) k: j[k],
+            }
+          : null,
+      syncFolder: j['sync_folder'] is String && (j['sync_folder'] as String).isNotEmpty ? j['sync_folder'] as String : null,
+      syncBooks: j['sync_books'] != false,
       gtkImport: j['gtk_import'] is Map
           ? {
               for (final e in (j['gtk_import'] as Map).entries)
@@ -276,7 +345,7 @@ class Settings {
   static const chromeFonts = ['System', 'Monospace'];
 
   /// The sections a window can open on (GTK `SHELL_SECTIONS`; `hidden` is the Hidden Words, a book in Writings here).
-  static const sections = ['home', 'today', 'prayers', 'obligatory', 'hidden', 'writings', 'saved'];
+  static const sections = ['home', 'today', 'prayers', 'obligatory', 'hidden', 'writings', 'study', 'saved'];
 }
 
 /// A number setting clamped to its range (GTK `LIMITS`), or null if it is not a number.
@@ -286,9 +355,12 @@ const unsorted = 'Unsorted';
 
 /// A named collection of saved passages (GTK `{"name", "items"}`).
 class Collection {
-  Collection(this.name, [List<String>? items]) : items = items ?? [];
+  Collection(this.name, [List<String>? items, this.uid]) : items = items ?? [];
   String name;
   final List<String> items;
+
+  /// The collection's id in the user-data store, or null until it is first stored. Not part of the GTK shape.
+  String? uid;
   Map<String, Object> toJson() => {'name': name, 'items': items};
 }
 
@@ -316,7 +388,8 @@ List<Collection> cleanCollections(Object? data, List<String> saved) {
     final name = collectionName(entry['name']);
     if (name.isEmpty || name.toLowerCase() == unsorted.toLowerCase()) continue;
     var target = clean.where((c) => c.name.toLowerCase() == name.toLowerCase()).firstOrNull;
-    if (target == null) clean.add(target = Collection(name));
+    final uid = entry['uid'];
+    if (target == null) clean.add(target = Collection(name, null, uid is String && uid.isNotEmpty ? uid : null));
     for (final item in items) {
       if (filed.add(item)) target.items.add(item);
     }
@@ -334,6 +407,9 @@ class SettingsStore {
       final xdg = Platform.environment['XDG_CONFIG_HOME'];
       final base = xdg != null && xdg.isNotEmpty ? xdg : '${Platform.environment['HOME']}/.config';
       dir = Directory('$base/bahai-reader-flutter');
+    } else if (Platform.isAndroid) {
+      // In or out of Android's backup, as chosen in Settings (android_backup.dart).
+      dir = await userDataFolder(await getApplicationSupportDirectory());
     } else {
       dir = await getApplicationSupportDirectory();
     }

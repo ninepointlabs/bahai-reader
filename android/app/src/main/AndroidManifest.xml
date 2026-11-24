@@ -1,7 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Reminders (Reminders.kt): showing them, setting their alarms at the minute (asked for, Android 12 and later), and
          setting them again after a restart. Location (Locate.kt): approximate only, asked for when "Use my location" is
-         tapped, for sunrise and sunset. No network permission. -->
+         tapped, for sunrise and sunset. No network permission. Study: PDFs opened from other apps ("Open with", Share)
+         are copied into the app; books/ is kept out of Android's backup (res/xml/*_rules.xml). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
@@ -9,7 +10,9 @@
     <application
         android:label="Bahá’í Reader"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -30,6 +33,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Study: open a PDF from a file manager or another app, or share one to Bahá’í Reader. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content" android:mimeType="application/pdf"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/pdf"/>
             </intent-filter>
         </activity>
         <receiver android:name=".AlarmReceiver" android:exported="false"/>
