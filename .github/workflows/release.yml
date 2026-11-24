@@ -152,10 +152,35 @@ jobs:
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: bahai-reader
+      # The App Bundle for Google Play, signed with the same release key (Play App Signing re-signs it for devices).
+      - run: |
+          flutter build appbundle --release || {
+            echo "::warning::The App Bundle build failed; trying once more in 30 s (Gradle plugin portal)"
+            sleep 30
+            flutter build appbundle --release
+          }
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: bahai-reader
       - run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/bahai-reader-$(scripts/version.sh).apk"
-          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs dist/*.apk | grep SHA-256
+          v=$(scripts/version.sh)
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/bahai-reader-$v.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/bahai-reader-$v.aab"
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$tools/apksigner" verify --print-certs dist/*.apk | grep SHA-256
+          # An App Bundle is signed as a jar. It must be signed, and with the same key as the APK.
+          jarsigner -verify "dist/bahai-reader-$v.aab" | grep -q '^jar verified'
+          apk=$("$tools/apksigner" verify --print-certs dist/*.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+          aab=$(keytool -printcert -jarfile "dist/bahai-reader-$v.aab" | sed -n 's/.*SHA256: //p' | head -1 | tr -d ':' | tr 'A-F' 'a-f')
+          echo "App Bundle certificate SHA-256: $aab"
+          test -n "$aab" && test "$apk" = "$aab" || { echo "The App Bundle is not signed with the APK's key" >&2; exit 1; }
+      # Google Play's requirements: target SDK, and 16 KB page alignment of the native libraries (scripts/check-aab.sh).
+      - name: Check the App Bundle for Google Play
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+          echo "675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c  $RUNNER_TEMP/bundletool.jar" | sha256sum -c -
+          scripts/check-aab.sh dist/*.aab "$RUNNER_TEMP/bundletool.jar"
       - uses: actions/upload-artifact@v4
         with:
           name: android
@@ -194,10 +219,23 @@ jobs:
         shell: pwsh
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\build\windows\x64\runner\Release" "/DOutputDir=$PWD\dist" packaging\windows\bahai-reader.iss
+      # Microsoft Store package. Unsigned on purpose (`store: true`): the Store signs what it publishes. Its identity in
+      # pubspec.yaml (msix_config) is still a placeholder until the name is reserved in Partner Center, so this package
+      # cannot be submitted yet and is not attached to releases; it shows that the package builds. Made after the zip
+      # and installer, from the same Release folder (build_windows: false).
+      - name: Store package (MSIX)
+        run: |
+          grep -qx "  msix_version: $VERSION.0" pubspec.yaml || { echo "msix_version in pubspec.yaml must be $VERSION.0" >&2; exit 1; }
+          dart run msix:create --output-path msix --output-name "bahai-reader-$VERSION-store"
+          ls -l msix
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix-store-draft
+          path: msix/*.msix
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -212,11 +250,12 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - run: rm -f dist/bundle.tar.gz
+      # The Store MSIX has placeholder identity and is not for people to install; the Linux bundle is an intermediate.
+      - run: rm -f dist/bundle.tar.gz dist/*.msix
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           test "${GITHUB_REF_NAME#v}" = "$(scripts/version.sh)"
-          (cd dist && sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.AppImage ./*.flatpak ./*.apk ./*.zip ./*.exe > SHA256SUMS)
+          (cd dist && sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.AppImage ./*.flatpak ./*.apk ./*.aab ./*.zip ./*.exe > SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" dist/* --title "Bahá’í Reader $GITHUB_REF_NAME" --notes-file RELEASE-NOTES.md --verify-tag

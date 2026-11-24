@@ -17,7 +17,7 @@ other devices' files when they change (Phase 5's merge: the later change wins pe
 sync program never has two devices writing one file; its conflict copies are merged like any other file. A file still
 arriving (unreadable) is tried again next time. Syncs at start, a few seconds after a change, every minute, and when
 the app comes back to the front or goes to the back. Merged-in changes reload the app's marks and recompute reminders.
-**Also share imported Study PDFs** (off by default) copies books into `bahai-reader-books/<sha256>.pdf` and takes in
+**Also share imported Study PDFs** (built off by default; **on** by default since 1.1.1, `sync_books`, confirmed by Tim 2026-11-24) copies books into `bahai-reader-books/<sha256>.pdf` and takes in
 missing ones, checking each against its hash. The status line shows when it last synced and how many other devices
 wrote to the folder. Bahá’í Reader still never goes online; Android still has no INTERNET permission.
 
@@ -283,6 +283,76 @@ Plan: `docs/plans/ruhi-section.md` on branch `plan/ruhi-section`. Branch **`feat
   upgrade. Draft release-note line: "Your highlights, notes and saved passages now live in a small database beside the
   settings file, ready for syncing between devices later. Nothing changes on screen; a copy of the old settings file
   is kept."
+
+## Store builds: Google Play and Microsoft Store prep (2026-11-17)
+
+Branch `store/play-and-microsoft-builds`. Nothing uploaded to any store; no accounts made.
+
+- **AAB**: release CI now also runs `flutter build appbundle --release` with the same release key as the APK, checks
+  the bundle is signed with the APK's certificate, runs `scripts/check-aab.sh`, uploads it in the `android` artifact
+  and attaches `bahai-reader-<v>.aab` to tag releases (and to `SHA256SUMS`).
+- **Play checks, run locally** on an AAB from this branch (Flutter 3.47.9, debug-key fallback, bundletool 1.18.1):
+  minSdk 24, **targetSdk 36**; all 9 native libraries (`libapp`, `libflutter`, `libdartjni` for arm64-v8a,
+  armeabi-v7a, x86_64) have ELF LOAD alignment ≥ 16 KB; a universal APK made from the bundle passes
+  **`zipalign -c -P 16 4`**. The same script runs in CI. Not yet seen on a CI run or a release-key build.
+- **INTERNET: not added.** Android cannot download languages by design: `canDownload` in
+  `lib/features/settings/languages_dialog.dart` is false on Android, which hides the download buttons and says the
+  build has no network access (commit 9043fc1; PARITY.md "Phones: hidden"). Adding the permission would change
+  nothing a user can do, and would make the privacy and Data safety answers less simple. If phone downloads are
+  wanted later, that is a feature change: the permission, `canDownload`, the privacy page and Data safety change together.
+- **MSIX**: `msix` 3.18.0 dev dependency; `msix_config` with `store: true`, `msix_version: 1.1.2.0`,
+  `internetClient`, and TODO placeholders for `identity_name`, `publisher`, `publisher_display_name`. The Windows job
+  builds it after the zip and Inno installer (both unchanged) and uploads `windows-msix-store-draft`; the release job
+  leaves it out. Locally `msix:create` passes config validation and stops only at the missing Windows build (Linux).
+- **Privacy page**: `docs/privacy.html` (→ https://bahaireader.org/privacy after merge), linked from both footers,
+  in `sitemap.xml`. Written from the code, per platform.
+- **Store drafts**: `store/` (Play listing, Data safety, Microsoft listing and identity steps, IARC answers).
+
+**Merged `origin/main` into this branch (2026-11-24)**, merge not rebase. Conflicts: this file (both kept), `docs/sitemap.xml`
+(main's home lastmod plus the privacy URL), `pubspec.lock` (main's, then `flutter pub get` added only msix and its
+dependencies). `msix_version` moved to `1.1.2.0` to match `version: 1.1.2+112` (release CI checks this), also in
+`store/microsoft-store.md`. After the merge: `flutter analyze` clean; `flutter test` 167 passed, 1 skipped.
+First CI run after the merge failed in `scripts/check-aab.sh`: main's pdfrx brings `libpdfium.so`, whose
+**armeabi-v7a** copy is 4 KB aligned (the arm64-v8a and x86_64 copies are 16 KB aligned). Only 64-bit devices use 16 KB
+pages and Play checks only 64-bit libraries, so the script now requires 16 KB alignment for arm64-v8a and x86_64 and only
+lists 32-bit libraries that aren't.
+
+CI runs on PR #63 after the merge:
+- `4199792` (merge): **failed**, Android job only (the alignment check above); every other job passed.
+  https://github.com/ninepointlabs/bahai-reader/actions/runs/45423451831
+- `5da6715` (check fix): **green**: test, linux, windows, android (AAB Play check passed), flatpak, and the arch,
+  debian, fedora and ubuntu installs passed; release skipped (PR run).
+  https://github.com/ninepointlabs/bahai-reader/actions/runs/45425573064
+
+**Privacy page updated for Study, sync and backup (2026-11-24)**: `docs/privacy.html` (dated 24 November 2026; sitemap
+lastmod too) now covers imported Study PDFs (copied into the app, never sent, kept out of Android backup), Dogear marks
+read on Linux, Export notes and the Markdown exports, Sync through a folder (the user's own sync program copies the
+files; the app's random device id is in the file names; Study PDFs shared unless turned off), and Android Auto Backup
+(notes and settings, location included, to the Google account backup unless *Include notes in Android backup* is off).
+The old "there is no sync or backup service" line is now "no Bahá’í Reader account, sync service or backup service".
+`store/google-play-data-safety.md` keeps the answer **No** and lists three things to confirm in Play Console first:
+Auto Backup, user-chosen export files, and the sync folder (the help page's "transfer to another app on the device"
+rule). *Share imported Study PDFs too* is **on** by default (`sync_books`, settings_store.dart); the privacy page says so.
+
+**Store listing drafts checked against 1.1.2 (2026-11-24)**, for Tim's review before merging:
+- `store/google-play.md`: full description gains STUDY (Tim's §10 wording, with the Ruhi Institute notice) and YOUR
+  NOTES, ON EACH DEVICE (export/merge, folder sync, Markdown export, the Android backup choice); four → five colours;
+  "stay on your phone" now names export, sync and Android backup; versionCode note fixed (+112). Short description
+  unchanged (still true). 77 / 2839 characters.
+- `store/microsoft-store.md`: same STUDY and notes sections (no Android backup); sidebar now lists Study; five
+  colours; three new product features (11 of 20); certification note and an IP note for user-supplied PDFs.
+- `store/content-rating.md`: "notes stay on the device" now allows for export and sync between the person's own devices.
+- `store/README.md`: re-check date.
+- Not mentioned anywhere in the listings: Dogear import (Linux only).
+
+**Tim's decisions (2026-11-24), settled**
+1. *Share imported Study PDFs too* stays **on** by default; no app change. The privacy page and listings already say
+   so (a PDF leaves the device only if the person syncs through a folder). The website's Study section
+   (`docs/index.html`) still says "never uploaded or shared"; not changed on this branch.
+2. Study, export and folder sync stay in both listings. Study has still not been run on a real Android phone or on
+   Windows, nor folder sync with a real sync program; a device check before the first submission is still advised.
+3. "Ruhi" added to the Microsoft Store search terms (replacing "prayer book", which "prayers" already covers; the
+   Store allows 7 terms).
 
 ## Promotion, Phase 1: feature parity (2026-11-16)
 
