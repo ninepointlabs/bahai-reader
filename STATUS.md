@@ -317,6 +317,13 @@ First CI run after the merge failed in `scripts/check-aab.sh`: main's pdfrx brin
 pages and Play checks only 64-bit libraries, so the script now requires 16 KB alignment for arm64-v8a and x86_64 and only
 lists 32-bit libraries that aren't.
 
+CI runs on PR #63 after the merge:
+- `4199792` (merge): **failed**, Android job only (the alignment check above); every other job passed.
+  https://github.com/ninepointlabs/bahai-reader/actions/runs/45423451831
+- `5da6715` (check fix): **green**: test, linux, windows, android (AAB Play check passed), flatpak, and the arch,
+  debian, fedora and ubuntu installs passed; release skipped (PR run).
+  https://github.com/ninepointlabs/bahai-reader/actions/runs/45425573064
+
 **Needs a decision before submitting (not changed in the merge)**: `docs/privacy.html` and the store drafts were written
 before Study, notes export/import, folder sync and the Android backup switch landed on main. The privacy page still
 says "there is no sync or backup service" and does not mention imported Study PDFs, the notes export file, sync through
