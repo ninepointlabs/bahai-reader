@@ -1,6 +1,6 @@
 # Google Play: Data safety and App content (draft answers)
 
-Checked against `main` on 17 November 2026. The release manifest of the AAB built from this branch declares exactly:
+Checked against `main` on 17 November 2026; notes on Study, export, folder sync and Android backup added 24 November 2026. The release manifest of the AAB built from this branch declares exactly:
 `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`, `ACCESS_COARSE_LOCATION` (and the
 `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` that AndroidX adds for itself). **No `INTERNET`.** Play's Data safety form
 is about data that leaves the device ("collected" = sent off the device; "shared" = sent to a third party). Nothing
@@ -26,11 +26,29 @@ Per data type, for Tim's reference (all "not collected, not shared"):
   permission only; one reading, saved on the device; not sent anywhere. (`android/app/src/main/kotlin/.../Locate.kt`,
   `lib/core/platform/locator.dart`.)
 - **Personal info / Messages / Photos / Contacts / Financial / Health**: none touched.
-- **App activity — other user-generated content** (notes, highlights, saved passages, "Said today" / "Fasted today"):
-  stored in the app's settings file on the device only (`lib/core/settings/settings_store.dart`).
+- **App activity — other user-generated content** (notes, highlights, saved passages, "Said today" / "Fasted today",
+  Study marks): stored on the device in `settings.json` and `userdata.sqlite` (`lib/core/userdata/userdata_store.dart`).
+- **Files and docs** (Study PDFs): imported by the person, copied into the app's `books/` folder, never sent by the app;
+  excluded from Android backup and device transfer (`res/xml/*_rules.xml`).
 - **App info and performance — crash logs, diagnostics**: none; there is no crash reporting or analytics SDK
   (`pubspec.lock`: no Firebase, Sentry, analytics or ads packages).
-- **Device or other IDs**: none read.
+- **Device or other IDs**: none read. The app makes its own random id (UUIDv7, `local_meta.device_id`) to merge notes
+  between devices; it goes only into export and sync-folder files the person chooses to write.
+
+### To check in Play Console before answering "No" (Tim)
+
+These don't send anything to us and the app has no INTERNET permission, but they move data off the app, so check them
+against the Data safety help ("collected" / "shared" and the exemptions) when filling in the form:
+
+- **Android Auto Backup** (on by default, *Include notes in Android backup* turns it off): Android copies `settings.json`
+  (with the location, if set) and `userdata.sqlite` to the person's Google account backup and to a new phone. Done by
+  the OS, not by the app; usually not declared, but confirm.
+- **Export notes… / Markdown exports**: a file written where the person chooses, through the system "Save to" picker.
+- **Sync through a folder**: the app writes notes (and, by default, Study PDFs) into a folder the person picks with the
+  system folder picker; another app the person chose (Syncthing, Dropbox…) copies it. The help page says data passed
+  *directly to another app* on the device must be declared as sharing even if it never leaves the device; here the
+  app writes to a user-chosen location through the system picker and never addresses another app, which reads as a
+  user-initiated transfer, but this is the item most worth confirming.
 
 ## App content declarations
 

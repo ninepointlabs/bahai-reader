@@ -324,11 +324,16 @@ CI runs on PR #63 after the merge:
   debian, fedora and ubuntu installs passed; release skipped (PR run).
   https://github.com/ninepointlabs/bahai-reader/actions/runs/45425573064
 
-**Needs a decision before submitting (not changed in the merge)**: `docs/privacy.html` and the store drafts were written
-before Study, notes export/import, folder sync and the Android backup switch landed on main. The privacy page still
-says "there is no sync or backup service" and does not mention imported Study PDFs, the notes export file, sync through
-a user-chosen folder, or the *Include notes in Android backup* switch. Still true: no app server, no INTERNET permission on
-Android. The wording (and whether Data safety answers change) is Tim's call.
+**Privacy page updated for Study, sync and backup (2026-11-24)**: `docs/privacy.html` (dated 24 November 2026; sitemap
+lastmod too) now covers imported Study PDFs (copied into the app, never sent, kept out of Android backup), Dogear marks
+read on Linux, Export notes and the Markdown exports, Sync through a folder (the user's own sync program copies the
+files; the app's random device id is in the file names; Study PDFs shared unless turned off), and Android Auto Backup
+(notes and settings, location included, to the Google account backup unless *Include notes in Android backup* is off).
+The old "there is no sync or backup service" line is now "no Bahá’í Reader account, sync service or backup service".
+`store/google-play-data-safety.md` keeps the answer **No** and lists three things to confirm in Play Console first:
+Auto Backup, user-chosen export files, and the sync folder (the help page's "transfer to another app on the device"
+rule). Note: *Share imported Study PDFs too* is **on** by default in the code (`sync_books`, settings_store.dart), not
+off as the Folder sync entry above says; the privacy page follows the code.
 
 ## Promotion, Phase 1: feature parity (2026-11-16)
 
