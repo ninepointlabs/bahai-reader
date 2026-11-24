@@ -1,7 +1,9 @@
 #!/bin/sh
 # Checks an Android App Bundle against Google Play's current requirements:
 #   - targetSdkVersion is at least $MIN_TARGET_SDK (default 35; Flutter 3.47 sets 36);
-#   - every native library's ELF LOAD segments are aligned to 16 KB (devices with 16 KB memory pages);
+#   - every 64-bit native library's (arm64-v8a, x86_64) ELF LOAD segments are aligned to 16 KB (devices with 16 KB
+#     memory pages). Only 64-bit devices use 16 KB pages, so Play checks only 64-bit libraries; 32-bit (armeabi-v7a)
+#     libraries are listed but not required (pdfrx's 32-bit libpdfium.so is 4 KB aligned);
 #   - a universal APK made from the bundle, as Play would make one, passes `zipalign -c -P 16` (libraries stored
 #     uncompressed on 16 KB boundaries).
 # Usage: scripts/check-aab.sh app.aab path/to/bundletool.jar
@@ -24,10 +26,20 @@ unzip -q "$aab" 'base/lib/*' -d "$work/aab"
 count=0
 for so in "$work"/aab/base/lib/*/*.so; do
   # Each LOAD segment's alignment (the last column of `readelf -lW`) must be at least 0x4000.
+  name=${so#"$work"/aab/}
+  abi=$(basename "$(dirname "$so")")
+  aligned=yes
   for align in $(readelf -lW "$so" | awk '$1 == "LOAD" { print $NF }'); do
-    if [ $((align)) -lt 16384 ]; then echo "Not 16 KB aligned: ${so#"$work"/aab/} ($align)" >&2; exit 1; fi
+    if [ $((align)) -lt 16384 ]; then aligned=$align; fi
   done
-  echo "  16 KB aligned: ${so#"$work"/aab/}"
+  if [ "$aligned" = yes ]; then
+    echo "  16 KB aligned: $name"
+  else
+    case $abi in
+      arm64-v8a|x86_64) echo "Not 16 KB aligned: $name ($aligned)" >&2; exit 1 ;;
+      *) echo "  32-bit, 16 KB not required: $name ($aligned)" ;;
+    esac
+  fi
   count=$((count + 1))
 done
 test "$count" -gt 0 || { echo "No native libraries found in the bundle" >&2; exit 1; }

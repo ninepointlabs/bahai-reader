@@ -312,6 +312,10 @@ Branch `store/play-and-microsoft-builds`. Nothing uploaded to any store; no acco
 (main's home lastmod plus the privacy URL), `pubspec.lock` (main's, then `flutter pub get` added only msix and its
 dependencies). `msix_version` moved to `1.1.2.0` to match `version: 1.1.2+112` (release CI checks this), also in
 `store/microsoft-store.md`. After the merge: `flutter analyze` clean; `flutter test` 167 passed, 1 skipped.
+First CI run after the merge failed in `scripts/check-aab.sh`: main's pdfrx brings `libpdfium.so`, whose
+**armeabi-v7a** copy is 4 KB aligned (the arm64-v8a and x86_64 copies are 16 KB aligned). Only 64-bit devices use 16 KB
+pages and Play checks only 64-bit libraries, so the script now requires 16 KB alignment for arm64-v8a and x86_64 and only
+lists 32-bit libraries that aren't.
 
 **Needs a decision before submitting (not changed in the merge)**: `docs/privacy.html` and the store drafts were written
 before Study, notes export/import, folder sync and the Android backup switch landed on main. The privacy page still
